@@ -1,1 +1,351 @@
-test
+<!DOCTYPE html>
+
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CHERNIM CHERNO</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',sans-serif;background:#f5f1ea;color:#1a1714}
+.hdr{background:#ece8e1;border-bottom:2px solid #ddd8cf;padding:12px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.logo span{display:block;font-family:'Bebas Neue',sans-serif;font-size:24px;color:#c0392b;letter-spacing:3px;line-height:1}
+.lw{display:flex;align-items:center;gap:12px}
+.ht{font-family:'Bebas Neue',sans-serif;font-size:12px;letter-spacing:3px;color:#aaa}
+.hr{display:flex;align-items:center;gap:10px}
+.upd{font-size:10px;color:#aaa}
+.btn{padding:5px 14px;background:#c0392b;color:#fff;border:none;border-radius:5px;cursor:pointer;font-family:'Bebas Neue',sans-serif;font-size:13px;letter-spacing:2px}
+.btn:disabled{opacity:0.5;cursor:not-allowed}
+.main{padding:20px 24px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px}
+.sc{background:#ece8e1;border-radius:8px;padding:12px 14px;border:1px solid #ddd8cf}
+.sl{font-family:'Bebas Neue',sans-serif;font-size:9px;letter-spacing:2px;color:#aaa;margin-bottom:4px}
+.sv{font-size:18px;font-weight:700;line-height:1.2}
+.ss{font-size:11px;color:#c0392b;margin-top:2px}
+.lgnd{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px}
+.li{display:flex;align-items:center;gap:5px;font-size:10px;color:#aaa}
+.ld{width:10px;height:10px;border-radius:2px}
+.si{padding:7px 12px;border-radius:6px;border:1px solid #ddd8cf;background:#ece8e1;font-size:12px;color:#1a1714;outline:none;width:240px}
+.ldg{text-align:center;padding:80px 0}
+.lt{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:4px;color:#c0392b}
+.ls{font-size:12px;color:#aaa;margin-top:8px}
+.sp{font-size:32px;margin-top:20px;animation:pu 1.2s infinite}
+@keyframes pu{0%,100%{opacity:1}50%{opacity:0.2}}
+.eb{background:#fde8e8;border:1px solid #c0392b;border-radius:8px;padding:16px;color:#c0392b;font-size:13px;margin-bottom:16px}
+.cs{margin-bottom:20px;border-radius:8px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.ch{background:#1a1714;color:#fff;padding:9px 16px;font-family:'Bebas Neue',sans-serif;font-size:17px;letter-spacing:4px;display:flex;justify-content:space-between}
+.cc{opacity:.35;font-size:12px}
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse;background:#ece8e1}
+thead tr{background:#f0ece4}
+th{padding:6px 10px;font-size:9px;font-family:'Bebas Neue',sans-serif;letter-spacing:1.5px;color:#aaa;text-align:right;border-bottom:2px solid #ddd8cf;white-space:nowrap}
+th:first-child{text-align:left}
+tr.pr{cursor:pointer}tr.ns{cursor:default}
+td{padding:7px 10px;font-size:11px;text-align:right;border-bottom:1px solid rgba(0,0,0,.07);white-space:nowrap}
+td:first-child{text-align:left;max-width:260px;overflow:hidden;text-overflow:ellipsis;font-family:'Bebas Neue',sans-serif;font-size:14px;letter-spacing:1px}
+tr.dr td{padding:0;background:#f5f1ea}
+.di{padding:16px 20px 20px;border-bottom:2px solid #ddd8cf;display:grid;grid-template-columns:1fr 290px;gap:16px}
+.cw{background:#ece8e1;border-radius:10px;padding:12px 14px}
+.ctit{font-family:'Bebas Neue',sans-serif;font-size:10px;letter-spacing:2px;color:#aaa;margin-bottom:10px}
+canvas.cv{width:100%;height:150px}
+.rp{display:flex;flex-direction:column;gap:8px}
+.pc{background:#ece8e1;border-radius:8px;padding:10px 12px}
+.pl{font-family:'Bebas Neue',sans-serif;font-size:10px;letter-spacing:2px;color:#aaa;margin-bottom:6px}
+.pb{background:#d8d2c8;border-radius:4px;height:22px;position:relative;overflow:hidden}
+.pf{height:100%;transition:width .4s}
+.pt{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.5)}
+.og{display:grid;grid-template-columns:1fr 1fr;gap:4px}
+.oi{background:#f5f1ea;border-radius:4px;padding:4px 8px;display:flex;justify-content:space-between}
+.os{font-family:'Bebas Neue',sans-serif;font-size:10px;letter-spacing:1px;color:#aaa}
+.ov{font-size:14px;font-weight:700}
+.tc2{background:#1a1714;border-radius:8px;padding:8px 12px;display:flex;justify-content:space-between;align-items:center}
+.tl2{font-family:'Bebas Neue',sans-serif;font-size:10px;letter-spacing:2px;color:#555}
+.tv2{font-size:14px;font-weight:700;color:#fff}
+@media(max-width:768px){.stats{grid-template-columns:repeat(2,1fr)}.di{grid-template-columns:1fr}.ht{display:none}}
+</style>
+</head>
+<body>
+<div class="hdr">
+  <div class="lw">
+    <div class="logo"><span>CHERNIM</span><span>CHERNO</span></div>
+    <svg width="34" height="34" viewBox="0 0 300 300" fill="#c0392b">
+      <ellipse cx="150" cy="80" rx="60" ry="55"/>
+      <ellipse cx="75" cy="50" rx="38" ry="55" transform="rotate(-15 75 50)"/>
+      <ellipse cx="225" cy="50" rx="38" ry="55" transform="rotate(15 225 50)"/>
+      <ellipse cx="150" cy="190" rx="55" ry="60"/>
+      <ellipse cx="112" cy="205" rx="16" ry="10" fill="#f5f1ea"/>
+      <ellipse cx="188" cy="205" rx="16" ry="10" fill="#f5f1ea"/>
+    </svg>
+  </div>
+  <div class="ht">ANALYTIKA OBORACHIVAEMOSTI</div>
+  <div class="hr"><span class="upd" id="upd"></span><button class="btn" id="rb" onclick="loadData()">OBNOVIT</button></div>
+</div>
+<div class="main">
+  <div id="ldg" class="ldg"><div class="lt" id="ltxt">ZAGRUZKA...</div><div class="ls">Chitaem dannye iz Google Sheets</div><div class="sp">&#9711;</div></div>
+  <div id="eb" class="eb" style="display:none"></div>
+  <div id="dash" style="display:none">
+    <div class="stats" id="stats"></div>
+    <div class="lgnd">
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <div class="li"><div class="ld" style="background:#27ae60"></div>5000+ rub/den</div>
+        <div class="li"><div class="ld" style="background:#52be80"></div>2000-5000</div>
+        <div class="li"><div class="ld" style="background:#e67e22"></div>1000-2000</div>
+        <div class="li"><div class="ld" style="background:#c0392b"></div>do 1000</div>
+        <div class="li"><div class="ld" style="background:#ccc"></div>net prodazh</div>
+      </div>
+      <input class="si" id="si" placeholder="Poisk tovara..." oninput="filterRows()">
+    </div>
+    <div id="tables"></div>
+  </div>
+</div>
+<script>
+var US = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQ6GemsdZe7qvMO-yY3YOmtHyFjvkFMFGKsWlHhNonDxWsTP30VPGDCOHe5wvds2XGo7kpsSK5NR_0_/pub?gid=1091364786&single=true&output=csv';
+var UI = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQ6GemsdZe7qvMO-yY3YOmtHyFjvkFMFGKsWlHhNonDxWsTP30VPGDCOHe5wvds2XGo7kpsSK5NR_0_/pub?gid=247039199&single=true&output=csv';
+var UM = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQ6GemsdZe7qvMO-yY3YOmtHyFjvkFMFGKsWlHhNonDxWsTP30VPGDCOHe5wvds2XGo7kpsSK5NR_0_/pub?gid=1343963946&single=true&output=csv';
+var UR = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQ6GemsdZe7qvMO-yY3YOmtHyFjvkFMFGKsWlHhNonDxWsTP30VPGDCOHe5wvds2XGo7kpsSK5NR_0_/pub?gid=1082363897&single=true&output=csv';
+
+var SNS = [’\u0412\u0435\u0441\u043d\u0430’,’\u041b\u0435\u0442\u043e’,’\u041e\u0441\u0435\u043d\u044c’,’\u0417\u0438\u043c\u0430’];
+var SMO = {};
+SMO[SNS[0]]=[2,3,4]; SMO[SNS[1]]=[5,6,7]; SMO[SNS[2]]=[8,9,10]; SMO[SNS[3]]=[11,0,1];
+var EX = [‘sample’,’\u0431\u0440\u0430\u043a’,’\u0441\u043f\u0438\u0441\u0430\u043d’,’\u043a\u043e\u043c\u0438\u0441\u0441\u0438\u043e\u043d’,‘gift card’,’\u0441\u0435\u0440\u0442\u0438\u0444\u0438\u043a\u0430\u0442’];
+var CATS = [
+‘\u0412\u0435\u0440\u0445\u043d\u044f\u044f \u043e\u0434\u0435\u0436\u0434\u0430’,
+‘\u041a\u043e\u0441\u0442\u044e\u043c\u044b’,
+‘\u0411\u0440\u044e\u043a\u0438’,
+‘\u0420\u0443\u0431\u0430\u0448\u043a\u0438’,
+‘\u0421\u0432\u0438\u0442\u0435\u0440\u0430’,
+‘\u0428\u043e\u0440\u0442\u044b’,
+‘\u0425\u0443\u0434\u0438 \u0438 \u0441\u0432\u0438\u0442\u0448\u043e\u0442\u044b’,
+‘\u041c\u0430\u0439\u043a\u0438’,
+‘\u0424\u0443\u0442\u0431\u043e\u043b\u043a\u0438’,
+‘\u0410\u043a\u0441\u0435\u0441\u0441\u0443\u0430\u0440\u044b \u0421\u0443\u043c\u043a\u0438’,
+‘\u041e\u0447\u043a\u0438’,
+‘\u0423\u043a\u0440\u0430\u0448\u0435\u043d\u0438\u044f’,
+‘\u041d\u0438\u0436\u043d\u0435\u0435 \u0431\u0435\u043b\u044c\u0435’,
+‘\u041e\u0431\u0443\u0432\u044c’,
+‘\u041f\u0440\u043e\u0447\u0435\u0435’
+];
+
+function pcsv(t){
+var ls=t.trim().split(’\n’),r=[];
+if(ls.length<2)return r;
+var h=spl(ls[0]);
+for(var i=1;i<ls.length;i++){var v=spl(ls[i]),o={};for(var j=0;j<h.length;j++)o[h[j].trim()]=(v[j]||’’).trim();if(Object.values(o).some(function(x){return x;}))r.push(o);}
+return r;
+}
+function spl(s){var a=[],c=’’,q=false;for(var i=0;i<s.length;i++){var ch=s[i];if(ch===’”’){q=!q;}else if(ch===’,’&&!q){a.push(c);c=’’;}else c+=ch;}a.push(c);return a;}
+function pd(s){
+if(!s)return null;s=s.trim();
+var m=s.match(/^(\d{1,2}).(\d{1,2}).(\d{4})(?:\s+(\d{1,2}):(\d{2}))?/);
+if(m)return new Date(+m[3],+m[2]-1,+m[1],m[4]?+m[4]:0,m[5]?+m[5]:0);
+var d=new Date(s);return isNaN(d)?null:d;
+}
+function sOf(mo){for(var s in SMO)if(SMO[s].indexOf(mo)>=0)return s;return null;}
+function isEx(n){var nl=n.toLowerCase();return EX.some(function(e){return nl.indexOf(e)>=0;});}
+function catOf(g){
+g=(g||’’).toLowerCase();
+if((g.indexOf(‘shirt’)>=0||g.indexOf(’\u0440\u0443\u0431\u0430\u0448’)>=0)&&g.indexOf(‘t-shirt’)<0&&g.indexOf(‘tshirt’)<0)return CATS[3];
+if(g.indexOf(‘t-shirt’)>=0||g.indexOf(‘tshirt’)>=0||g.indexOf(’\u0444\u0443\u0442\u0431\u043e\u043b’)>=0)return CATS[8];
+if(g.indexOf(’\u043c\u0430\u0439\u043a’)>=0||g.indexOf(‘tank’)>=0)return CATS[7];
+if(g.indexOf(‘pant’)>=0||g.indexOf(‘jean’)>=0||g.indexOf(’\u0431\u0440\u044e\u043a’)>=0)return CATS[2];
+if(g.indexOf(‘sweater’)>=0||g.indexOf(’\u0441\u0432\u0438\u0442\u0435\u0440’)>=0||g.indexOf(‘knit’)>=0)return CATS[4];
+if(g.indexOf(‘hoodie’)>=0||g.indexOf(‘sweatshirt’)>=0||g.indexOf(’\u0445\u0443\u0434\u0438’)>=0||g.indexOf(’\u0441\u0432\u0438\u0442\u0448\u043e\u0442’)>=0)return CATS[6];
+if(g.indexOf(‘short’)>=0||g.indexOf(’\u0448\u043e\u0440\u0442’)>=0)return CATS[5];
+if(g.indexOf(‘bomber’)>=0||g.indexOf(‘jacket’)>=0||g.indexOf(‘coat’)>=0||g.indexOf(’\u043a\u0443\u0440\u0442\u043a’)>=0||g.indexOf(’\u043f\u0430\u043b\u044c\u0442\u043e’)>=0||g.indexOf(’\u0442\u0440\u0435\u043d\u0447’)>=0||g.indexOf(’\u043e\u043b\u0438\u043c\u043f’)>=0)return CATS[0];
+if(g.indexOf(‘blazer’)>=0||g.indexOf(‘suit’)>=0||g.indexOf(’\u043a\u043e\u0441\u0442\u044e\u043c’)>=0||g.indexOf(’\u043f\u0438\u0434\u0436\u0430\u043a’)>=0)return CATS[1];
+if(g.indexOf(‘bag’)>=0||g.indexOf(’\u0441\u0443\u043c\u043a’)>=0)return CATS[9];
+if(g.indexOf(‘jewel’)>=0||g.indexOf(‘ring’)>=0||g.indexOf(’\u0443\u043a\u0440\u0430\u0448’)>=0||g.indexOf(’\u043a\u043e\u043b\u044c\u0446’)>=0)return CATS[11];
+if(g.indexOf(‘glass’)>=0||g.indexOf(’\u043e\u0447\u043a’)>=0||g.indexOf(‘sunglass’)>=0)return CATS[10];
+if(g.indexOf(‘underwear’)>=0||g.indexOf(’\u0431\u0435\u043b\u044c’)>=0||g.indexOf(‘boxer’)>=0||g.indexOf(’\u0431\u0440\u0438\u0444’)>=0)return CATS[12];
+if(g.indexOf(‘shoe’)>=0||g.indexOf(’\u043e\u0431\u0443\u0432’)>=0||g.indexOf(‘sneaker’)>=0)return CATS[13];
+return CATS[14];
+}
+function tc(v,act){
+if(!act||!v)return{bg:’#ccc8c0’,fg:’#888’};
+if(v>=5000)return{bg:’#27ae60’,fg:’#fff’};
+if(v>=2000)return{bg:’#52be80’,fg:’#fff’};
+if(v>=1000)return{bg:’#e67e22’,fg:’#fff’};
+return{bg:’#c0392b’,fg:’#fff’};
+}
+function oc(p){if(p<30)return’#c0392b’;if(p<60)return’#27ae60’;if(p<100)return’#2ecc71’;if(p<120)return’#27ae60’;if(p<150)return’#e67e22’;return’#c0392b’;}
+
+function daysIn(evs,from,to){
+if(!evs||!evs.length)return 0;
+var e=evs.filter(function(x){return x.d<=to;}).sort(function(a,b){return a.d-b.d;});
+var stk=0,days=0,prev=null;
+for(var i=0;i<e.length;i++){
+var ev=e[i];
+if(prev!==null&&stk>0){var s=Math.max(from,prev),e2=Math.min(to,ev.d);if(e2>s)days+=Math.round((e2-s)/864e5);}
+stk=Math.max(0,stk+ev.q);prev=ev.d;
+}
+if(prev!==null&&stk>0){var s=Math.max(from,prev);if(to>s)days+=Math.round((to-s)/864e5);}
+return days;
+}
+
+function proc(sR,iR,mR,rR){
+var now=new Date(),y365=new Date(now-365*864e5),d90=new Date(now-90*864e5);
+var evs={},meta={};
+function ae(art,d,q,n,g){if(!art||!d||q===0)return;if(!evs[art])evs[art]=[];evs[art].push({d:d,q:q});if(n&&!meta[art])meta[art]={n:n,g:g||’’};}
+for(var i=0;i<iR.length;i++){var r=iR[i],a=(r[’\u0410\u0440\u0442\u0438\u043a\u0443\u043b’]||r[’\u041a\u043e\u0434’]||’’).trim(),n=(r[’\u041d\u0430\u0438\u043c\u0435\u043d\u043e\u0432\u0430\u043d\u0438\u0435’]||’’).trim();if(!a||isEx(n))continue;var d=pd(r[’\u0414\u0430\u0442\u0430 \u0434\u043e\u043a\u0443\u043c\u0435\u043d\u0442\u0430’]||r[’\u0414\u0430\u0442\u0430’]||’’);var q=parseFloat((r[’\u041a\u043e\u043b\u0438\u0447\u0435\u0441\u0442\u0432\u043e’]||‘0’).replace(’,’,’.’))||0;if(d&&q>0)ae(a,d,q,n,r[’\u0413\u0440\u0443\u043f\u043f\u0430’]||’’);}
+for(var i=0;i<rR.length;i++){var r=rR[i],a=(r[’\u0410\u0440\u0442\u0438\u043a\u0443\u043b’]||r[’\u041a\u043e\u0434’]||’’).trim(),n=(r[’\u041d\u0430\u0438\u043c\u0435\u043d\u043e\u0432\u0430\u043d\u0438\u0435’]||’’).trim();if(!a||isEx(n))continue;var d=pd(r[’\u0414\u0430\u0442\u0430 \u0434\u043e\u043a\u0443\u043c\u0435\u043d\u0442\u0430’]||r[’\u0414\u0430\u0442\u0430’]||’’);var q=parseFloat((r[’\u041a\u043e\u043b\u0438\u0447\u0435\u0441\u0442\u0432\u043e’]||‘0’).replace(’,’,’.’))||0;if(d&&q>0)ae(a,d,q,n,r[’\u0413\u0440\u0443\u043f\u043f\u0430’]||’’);}
+var sal={};
+for(var i=0;i<sR.length;i++){
+var r=sR[i],d=pd(r[’\u0414\u0430\u0442\u0430 \u0434\u043e\u043a\u0443\u043c\u0435\u043d\u0442\u0430’]||r[’\u0414\u0430\u0442\u0430’]||’’);
+if(!d||d<y365)continue;
+var a=(r[’\u0410\u0440\u0442\u0438\u043a\u0443\u043b’]||r[’\u041a\u043e\u0434’]||’’).trim(),n=(r[’\u041d\u0430\u0438\u043c\u0435\u043d\u043e\u0432\u0430\u043d\u0438\u0435’]||’’).trim();
+if(!a||!n||isEx(n))continue;
+var q=parseFloat((r[’\u041a\u043e\u043b\u0438\u0447\u0435\u0441\u0442\u0432\u043e’]||‘0’).replace(’,’,’.’))||0;
+var sm=parseFloat((r[’\u0421\u0443\u043c\u043c\u0430’]||‘0’).replace(/\s/g,’’).replace(’,’,’.’))||0;
+var dc=parseFloat((r[’\u0421\u0443\u043c\u043c\u0430 \u0441\u043a\u0438\u0434\u043a\u0438’]||‘0’).replace(/\s/g,’’).replace(’,’,’.’))||0;
+var ef=Math.max(0,sm-dc),sn=sOf(d.getMonth());
+ae(a,d,-q,n,r[’\u0413\u0440\u0443\u043f\u043f\u0430’]||’’);
+if(!sal[a])sal[a]={sum:0,qty:0,ss:{},last:null,n:n,g:r[’\u0413\u0440\u0443\u043f\u043f\u0430’]||’’};
+sal[a].sum+=ef;sal[a].qty+=q;
+if(sn){if(!sal[a].ss[sn])sal[a].ss[sn]=0;sal[a].ss[sn]+=ef;}
+if(!sal[a].last||d>sal[a].last)sal[a].last=d;
+}
+for(var i=0;i<mR.length;i++){
+var r=mR[i],a=(r[’\u0410\u0440\u0442\u0438\u043a\u0443\u043b’]||r[’\u041a\u043e\u0434’]||’’).trim(),n=(r[’\u041d\u0430\u0438\u043c\u0435\u043d\u043e\u0432\u0430\u043d\u0438\u0435’]||’’).trim();
+if(!a)continue;
+var dst=(r[’\u041d\u0430 \u0441\u043a\u043b\u0430\u0434’]||r[’\u0421\u043a\u043b\u0430\u0434 \u043d\u0430\u0437\u043d\u0430\u0447\u0435\u043d\u0438\u044f’]||’’).toLowerCase();
+if(dst.indexOf(’\u0431\u0440\u0430\u043a’)<0&&n.toLowerCase().indexOf(’\u0431\u0440\u0430\u043a’)<0)continue;
+var d=pd(r[’\u0414\u0430\u0442\u0430 \u0434\u043e\u043a\u0443\u043c\u0435\u043d\u0442\u0430’]||r[’\u0414\u0430\u0442\u0430’]||’’);
+var q=parseFloat((r[’\u041a\u043e\u043b\u0438\u0447\u0435\u0441\u0442\u0432\u043e’]||‘0’).replace(’,’,’.’))||0;
+if(d&&q>0)ae(a,d,-q,n,’’);
+}
+var prods=[],now2=new Date();
+for(var a in sal){
+var sd=sal[a],ev=evs[a]||[],m=meta[a]||{n:sd.n,g:sd.g};
+var ap=sd.qty>0?sd.sum/sd.qty:0;
+var dis=daysIn(ev,y365,now2);if(dis<1)dis=1;
+var turn=Math.max(0,sd.sum/dis);
+var st={};
+for(var si=0;si<SNS.length;si++){
+var s=SNS[si],ms=SMO[s],ss=sd.ss[s]||0,sd2=0;
+for(var y=y365.getFullYear();y<=now2.getFullYear();y++){
+var sf,st2;
+if(s===SNS[3]){sf=new Date(y,11,1);st2=new Date(y+1,2,1);}
+else{sf=new Date(y,ms[0],1);st2=new Date(y,ms[ms.length-1]+1,1);}
+var f2=new Date(Math.max(sf.getTime(),y365.getTime())),t2=new Date(Math.min(st2.getTime(),now2.getTime()));
+if(t2>f2)sd2+=daysIn(ev,f2,t2);
+}
+st[s]=ss>0&&sd2>0?Math.max(0,ss/sd2):0;
+}
+var act=sd.last&&sd.last>=d90;
+prods.push({a:a,n:m.n,g:m.g,cat:catOf(m.g),ap:Math.round(ap),turn:Math.round(turn*10)/10,dis:dis,tot:Math.round(sd.sum),stk:0,sd:0,sdt:’’,st:st,act:act});
+}
+var bc={};
+for(var i=0;i<prods.length;i++){var p=prods[i];if(!bc[p.cat])bc[p.cat]=[];bc[p.cat].push(p);}
+for(var c in bc)bc[c].sort(function(a,b){if(a.act&&!b.act)return -1;if(!a.act&&b.act)return 1;return b.turn-a.turn;});
+return bc;
+}
+
+function drawCh(cv,p){
+var dpr=window.devicePixelRatio||1,W=cv.offsetWidth||400,H=150;
+cv.width=W*dpr;cv.height=H*dpr;cv.style.width=W+‘px’;cv.style.height=H+‘px’;
+var c=cv.getContext(‘2d’);c.scale(dpr,dpr);
+var pl=44,pr=10,pt=10,pb=22,cW=W-pl-pr,cH=H-pt-pb;
+var vals=SNS.map(function(s){return Math.max(p.st[s]||0,1);});
+var mx=Math.max.apply(null,vals.concat([200])),lm=Math.log10(mx);
+var lY=function(v){return pt+cH-(Math.log10(Math.max(v,1))/lm)*cH;};
+var xP=function(i){return pl+(i/(SNS.length-1))*cW;};
+[{y:1,cl:‘rgba(192,57,43,0.12)’},{y:1000,cl:‘rgba(231,126,34,0.12)’},{y:2000,cl:‘rgba(39,174,96,0.12)’},{y:5000,cl:‘rgba(46,204,113,0.12)’}].forEach(function(z,i,a){
+var y1=lY(z.y),y2=i+1<a.length?lY(a[i+1].y):pt;c.fillStyle=z.cl;c.fillRect(pl,Math.min(y1,y2),cW,Math.abs(y1-y2));
+});
+[1000,2000,5000].forEach(function(v){var y=lY(v);if(y>pt&&y<H-pb){c.setLineDash([4,4]);c.strokeStyle=‘rgba(0,0,0,0.15)’;c.lineWidth=1;c.beginPath();c.moveTo(pl,y);c.lineTo(W-pr,y);c.stroke();c.setLineDash([]);c.fillStyle=’#aaa’;c.font=‘8px sans-serif’;c.textAlign=‘right’;c.fillText((v/1000)+‘k’,pl-4,y+3);}});
+c.strokeStyle=’#c0392b’;c.lineWidth=2.5;c.lineJoin=‘round’;c.beginPath();
+vals.forEach(function(v,i){var x=xP(i),y=lY(v);i===0?c.moveTo(x,y):c.lineTo(x,y);});c.stroke();
+vals.forEach(function(v,i){var x=xP(i),y=lY(v);c.fillStyle=’#fff’;c.beginPath();c.arc(x,y,5,0,Math.PI*2);c.fill();c.fillStyle=’#c0392b’;c.beginPath();c.arc(x,y,3,0,Math.PI*2);c.fill();c.fillStyle=’#666’;c.font=‘9px sans-serif’;c.textAlign=‘center’;c.fillText(SNS[i],x,H-6);});
+}
+
+function rDash(bc){
+var all=[];for(var k in bc)all=all.concat(bc[k]);
+var act=all.filter(function(p){return p.act;});
+var totT=act.reduce(function(a,p){return a+p.turn;},0);
+var totS=all.reduce(function(a,p){return a+p.tot;},0);
+var top=act.slice().sort(function(a,b){return b.turn-a.turn;})[0];
+document.getElementById(‘stats’).innerHTML=[
+{l:‘TOVAROV’,v:all.length+’ (akt: ‘+act.length+’)’},
+{l:‘OBORACHIVAEM.’,v:Math.round(totT).toLocaleString(‘ru’)+’ r/d’},
+{l:‘VIRUCHKA ZA GOD’,v:Math.round(totS).toLocaleString(‘ru’)+’ r’},
+{l:‘TOP TOVAR’,v:top?top.n.slice(0,28)+(top.n.length>28?’…’:’’):’-’,sub:top?Math.round(top.turn).toLocaleString(‘ru’)+’ r/d’:’’}
+].map(function(s){return ‘<div class="sc"><div class="sl">’+s.l+’</div><div class="sv">’+s.v+’</div>’+(s.sub?’<div class="ss">’+s.sub+’</div>’:’’)+’</div>’;}).join(’’);
+var el=document.getElementById(‘tables’);el.innerHTML=’’;
+for(var ci=0;ci<CATS.length;ci++){
+var cat=CATS[ci],prods=bc[cat];if(!prods||!prods.length)continue;
+var sec=document.createElement(‘div’);sec.className=‘cs’;
+sec.innerHTML=’<div class="ch"><span>’+cat+’</span><span class="cc">’+prods.length+’</span></div>’
++’<div class="tw"><table><thead><tr>’
++’<th style="text-align:left">Naimenovanie</th><th>Dnei</th><th>Sr.cena</th><th>Oborot</th>’
++’<th>Vesna</th><th>Leto</th><th>Osen</th><th>Zima</th><th>Ostatok</th><th>Zapas</th>’
++’</tr></thead><tbody id="tb'+ci+'"></tbody></table></div>’;
+el.appendChild(sec);
+var tb=document.getElementById(‘tb’+ci);
+for(var pi=0;pi<prods.length;pi++)rRow(tb,prods[pi],ci+’_’+pi);
+}
+}
+
+function rRow(tb,p,id){
+var col=tc(p.turn,p.act),noS=!p.act||!p.turn;
+var sc=SNS.map(function(s){var v=p.st[s];return ‘<td style="color:'+col.fg+'">’+(v&&p.act?Math.round(v).toLocaleString(‘ru’)+’ r’:’-’)+’</td>’;}).join(’’);
+var tr=document.createElement(‘tr’);tr.className=noS?‘ns’:‘pr’;tr.style.background=col.bg;
+tr.innerHTML=’<td style="color:'+col.fg+';opacity:'+(p.act?1:.7)+'">’+(!noS?’<span style="font-size:9px;opacity:.4;margin-right:5px">►</span>’:’’)+p.n+(!p.act?’ <span style="font-size:9px;opacity:.5">[net]</span>’:’’)+’</td>’
++’<td style="color:'+col.fg+'">’+p.dis+’</td>’
++’<td style="color:'+col.fg+'">’+(p.ap?p.ap.toLocaleString(‘ru’)+’ r’:’-’)+’</td>’
++’<td style="color:'+col.fg+';font-weight:700">’+(p.turn&&p.act?Math.round(p.turn).toLocaleString(‘ru’)+’ r’:’-’)+’</td>’
++sc
++’<td style="color:'+col.fg+'">’+(p.stk||’-’)+’</td>’
++’<td style="color:'+col.fg+'">’+(p.sd?Math.round(p.sd)+’ d’:’-’)+’</td>’;
+if(!noS)tr.onclick=function(){tDet(tr,p,id);};
+tb.appendChild(tr);
+}
+
+function tDet(tr,p,id){
+var ex=document.getElementById(‘d_’+id);if(ex){ex.remove();var ar=tr.querySelector(‘span’);if(ar)ar.innerHTML=’►’;return;}
+var ar=tr.querySelector(‘span’);if(ar)ar.innerHTML=’▼’;
+var op=p.sd?Math.round((p.sd/90)*100):0,sp=Math.max(0,100-op),su=sp>0&&p.stk>0?Math.ceil(sp/100*p.stk):0;
+var opc=oc(op),spc=sp<=30?’#27ae60’:sp<=70?’#e67e22’:’#c0392b’;
+var ord=SNS.map(function(s){var u=p.st[s]&&p.ap?Math.ceil(p.st[s]/p.ap*90):0;return ‘<div class="oi"><span class="os">’+s+’</span><span class="ov" style="color:'+(u?'#1a1714':'#bbb')+'">’+(u||’-’)+’</span></div>’;}).join(’’);
+var dt=document.createElement(‘tr’);dt.id=‘d_’+id;dt.className=‘dr’;
+dt.innerHTML=’<td colspan="10"><div class="di"><div class="cw"><div class="ctit">OBOROT PO SEZONAM / RUB V DEN / LOG. SHKALA</div><canvas class="cv" id="cv_'+id+'"></canvas></div>’
++’<div class="rp"><div class="pc"><div class="pl">ZATOVARIVANIE (90 = 100%)</div><div class="pb"><div class="pf" style="width:'+Math.min(op,100)+'%;background:'+opc+'"></div><div class="pt">’+op+’%’+(p.sdt?’ ‘+p.sdt:’’)+’</div></div></div>’
++’<div class="pc"><div class="pl">NEDOSTATOK</div><div class="pb"><div class="pf" style="width:'+Math.min(sp,100)+'%;background:'+spc+'"></div><div class="pt">’+(su>0?sp+’% ‘+su+’ ed.’:‘0% norma’)+’</div></div></div>’
++’<div class="pc"><div class="pl">ZAKAZ NA SEZON (90 DNEI)</div><div class="og">’+ord+’</div></div>’
++’<div class="tc2"><span class="tl2">VIRUCHKA ZA GOD</span><span class="tv2">’+p.tot.toLocaleString(‘ru’)+’ r</span></div>’
++’</div></div></td>’;
+tr.after(dt);
+setTimeout(function(){var cv=document.getElementById(‘cv_’+id);if(cv)drawCh(cv,p);},50);
+}
+
+function filterRows(){
+var q=document.getElementById(‘si’).value.toLowerCase();
+document.querySelectorAll(‘tr.pr,tr.ns’).forEach(function(tr){var t=(tr.querySelector(‘td’)||{}).textContent||’’;tr.style.display=t.toLowerCase().indexOf(q)>=0?’’:‘none’;});
+}
+
+async function loadData(){
+document.getElementById(‘ldg’).style.display=‘block’;
+document.getElementById(‘dash’).style.display=‘none’;
+document.getElementById(‘eb’).style.display=‘none’;
+document.getElementById(‘rb’).disabled=true;
+try{
+var t=’&t=’+Date.now();
+document.getElementById(‘ltxt’).textContent=‘ZAGRUZKA…’;
+var res=await Promise.all([fetch(US+t).then(function(r){if(!r.ok)throw new Error(‘err sales’);return r.text();}),fetch(UI+t).then(function(r){if(!r.ok)throw new Error(‘err intake’);return r.text();}),fetch(UM+t).then(function(r){if(!r.ok)throw new Error(‘err moves’);return r.text();}),fetch(UR+t).then(function(r){if(!r.ok)throw new Error(‘err returns’);return r.text();})]);
+var bc=proc(pcsv(res[0]),pcsv(res[1]),pcsv(res[2]),pcsv(res[3]));
+rDash(bc);
+document.getElementById(‘ldg’).style.display=‘none’;
+document.getElementById(‘dash’).style.display=‘block’;
+document.getElementById(‘upd’).textContent=’Updated: ’+new Date().toLocaleTimeString(‘ru’);
+}catch(e){
+document.getElementById(‘ldg’).style.display=‘none’;
+var eb=document.getElementById(‘eb’);eb.style.display=‘block’;
+eb.innerHTML=‘Error: ‘+e.message+’ <button class="btn" onclick="loadData()">Retry</button>’;
+}finally{document.getElementById(‘rb’).disabled=false;}
+}
+setInterval(loadData,600000);
+loadData();
+</script>
+
+</body>
+</html>
