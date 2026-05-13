@@ -199,6 +199,19 @@ function splitCSVLine(line) {
   return vals;
 }
 
+// Parse Russian date: "21.10.2025 16:00" or "21.10.2025"
+function parseRuDate(str) {
+  if (!str || !str.trim()) return null;
+  const m = str.trim().match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})(?:\s+(\d{1,2}):(\d{2}))?/);
+  if (m) {
+    const day=parseInt(m[1]),mon=parseInt(m[2])-1,yr=parseInt(m[3]);
+    const hr=m[4]?parseInt(m[4]):0,mn=m[5]?parseInt(m[5]):0;
+    return new Date(yr,mon,day,hr,mn);
+  }
+  const native = new Date(str);
+  return isNaN(native.getTime()) ? null : native;
+}
+
 // ── HELPERS ───────────────────────────────────────────────────────────────────
 function seasonOf(month) {
   for (const [s,ms] of Object.entries(SEASON_MONTHS)) if (ms.includes(month)) return s;
@@ -252,8 +265,8 @@ function processData(salesRows, intakeRows) {
 
   for (const row of salesRows) {
     const dateStr = row['Дата документа'] || row['Дата'] || '';
-    const date = new Date(dateStr);
-    if (isNaN(date.getTime()) || date < cutoff) continue;
+    const date = parseRuDate(dateStr);
+    if (!date || date < cutoff) continue;
 
     const name = (row['Наименование']||'').trim();
     const nameLow = name.toLowerCase();
@@ -287,8 +300,8 @@ function processData(salesRows, intakeRows) {
     if (!art) continue;
     const name = (row['Наименование']||'').toLowerCase();
     if (EXCLUDE.some(e => name.includes(e))) continue;
-    const date = new Date(row['Дата документа']||row['Дата']||'');
-    if (isNaN(date.getTime())) continue;
+    const date = parseRuDate(row['Дата документа']||row['Дата']||'');
+    if (!date) continue;
     if (!intakeByArt[art]) intakeByArt[art] = [];
     intakeByArt[art].push(date);
   }
