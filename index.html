@@ -12,46 +12,43 @@ body{font-family:'DM Sans',sans-serif;background:#f5f1ea;color:#1a1714;min-heigh
 .header{background:#ece8e1;border-bottom:2px solid #ddd8cf;padding:12px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
 .logo span{display:block;font-family:'Bebas Neue',sans-serif;font-size:24px;color:#c0392b;letter-spacing:3px;line-height:1}
 .logo-wrap{display:flex;align-items:center;gap:12px}
-.header-title{font-family:'Bebas Neue',sans-serif;font-size:12px;letter-spacing:3px;color:#aaa}
-.header-right{display:flex;align-items:center;gap:10px}
+.hdr-title{font-family:'Bebas Neue',sans-serif;font-size:12px;letter-spacing:3px;color:#aaa}
+.hdr-right{display:flex;align-items:center;gap:10px}
 .upd{font-size:10px;color:#aaa}
 .btn{padding:5px 14px;background:#c0392b;color:#fff;border:none;border-radius:5px;cursor:pointer;font-family:'Bebas Neue',sans-serif;font-size:13px;letter-spacing:2px}
 .btn:disabled{opacity:0.5;cursor:not-allowed}
 .main{padding:20px 24px}
 .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px}
-.stat-card{background:#ece8e1;border-radius:8px;padding:12px 14px;border:1px solid #ddd8cf}
-.stat-label{font-family:'Bebas Neue',sans-serif;font-size:9px;letter-spacing:2px;color:#aaa;margin-bottom:4px}
-.stat-value{font-size:18px;font-weight:700;line-height:1.2}
-.stat-sub{font-size:11px;color:#c0392b;margin-top:2px}
+.sc{background:#ece8e1;border-radius:8px;padding:12px 14px;border:1px solid #ddd8cf}
+.sl{font-family:'Bebas Neue',sans-serif;font-size:9px;letter-spacing:2px;color:#aaa;margin-bottom:4px}
+.sv{font-size:18px;font-weight:700;line-height:1.2}
+.ss{font-size:11px;color:#c0392b;margin-top:2px}
 .legend{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px}
-.legend-items{display:flex;gap:10px;flex-wrap:wrap}
 .li{display:flex;align-items:center;gap:5px;font-size:10px;color:#aaa}
 .ld{width:10px;height:10px;border-radius:2px}
-.search-input{padding:7px 12px;border-radius:6px;border:1px solid #ddd8cf;background:#ece8e1;font-size:12px;color:#1a1714;outline:none;width:240px;font-family:'DM Sans',sans-serif}
+.srch{padding:7px 12px;border-radius:6px;border:1px solid #ddd8cf;background:#ece8e1;font-size:12px;color:#1a1714;outline:none;width:240px;font-family:'DM Sans',sans-serif}
 .loading{text-align:center;padding:80px 0}
-.loading-title{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:4px;color:#c0392b}
-.loading-sub{font-size:12px;color:#aaa;margin-top:8px}
-.spinner{font-size:32px;margin-top:20px;animation:pulse 1.2s infinite}
+.ltitle{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:4px;color:#c0392b}
+.lsub{font-size:12px;color:#aaa;margin-top:8px}
+.spin{font-size:32px;margin-top:20px;animation:pulse 1.2s infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.2}}
-.error-box{background:#fde8e8;border:1px solid #c0392b;border-radius:8px;padding:16px;color:#c0392b;font-size:13px;margin-bottom:16px}
-.cat-section{margin-bottom:20px;border-radius:8px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.06)}
-.cat-header{background:#1a1714;color:#fff;padding:9px 16px;font-family:'Bebas Neue',sans-serif;font-size:17px;letter-spacing:4px;display:flex;justify-content:space-between;align-items:center}
-.cat-count{opacity:0.35;font-size:12px}
-.table-wrap{overflow-x:auto}
+.errbox{background:#fde8e8;border:1px solid #c0392b;border-radius:8px;padding:16px;color:#c0392b;font-size:13px;margin-bottom:16px}
+.cat-sec{margin-bottom:20px;border-radius:8px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.06)}
+.cat-hdr{background:#1a1714;color:#fff;padding:9px 16px;font-family:'Bebas Neue',sans-serif;font-size:17px;letter-spacing:4px;display:flex;justify-content:space-between;align-items:center}
+.cat-cnt{opacity:0.35;font-size:12px}
+.tw{overflow-x:auto}
 table{width:100%;border-collapse:collapse;background:#ece8e1}
 thead tr{background:#f0ece4}
 th{padding:6px 10px;font-size:9px;font-family:'Bebas Neue',sans-serif;letter-spacing:1.5px;color:#aaa;text-align:right;border-bottom:2px solid #ddd8cf;white-space:nowrap}
 th:first-child{text-align:left}
-tr.pr{cursor:pointer}
-tr.ns{cursor:default}
+tr.pr{cursor:pointer}tr.ns{cursor:default}
 td{padding:7px 10px;font-size:11px;text-align:right;border-bottom:1px solid rgba(0,0,0,0.07);white-space:nowrap}
 td:first-child{text-align:left;max-width:260px;overflow:hidden;text-overflow:ellipsis;font-family:'Bebas Neue',sans-serif;font-size:14px;letter-spacing:1px}
-td.bold{font-weight:700}
 tr.detail-row td{padding:0;background:#f5f1ea}
-.detail-inner{padding:16px 20px 20px;border-bottom:2px solid #ddd8cf;display:grid;grid-template-columns:1fr 290px;gap:16px}
-.chart-wrap{background:#ece8e1;border-radius:10px;padding:12px 14px}
-.chart-title{font-family:'Bebas Neue',sans-serif;font-size:10px;letter-spacing:2px;color:#aaa;margin-bottom:10px}
-canvas.sc{width:100%;height:150px}
+.det{padding:16px 20px 20px;border-bottom:2px solid #ddd8cf;display:grid;grid-template-columns:1fr 290px;gap:16px}
+.cw{background:#ece8e1;border-radius:10px;padding:12px 14px}
+.ct{font-family:'Bebas Neue',sans-serif;font-size:10px;letter-spacing:2px;color:#aaa;margin-bottom:10px}
+canvas.cv{width:100%;height:150px}
 .rp{display:flex;flex-direction:column;gap:8px}
 .pc{background:#ece8e1;border-radius:8px;padding:10px 12px}
 .pl{font-family:'Bebas Neue',sans-serif;font-size:10px;letter-spacing:2px;color:#aaa;margin-bottom:6px}
@@ -59,13 +56,13 @@ canvas.sc{width:100%;height:150px}
 .pf{height:100%;transition:width 0.4s}
 .pt{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.5)}
 .og{display:grid;grid-template-columns:1fr 1fr;gap:4px}
-.oi{background:#f5f1ea;border-radius:4px;padding:4px 8px;display:flex;justify-content:space-between;align-items:center}
+.oi{background:#f5f1ea;border-radius:4px;padding:4px 8px;display:flex;justify-content:space-between}
 .os{font-family:'Bebas Neue',sans-serif;font-size:10px;letter-spacing:1px;color:#aaa}
 .ov{font-size:14px;font-weight:700}
 .tc{background:#1a1714;border-radius:8px;padding:8px 12px;display:flex;justify-content:space-between;align-items:center}
 .tl{font-family:'Bebas Neue',sans-serif;font-size:10px;letter-spacing:2px;color:#555}
 .tv{font-size:14px;font-weight:700;color:#fff}
-@media(max-width:768px){.stats{grid-template-columns:repeat(2,1fr)}.detail-inner{grid-template-columns:1fr}.header-title{display:none}}
+@media(max-width:768px){.stats{grid-template-columns:repeat(2,1fr)}.det{grid-template-columns:1fr}.hdr-title{display:none}}
 </style>
 </head>
 <body>
@@ -81,445 +78,352 @@ canvas.sc{width:100%;height:150px}
       <ellipse cx="188" cy="205" rx="16" ry="10" fill="#f5f1ea"/>
     </svg>
   </div>
-  <div class="header-title">АНАЛИТИКА ОБОРАЧИВАЕМОСТИ</div>
-  <div class="header-right">
+  <div class="hdr-title">АНАЛИТИКА ОБОРАЧИВАЕМОСТИ</div>
+  <div class="hdr-right">
     <span class="upd" id="upd"></span>
     <button class="btn" id="rbtn" onclick="loadData()">ОБНОВИТЬ</button>
   </div>
 </div>
 <div class="main">
   <div id="loading" class="loading">
-    <div class="loading-title" id="ltxt">ЗАГРУЗКА...</div>
-    <div class="loading-sub">Читаем данные из Google Sheets</div>
-    <div class="spinner">◉</div>
+    <div class="ltitle" id="ltxt">ЗАГРУЗКА...</div>
+    <div class="lsub">Читаем данные из Google Sheets</div>
+    <div class="spin">&#9711;</div>
   </div>
-  <div id="errbox" class="error-box" style="display:none"></div>
+  <div id="errbox" class="errbox" style="display:none"></div>
   <div id="dash" style="display:none">
     <div class="stats" id="stats"></div>
     <div class="legend">
-      <div class="legend-items">
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
         <div class="li"><div class="ld" style="background:#27ae60"></div>5000+ руб/день</div>
         <div class="li"><div class="ld" style="background:#52be80"></div>2000-5000</div>
         <div class="li"><div class="ld" style="background:#e67e22"></div>1000-2000</div>
         <div class="li"><div class="ld" style="background:#c0392b"></div>до 1000</div>
-        <div class="li"><div class="ld" style="background:#ccc"></div>нет продаж</div>
+        <div class="li"><div class="ld" style="background:#ccc"></div>нет продаж / нет в наличии</div>
       </div>
-      <input class="search-input" id="srch" placeholder="Поиск товара или артикула..." oninput="filterProducts()">
+      <input class="srch" id="srch" placeholder="Поиск..." oninput="filterRows()">
     </div>
     <div id="tables"></div>
   </div>
 </div>
 <script>
-var CSV_SALES   = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQ6GemsdZe7qvMO-yY3YOmtHyFjvkFMFGKsWlHhNonDxWsTP30VPGDCOHe5wvds2XGo7kpsSK5NR_0_/pub?gid=1091364786&single=true&output=csv';
-var CSV_INTAKE  = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQ6GemsdZe7qvMO-yY3YOmtHyFjvkFMFGKsWlHhNonDxWsTP30VPGDCOHe5wvds2XGo7kpsSK5NR_0_/pub?gid=247039199&single=true&output=csv';
-var CSV_MOVES   = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQ6GemsdZe7qvMO-yY3YOmtHyFjvkFMFGKsWlHhNonDxWsTP30VPGDCOHe5wvds2XGo7kpsSK5NR_0_/pub?gid=1343963946&single=true&output=csv';
-var CSV_RETURNS = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQ6GemsdZe7qvMO-yY3YOmtHyFjvkFMFGKsWlHhNonDxWsTP30VPGDCOHe5wvds2XGo7kpsSK5NR_0_/pub?gid=1082363897&single=true&output=csv';
+var U_SALES   = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQ6GemsdZe7qvMO-yY3YOmtHyFjvkFMFGKsWlHhNonDxWsTP30VPGDCOHe5wvds2XGo7kpsSK5NR_0_/pub?gid=1091364786&single=true&output=csv';
+var U_INTAKE  = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQ6GemsdZe7qvMO-yY3YOmtHyFjvkFMFGKsWlHhNonDxWsTP30VPGDCOHe5wvds2XGo7kpsSK5NR_0_/pub?gid=247039199&single=true&output=csv';
+var U_MOVES   = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQ6GemsdZe7qvMO-yY3YOmtHyFjvkFMFGKsWlHhNonDxWsTP30VPGDCOHe5wvds2XGo7kpsSK5NR_0_/pub?gid=1343963946&single=true&output=csv';
+var U_RETURNS = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQ6GemsdZe7qvMO-yY3YOmtHyFjvkFMFGKsWlHhNonDxWsTP30VPGDCOHe5wvds2XGo7kpsSK5NR_0_/pub?gid=1082363897&single=true&output=csv';
 
 var SEASONS = [‘Весна’,‘Лето’,‘Осень’,‘Зима’];
-var SEASON_MONTHS = {Весна:[2,3,4],Лето:[5,6,7],Осень:[8,9,10],Зима:[11,0,1]};
-var EXCLUDE = [‘sample’,‘брак’,‘списан’,‘комиссион’,‘gift card’,‘сертификат’];
-var CATEGORIES = [‘Верхняя одежда’,‘Костюмы’,‘Брюки’,‘Рубашки’,‘Свитера’,‘Шорты’,
+var SM = {Весна:[2,3,4],Лето:[5,6,7],Осень:[8,9,10],Зима:[11,0,1]};
+var EXCL = [‘sample’,‘брак’,‘списан’,‘комиссион’,‘gift card’,‘сертификат’];
+var CATS = [‘Верхняя одежда’,‘Костюмы’,‘Брюки’,‘Рубашки’,‘Свитера’,‘Шорты’,
 ‘Худи и свитшоты’,‘Майки’,‘Футболки’,‘Аксессуары Сумки’,‘Очки’,‘Украшения’,‘Нижнее бельё’,‘Обувь’,‘Прочее’];
 
-function parseCSV(text) {
-var lines = text.trim().split(’\n’);
-if (lines.length < 2) return [];
-var headers = splitLine(lines[0]);
-var result = [];
+// CSV parser
+function csv(text) {
+var lines = text.trim().split(’\n’), res = [];
+if (lines.length < 2) return res;
+var hdrs = splitL(lines[0]);
 for (var i = 1; i < lines.length; i++) {
-var vals = splitLine(lines[i]);
-var obj = {};
-for (var j = 0; j < headers.length; j++) obj[headers[j].trim()] = (vals[j]||’’).trim();
-if (Object.values(obj).some(function(v){return v;})) result.push(obj);
+var v = splitL(lines[i]), o = {};
+for (var j = 0; j < hdrs.length; j++) o[hdrs[j].trim()] = (v[j]||’’).trim();
+if (Object.values(o).some(function(x){return x;})) res.push(o);
 }
-return result;
+return res;
 }
+function splitL(s) {
+var vals=[], cur=’’, q=false;
+for (var i=0;i<s.length;i++){var c=s[i];if(c===’”’){q=!q;}else if(c===’,’&&!q){vals.push(cur);cur=’’;}else cur+=c;}
+vals.push(cur); return vals;
+}
+function pd(s) {
+if (!s) return null; s=s.trim();
+var m=s.match(/^(\d{1,2}).(\d{1,2}).(\d{4})(?:\s+(\d{1,2}):(\d{2}))?/);
+if (m) return new Date(+m[3],+m[2]-1,+m[1],m[4]?+m[4]:0,m[5]?+m[5]:0);
+var d=new Date(s); return isNaN(d)?null:d;
+}
+function seasonOf(mo) { for(var s in SM) if(SM[s].indexOf(mo)>=0) return s; return null; }
+function excl(name) { var n=name.toLowerCase(); return EXCL.some(function(e){return n.includes(e);}); }
 
-function splitLine(line) {
-var vals = [], cur = ‘’, inQ = false;
-for (var i = 0; i < line.length; i++) {
-var ch = line[i];
-if (ch === ‘”’) { inQ = !inQ; continue; }
-if (ch === ‘,’ && !inQ) { vals.push(cur); cur = ‘’; continue; }
-cur += ch;
-}
-vals.push(cur);
-return vals;
-}
-
-function parseDate(str) {
-if (!str) return null;
-str = str.trim();
-// DD.MM.YYYY HH:MM
-var m = str.match(/^(\d{1,2}).(\d{1,2}).(\d{4})(?:\s+(\d{1,2}):(\d{2}))?/);
-if (m) {
-return new Date(+m[3], +m[2]-1, +m[1], m[4]?+m[4]:0, m[5]?+m[5]:0);
-}
-var d = new Date(str);
-return isNaN(d.getTime()) ? null : d;
-}
-
-function seasonOf(month) {
-for (var s in SEASON_MONTHS) if (SEASON_MONTHS[s].indexOf(month) >= 0) return s;
-return null;
-}
-
-function catFromGroup(g) {
-g = (g||’’).toLowerCase();
-if ((g.includes(‘shirt’) || g.includes(‘рубашк’)) && !g.includes(‘t-shirt’) && !g.includes(‘tshirt’)) return ‘Рубашки’;
-if (g.includes(‘t-shirt’) || g.includes(‘tshirt’) || g.includes(‘футболк’)) return ‘Футболки’;
-if (g.includes(‘майк’) || g.includes(‘tank’)) return ‘Майки’;
-if (g.includes(‘pant’) || g.includes(‘jean’) || g.includes(‘брюк’) || g.includes(‘pants’)) return ‘Брюки’;
-if (g.includes(‘sweater’) || g.includes(‘свитер’) || g.includes(‘knit’) || g.includes(‘трикот’)) return ‘Свитера’;
-if (g.includes(‘hoodie’) || g.includes(‘sweatshirt’) || g.includes(‘худи’) || g.includes(‘свитшот’)) return ‘Худи и свитшоты’;
-if (g.includes(‘short’) || g.includes(‘шорт’)) return ‘Шорты’;
-if (g.includes(‘bomber’) || g.includes(‘jacket’) || g.includes(‘coat’) || g.includes(‘куртк’) || g.includes(‘пальто’) || g.includes(‘тренч’) || g.includes(‘trench’)) return ‘Верхняя одежда’;
-if (g.includes(‘blazer’) || g.includes(‘suit’) || g.includes(‘костюм’) || g.includes(‘пиджак’)) return ‘Костюмы’;
-if (g.includes(‘bag’) || g.includes(‘сумк’)) return ‘Аксессуары Сумки’;
-if (g.includes(‘jewel’) || g.includes(‘ring’) || g.includes(‘украш’) || g.includes(‘кольц’) || g.includes(‘accessories/jewelry’)) return ‘Украшения’;
-if (g.includes(‘glass’) || g.includes(‘очк’) || g.includes(‘sunglass’)) return ‘Очки’;
-if (g.includes(‘underwear’) || g.includes(‘бельё’) || g.includes(‘boxer’) || g.includes(‘бриф’) || g.includes(‘трус’)) return ‘Нижнее бельё’;
-if (g.includes(‘shoe’) || g.includes(‘обувь’) || g.includes(‘sneaker’) || g.includes(‘boot’)) return ‘Обувь’;
+function catOf(g) {
+g=(g||’’).toLowerCase();
+if ((g.includes(‘shirt’)||g.includes(‘рубашк’))&&!g.includes(‘t-shirt’)&&!g.includes(‘tshirt’)) return ‘Рубашки’;
+if (g.includes(‘t-shirt’)||g.includes(‘tshirt’)||g.includes(‘футболк’)) return ‘Футболки’;
+if (g.includes(‘майк’)||g.includes(‘tank’)) return ‘Майки’;
+if (g.includes(‘pant’)||g.includes(‘jean’)||g.includes(‘брюк’)) return ‘Брюки’;
+if (g.includes(‘sweater’)||g.includes(‘свитер’)||g.includes(‘knit’)) return ‘Свитера’;
+if (g.includes(‘hoodie’)||g.includes(‘sweatshirt’)||g.includes(‘худи’)||g.includes(‘свитшот’)) return ‘Худи и свитшоты’;
+if (g.includes(‘short’)||g.includes(‘шорт’)) return ‘Шорты’;
+if (g.includes(‘bomber’)||g.includes(‘jacket’)||g.includes(‘coat’)||g.includes(‘куртк’)||g.includes(‘пальто’)||g.includes(‘тренч’)||g.includes(‘trench’)||g.includes(‘олимп’)) return ‘Верхняя одежда’;
+if (g.includes(‘blazer’)||g.includes(‘suit’)||g.includes(‘костюм’)||g.includes(‘пиджак’)) return ‘Костюмы’;
+if (g.includes(‘bag’)||g.includes(‘сумк’)) return ‘Аксессуары Сумки’;
+if (g.includes(‘jewel’)||g.includes(‘ring’)||g.includes(‘украш’)||g.includes(‘кольц’)) return ‘Украшения’;
+if (g.includes(‘glass’)||g.includes(‘очк’)||g.includes(‘sunglass’)) return ‘Очки’;
+if (g.includes(‘underwear’)||g.includes(‘бельё’)||g.includes(‘boxer’)||g.includes(‘бриф’)) return ‘Нижнее бельё’;
+if (g.includes(‘shoe’)||g.includes(‘обувь’)||g.includes(‘sneaker’)) return ‘Обувь’;
 return ‘Прочее’;
 }
 
-function tColor(v) {
-if (!v) return {bg:’#ccc8c0’,fg:’#777’};
-if (v >= 5000) return {bg:’#27ae60’,fg:’#fff’};
-if (v >= 2000) return {bg:’#52be80’,fg:’#fff’};
-if (v >= 1000) return {bg:’#e67e22’,fg:’#fff’};
-return {bg:’#c0392b’,fg:’#fff’};
+// Count days where running stock > 0, within [from, to]
+function daysInRange(events, from, to) {
+if (!events||!events.length) return 0;
+var evs = events.filter(function(e){return e.d<=to;}).sort(function(a,b){return a.d-b.d;});
+var stock=0, days=0, prev=null;
+for (var i=0;i<evs.length;i++) {
+var ev=evs[i], d=ev.d;
+if (prev!==null && stock>0) {
+var s=Math.max(from,prev), e2=Math.min(to,d);
+if (e2>s) days+=Math.round((e2-s)/86400000);
+}
+stock=Math.max(0,stock+ev.q);
+prev=d;
+}
+// remaining
+if (prev!==null && stock>0) {
+var s=Math.max(from,prev);
+if (to>s) days+=Math.round((to-s)/86400000);
+}
+return days;
 }
 
-function ovColor(p) {
-if (p < 30) return ‘#c0392b’;
-if (p < 60) return ‘#27ae60’;
-if (p < 100) return ‘#2ecc71’;
-if (p < 120) return ‘#27ae60’;
-if (p < 150) return ‘#e67e22’;
-return ‘#c0392b’;
+function processData(sR,iR,mR,rR) {
+var now=new Date(), y365=new Date(now-365*864e5);
+var events={}, meta={};
+
+function addEv(art,d,q,name,group) {
+if (!art||!d||q===0) return;
+if (!events[art]) events[art]=[];
+events[art].push({d:d,q:q});
+if (name&&!meta[art]) meta[art]={name:name,group:group||’’};
 }
 
-// –– CORE LOGIC ––
-// Build day-by-day stock balance per article, then count days in stock
-function calcDaysInStock(events, fromDate, toDate) {
-// events = [{date, qty}] where qty>0 is intake/return, qty<0 is sale/move-out
-if (!events.length) return 0;
-events.sort(function(a,b){return a.date-b.date;});
+// Intakes +
+for (var i=0;i<iR.length;i++) {
+var r=iR[i], art=(r[‘Артикул’]||r[‘Код’]||’’).trim(), name=(r[‘Наименование’]||’’).trim();
+if (!art||excl(name)) continue;
+var d=pd(r[‘Дата документа’]||r[‘Дата’]||’’);
+var q=parseFloat((r[‘Количество’]||‘0’).replace(’,’,’.’))||0;
+if (d&&q>0) addEv(art,d,q,name,r[‘Группа’]||’’);
+}
 
-var stock = 0;
-var daysInStock = 0;
-var prevDate = null;
-var prevStock = 0;
+// Returns +
+for (var i=0;i<rR.length;i++) {
+var r=rR[i], art=(r[‘Артикул’]||r[‘Код’]||’’).trim(), name=(r[‘Наименование’]||’’).trim();
+if (!art||excl(name)) continue;
+var d=pd(r[‘Дата документа’]||r[‘Дата’]||’’);
+var q=parseFloat((r[‘Количество’]||‘0’).replace(’,’,’.’))||0;
+if (d&&q>0) addEv(art,d,q,name,r[‘Группа’]||’’);
+}
 
-for (var i = 0; i < events.length; i++) {
-var ev = events[i];
-var d = ev.date;
-if (d < fromDate) { stock += ev.qty; continue; }
-if (d > toDate) break;
+// Sales - (negative)
+var sales={};
+for (var i=0;i<sR.length;i++) {
+var r=sR[i];
+var d=pd(r[‘Дата документа’]||r[‘Дата’]||’’);
+if (!d||d<y365) continue;
+var art=(r[‘Артикул’]||r[‘Код’]||’’).trim(), name=(r[‘Наименование’]||’’).trim();
+if (!art||!name||excl(name)) continue;
+var q=parseFloat((r[‘Количество’]||‘0’).replace(’,’,’.’))||0;
+var sum=parseFloat((r[‘Сумма’]||‘0’).replace(/\s/g,’’).replace(’,’,’.’))||0;
+var disc=parseFloat((r[‘Сумма скидки’]||‘0’).replace(/\s/g,’’).replace(’,’,’.’))||0;
+var eff=Math.max(0,sum-disc);
+var sn=seasonOf(d.getMonth());
+addEv(art,d,-q,name,r[‘Группа’]||’’);
+if (!sales[art]) sales[art]={sum:0,qty:0,ss:{Весна:0,Лето:0,Осень:0,Зима:0},lastSale:null,name:name,group:r[‘Группа’]||’’};
+sales[art].sum+=eff;
+sales[art].qty+=q;
+if (sn) sales[art].ss[sn]+=eff;
+if (!sales[art].lastSale||d>sales[art].lastSale) sales[art].lastSale=d;
+}
+
+// Moves - only to БРАК
+for (var i=0;i<mR.length;i++) {
+var r=mR[i], art=(r[‘Артикул’]||r[‘Код’]||’’).trim(), name=(r[‘Наименование’]||’’).trim();
+if (!art) continue;
+var dest=(r[‘Склад назначения’]||r[‘Куда’]||r[‘На склад’]||’’).toLowerCase();
+var isBrak=dest.includes(‘брак’)||name.toLowerCase().includes(‘брак’);
+if (!isBrak) continue;
+var d=pd(r[‘Дата документа’]||r[‘Дата’]||’’);
+var q=parseFloat((r[‘Количество’]||‘0’).replace(’,’,’.’))||0;
+if (d&&q>0) addEv(art,d,-q,name,r[‘Группа’]||’’);
+}
+
+var products=[], now=new Date(), d90=new Date(now-90*864e5);
+
+for (var art in sales) {
+var sd=sales[art], evs=events[art]||[], m=meta[art]||sd;
+var avgP=sd.qty>0?sd.sum/sd.qty:0;
 
 ```
-if (prevDate !== null && prevStock > 0) {
-  var days = Math.round((d - prevDate) / 86400000);
-  daysInStock += days;
-}
-stock += ev.qty;
-prevDate = d;
-prevStock = stock;
-```
+// Days in stock over last 365
+var dis=daysInRange(evs,y365,now);
+if (dis<1) dis=1;
 
-}
-// Count remaining days from last event to toDate
-if (prevDate !== null && prevStock > 0) {
-var days = Math.round((toDate - prevDate) / 86400000);
-daysInStock += days;
-}
-return Math.max(daysInStock, 0);
-}
+// Turnover = sales / days in stock (min 0)
+var turn=Math.max(0,sd.sum/dis);
 
-function calcDaysInStockForSeason(events, season) {
-// For each year in data, find the season window and count days
-if (!events.length) return 0;
-events.sort(function(a,b){return a.date-b.date;});
-var months = SEASON_MONTHS[season];
-var totalDays = 0;
-
-// Get year range from events
-var minYear = events[0].date.getFullYear();
-var maxYear = events[events.length-1].date.getFullYear();
-
-for (var y = minYear; y <= maxYear; y++) {
-// Determine season date range
-var startMonth = months[0];
-var startYear = y;
-// Handle winter crossing year boundary
-if (season === ‘Зима’) {
-// Dec of y to Feb of y+1
-var from = new Date(y, 11, 1);
-var to = new Date(y+1, 2, 1); // March 1 next year
-totalDays += calcDaysInStock(events, from, to);
-} else {
-var from = new Date(y, months[0], 1);
-var to = new Date(y, months[months.length-1]+1, 1);
-totalDays += calcDaysInStock(events, from, to);
-}
-}
-return totalDays;
+// Season turnover
+var st={};
+for (var si=0;si<SEASONS.length;si++) {
+  var s=SEASONS[si], ms=SM[s];
+  // Find all season windows in last 365 days
+  var sSum=sd.ss[s]||0, sDays=0;
+  for (var y=y365.getFullYear();y<=now.getFullYear();y++) {
+    var sf,st2;
+    if (s==='Зима') { sf=new Date(y,11,1); st2=new Date(y+1,2,1); }
+    else { sf=new Date(y,ms[0],1); st2=new Date(y,ms[ms.length-1]+1,1); }
+    var from2=new Date(Math.max(sf.getTime(),y365.getTime()));
+    var to2=new Date(Math.min(st2.getTime(),now.getTime()));
+    if (to2>from2) sDays+=daysInRange(evs,from2,to2);
+  }
+  st[s]=sSum>0&&sDays>0?Math.max(0,sSum/sDays):0;
 }
 
-function processData(salesRows, intakeRows, movesRows, returnsRows) {
-var now = new Date();
-var cutoff365 = new Date(now - 365*86400000);
-
-// Collect all stock events per article: {art -> [{date, qty, type}]}
-var events = {};
-var artMeta = {}; // art -> {name, group}
-
-function addEvent(art, date, qty, name, group) {
-if (!art || !date) return;
-if (!events[art]) events[art] = [];
-events[art].push({date: date, qty: qty});
-if (name && !artMeta[art]) artMeta[art] = {name: name, group: group||’’};
-}
-
-// INTAKES: +qty
-for (var i = 0; i < intakeRows.length; i++) {
-var r = intakeRows[i];
-var art = (r[‘Артикул’]||r[‘Код’]||’’).trim();
-var name = (r[‘Наименование’]||’’).trim();
-if (!art || EXCLUDE.some(function(e){return name.toLowerCase().includes(e);})) continue;
-var d = parseDate(r[‘Дата документа’]||r[‘Дата’]||’’);
-var qty = parseFloat((r[‘Количество’]||‘0’).replace(’,’,’.’)) || 0;
-if (d && qty > 0) addEvent(art, d, qty, name, r[‘Группа’]||’’);
-}
-
-// RETURNS: +qty (товар вернулся на склад)
-for (var i = 0; i < returnsRows.length; i++) {
-var r = returnsRows[i];
-var art = (r[‘Артикул’]||r[‘Код’]||’’).trim();
-var name = (r[‘Наименование’]||’’).trim();
-if (!art || EXCLUDE.some(function(e){return name.toLowerCase().includes(e);})) continue;
-var d = parseDate(r[‘Дата документа’]||r[‘Дата’]||’’);
-var qty = parseFloat((r[‘Количество’]||‘0’).replace(’,’,’.’)) || 0;
-if (d && qty > 0) addEvent(art, d, qty, name, r[‘Группа’]||’’);
-}
-
-// SALES: -qty
-var salesByArt = {};
-for (var i = 0; i < salesRows.length; i++) {
-var r = salesRows[i];
-var d = parseDate(r[‘Дата документа’]||r[‘Дата’]||’’);
-if (!d || d < cutoff365) continue;
-var art = (r[‘Артикул’]||r[‘Код’]||’’).trim();
-var name = (r[‘Наименование’]||’’).trim();
-if (!art || !name || EXCLUDE.some(function(e){return name.toLowerCase().includes(e);})) continue;
-var qty = parseFloat((r[‘Количество’]||‘0’).replace(’,’,’.’)) || 0;
-var sum = parseFloat((r[‘Сумма’]||‘0’).replace(/\s/g,’’).replace(’,’,’.’)) || 0;
-var disc = parseFloat((r[‘Сумма скидки’]||‘0’).replace(/\s/g,’’).replace(’,’,’.’)) || 0;
-var effSum = sum - disc;
-var season = seasonOf(d.getMonth());
-addEvent(art, d, -qty, name, r[‘Группа’]||’’);
-if (!salesByArt[art]) salesByArt[art] = {totalSum:0,totalQty:0,seasonSum:{Весна:0,Лето:0,Осень:0,Зима:0},name:name,group:r[‘Группа’]||’’};
-salesByArt[art].totalSum += effSum;
-salesByArt[art].totalQty += qty;
-if (season) salesByArt[art].seasonSum[season] += effSum;
-}
-
-// MOVES OUT (перемещения - товар уходит со склада): -qty
-for (var i = 0; i < movesRows.length; i++) {
-var r = movesRows[i];
-var art = (r[‘Артикул’]||r[‘Код’]||’’).trim();
-var name = (r[‘Наименование’]||’’).trim();
-if (!art || EXCLUDE.some(function(e){return name.toLowerCase().includes(e);})) continue;
-var d = parseDate(r[‘Дата документа’]||r[‘Дата’]||’’);
-var qty = parseFloat((r[‘Количество’]||‘0’).replace(’,’,’.’)) || 0;
-// Moves are transfers — if destination is БРАК, it’s a write-off
-// Otherwise treat as neutral (same total stock)
-var isBrak = (r[‘Склад назначения’]||r[‘Куда’]||’’).toLowerCase().includes(‘брак’) ||
-name.toLowerCase().includes(‘брак’);
-if (d && qty > 0 && isBrak) addEvent(art, d, -qty, name, r[‘Группа’]||’’);
-}
-
-// BUILD PRODUCTS
-var products = [];
-for (var art in salesByArt) {
-var sd = salesByArt[art];
-var evts = events[art] || [];
-var meta = artMeta[art] || sd;
-
-```
-var avgPrice = sd.totalQty > 0 ? sd.totalSum / sd.totalQty : 0;
-
-// Days in stock over last 365 days
-var daysInStock = calcDaysInStock(evts, cutoff365, now);
-if (daysInStock < 1) daysInStock = 1;
-
-// Overall turnover
-var turnover = sd.totalSum / daysInStock;
-
-// Season turnover: sales in season / days in stock during that season
-var seasonTurnover = {};
-for (var si = 0; si < SEASONS.length; si++) {
-  var s = SEASONS[si];
-  var sSum = sd.seasonSum[s] || 0;
-  var sDays = calcDaysInStockForSeason(evts, s);
-  seasonTurnover[s] = (sSum > 0 && sDays > 0) ? sSum / sDays : 0;
-}
+// Is active: had sale in last 90 days
+var active=sd.lastSale&&sd.lastSale>=d90;
 
 products.push({
-  art: art,
-  name: meta.name,
-  group: meta.group,
-  category: catFromGroup(meta.group),
-  avgPrice: Math.round(avgPrice),
-  turnover: Math.round(turnover * 10) / 10,
-  daysInStock: daysInStock,
-  totalSum: Math.round(sd.totalSum),
-  stock: 0, stockDays: 0, selloutDate: '',
-  seasonTurnover: seasonTurnover
+  art:art, name:m.name, group:m.group, category:catOf(m.group),
+  avgPrice:Math.round(avgP),
+  turnover:Math.round(turn*10)/10,
+  daysInStock:dis,
+  totalSum:Math.round(sd.sum),
+  stock:0, stockDays:0, selloutDate:'',
+  seasonTurnover:st,
+  active:active
 });
 ```
 
 }
 
-var byCat = {};
-for (var pi = 0; pi < products.length; pi++) {
-var p = products[pi];
-if (!byCat[p.category]) byCat[p.category] = [];
+var byCat={};
+for (var pi=0;pi<products.length;pi++) {
+var p=products[pi];
+if (!byCat[p.category]) byCat[p.category]=[];
 byCat[p.category].push(p);
 }
 for (var cat in byCat) {
-byCat[cat].sort(function(a,b){return b.turnover - a.turnover;});
+byCat[cat].sort(function(a,b){
+if (a.active&&!b.active) return -1;
+if (!a.active&&b.active) return 1;
+return b.turnover-a.turnover;
+});
 }
 return byCat;
 }
 
-// –– CHART ––
-function drawChart(canvas, p) {
-var dpr = window.devicePixelRatio || 1;
-var W = canvas.offsetWidth || 400, H = 150;
-canvas.width = W*dpr; canvas.height = H*dpr;
-canvas.style.width = W+‘px’; canvas.style.height = H+‘px’;
-var c = canvas.getContext(‘2d’); c.scale(dpr,dpr);
-var pad = {t:10,r:10,b:22,l:44};
-var cW = W-pad.l-pad.r, cH = H-pad.t-pad.b;
-var vals = SEASONS.map(function(s){return Math.max(p.seasonTurnover[s]||0,1);});
-var maxV = Math.max.apply(null,vals.concat([200]));
-var logMax = Math.log10(maxV);
-var logY = function(v){return pad.t + cH - (Math.log10(Math.max(v,1))/logMax)*cH;};
-var xPos = function(i){return pad.l + (i/(SEASONS.length-1))*cW;};
-// Zones
-var zones=[{y:1,cl:‘rgba(192,57,43,0.12)’},{y:1000,cl:‘rgba(231,126,34,0.12)’},{y:2000,cl:‘rgba(39,174,96,0.12)’},{y:5000,cl:‘rgba(46,204,113,0.12)’}];
-zones.forEach(function(z,i){
-var y1=logY(z.y), y2=i+1<zones.length?logY(zones[i+1].y):pad.t;
-c.fillStyle=z.cl; c.fillRect(pad.l,Math.min(y1,y2),cW,Math.abs(y1-y2));
+function tcol(v, active) {
+if (!active||!v) return {bg:’#ccc8c0’,fg:’#888’};
+if (v>=5000) return {bg:’#27ae60’,fg:’#fff’};
+if (v>=2000) return {bg:’#52be80’,fg:’#fff’};
+if (v>=1000) return {bg:’#e67e22’,fg:’#fff’};
+return {bg:’#c0392b’,fg:’#fff’};
+}
+function ocol(p) {
+if(p<30)return’#c0392b’;if(p<60)return’#27ae60’;
+if(p<100)return’#2ecc71’;if(p<120)return’#27ae60’;
+if(p<150)return’#e67e22’;return’#c0392b’;
+}
+
+function drawChart(cv,p) {
+var dpr=window.devicePixelRatio||1, W=cv.offsetWidth||400, H=150;
+cv.width=W*dpr;cv.height=H*dpr;cv.style.width=W+‘px’;cv.style.height=H+‘px’;
+var c=cv.getContext(‘2d’);c.scale(dpr,dpr);
+var pl=44,pr=10,pt=10,pb=22,cW=W-pl-pr,cH=H-pt-pb;
+var vals=SEASONS.map(function(s){return Math.max(p.seasonTurnover[s]||0,1);});
+var maxV=Math.max.apply(null,vals.concat([200]));
+var logY=function(v){return pt+cH-(Math.log10(Math.max(v,1))/Math.log10(maxV))*cH;};
+var xP=function(i){return pl+(i/(SEASONS.length-1))*cW;};
+[{y:1,cl:‘rgba(192,57,43,0.12)’},{y:1000,cl:‘rgba(231,126,34,0.12)’},{y:2000,cl:‘rgba(39,174,96,0.12)’},{y:5000,cl:‘rgba(46,204,113,0.12)’}].forEach(function(z,i,a){
+var y1=logY(z.y),y2=i+1<a.length?logY(a[i+1].y):pt;
+c.fillStyle=z.cl;c.fillRect(pl,Math.min(y1,y2),cW,Math.abs(y1-y2));
 });
 [1000,2000,5000].forEach(function(v){
-var y=logY(v);
-if(y>pad.t&&y<H-pad.b){c.setLineDash([4,4]);c.strokeStyle=‘rgba(0,0,0,0.15)’;c.lineWidth=1;c.beginPath();c.moveTo(pad.l,y);c.lineTo(W-pad.r,y);c.stroke();c.setLineDash([]);c.fillStyle=’#aaa’;c.font=‘8px DM Sans’;c.textAlign=‘right’;c.fillText((v/1000)+‘k’,pad.l-4,y+3);}
+var y=logY(v);if(y>pt&&y<H-pb){c.setLineDash([4,4]);c.strokeStyle=‘rgba(0,0,0,0.15)’;c.lineWidth=1;c.beginPath();c.moveTo(pl,y);c.lineTo(W-pr,y);c.stroke();c.setLineDash([]);c.fillStyle=’#aaa’;c.font=‘8px sans-serif’;c.textAlign=‘right’;c.fillText((v/1000)+‘k’,pl-4,y+3);}
 });
 c.strokeStyle=’#c0392b’;c.lineWidth=2.5;c.lineJoin=‘round’;c.beginPath();
-vals.forEach(function(v,i){var x=xPos(i),y=logY(v);i===0?c.moveTo(x,y):c.lineTo(x,y);});
-c.stroke();
+vals.forEach(function(v,i){var x=xP(i),y=logY(v);i===0?c.moveTo(x,y):c.lineTo(x,y);});c.stroke();
 vals.forEach(function(v,i){
-var x=xPos(i),y=logY(v);
+var x=xP(i),y=logY(v);
 c.fillStyle=’#fff’;c.beginPath();c.arc(x,y,5,0,Math.PI*2);c.fill();
 c.fillStyle=’#c0392b’;c.beginPath();c.arc(x,y,3,0,Math.PI*2);c.fill();
 c.fillStyle=’#666’;c.font=‘9px sans-serif’;c.textAlign=‘center’;c.fillText(SEASONS[i],x,H-6);
 });
 }
 
-// –– RENDER ––
-function renderDashboard(byCat) {
-var all = [];
-for (var k in byCat) all = all.concat(byCat[k]);
-var totalT = all.reduce(function(a,p){return a+p.turnover;},0);
-var totalS = all.reduce(function(a,p){return a+p.totalSum;},0);
-var top = all.slice().sort(function(a,b){return b.turnover-a.turnover;})[0];
-
-document.getElementById(‘stats’).innerHTML = [
-{l:‘ТОВАРОВ’,v:all.length},
-{l:‘ОБОРАЧИВАЕМОСТЬ’,v:Math.round(totalT).toLocaleString(‘ru’)+’ руб/день’},
-{l:‘ВЫРУЧКА ЗА ГОД’,v:Math.round(totalS).toLocaleString(‘ru’)+’ руб’},
+function renderDash(byCat) {
+var all=[];for(var k in byCat)all=all.concat(byCat[k]);
+var active=all.filter(function(p){return p.active;});
+var totT=active.reduce(function(a,p){return a+p.turnover;},0);
+var totS=all.reduce(function(a,p){return a+p.totalSum;},0);
+var top=active.slice().sort(function(a,b){return b.turnover-a.turnover;})[0];
+document.getElementById(‘stats’).innerHTML=[
+{l:‘ТОВАРОВ’,v:all.length+’ (акт: ‘+active.length+’)’},
+{l:‘ОБОРАЧИВАЕМОСТЬ’,v:Math.round(totT).toLocaleString(‘ru’)+’ руб/день’},
+{l:‘ВЫРУЧКА ЗА ГОД’,v:Math.round(totS).toLocaleString(‘ru’)+’ руб’},
 {l:‘ТОП ТОВАР’,v:top?top.name.slice(0,28)+(top.name.length>28?’…’:’’):’—’,sub:top?Math.round(top.turnover).toLocaleString(‘ru’)+’ руб/день’:’’}
-].map(function(s){return ‘<div class="stat-card"><div class="stat-label">’+s.l+’</div><div class="stat-value">’+s.v+’</div>’+(s.sub?’<div class="stat-sub">’+s.sub+’</div>’:’’)+’</div>’;}).join(’’);
+].map(function(s){return ‘<div class="sc"><div class="sl">’+s.l+’</div><div class="sv">’+s.v+’</div>’+(s.sub?’<div class="ss">’+s.sub+’</div>’:’’)+’</div>’;}).join(’’);
 
-var tablesEl = document.getElementById(‘tables’);
-tablesEl.innerHTML = ‘’;
-for (var ci = 0; ci < CATEGORIES.length; ci++) {
-var cat = CATEGORIES[ci];
-var prods = byCat[cat];
-if (!prods || !prods.length) continue;
-var sec = document.createElement(‘div’);
-sec.className = ‘cat-section’;
-sec.innerHTML = ‘<div class="cat-header"><span>’+cat.toUpperCase()+’</span><span class="cat-count">’+prods.length+’ ПОЗ.</span></div>’
-+’<div class="table-wrap"><table><thead><tr>’
+var el=document.getElementById(‘tables’);el.innerHTML=’’;
+for (var ci=0;ci<CATS.length;ci++) {
+var cat=CATS[ci], prods=byCat[cat];
+if (!prods||!prods.length) continue;
+var sec=document.createElement(‘div’);sec.className=‘cat-sec’;
+sec.innerHTML=’<div class="cat-hdr"><span>’+cat.toUpperCase()+’</span><span class="cat-cnt">’+prods.length+’ ПОЗ.</span></div>’
++’<div class="tw"><table><thead><tr>’
 +’<th style="text-align:left">Наименование</th><th>Дней в наличии</th><th>Ср. цена</th><th>Оборачиваемость</th>’
 +’<th>Весна</th><th>Лето</th><th>Осень</th><th>Зима</th><th>Остаток</th><th>Запас дней</th>’
-+’</tr></thead><tbody id="tb_'+ci+'"></tbody></table></div>’;
-tablesEl.appendChild(sec);
-var tbody = document.getElementById(‘tb_’+ci);
-for (var pi = 0; pi < prods.length; pi++) renderRow(tbody, prods[pi], pi, ci);
++’</tr></thead><tbody id="tb'+ci+'"></tbody></table></div>’;
+el.appendChild(sec);
+var tb=document.getElementById(‘tb’+ci);
+for (var pi=0;pi<prods.length;pi++) renderRow(tb,prods[pi],ci+’_’+pi);
 }
 }
 
-function renderRow(tbody, p, pi, ci) {
-var tc = tColor(p.turnover);
-var noS = !p.turnover;
-var id = ‘p_’+ci+’_’+pi;
-var sCells = SEASONS.map(function(s){
-var v = p.seasonTurnover[s];
-return ‘<td style="color:'+tc.fg+'">’+(v?Math.round(v).toLocaleString(‘ru’)+’ р’:’—’)+’</td>’;
-}).join(’’);
-var tr = document.createElement(‘tr’);
-tr.className = noS ? ‘ns’ : ‘pr’;
-tr.style.background = tc.bg;
-tr.innerHTML = ‘<td style="color:'+tc.fg+'">’+((!noS)?’<span style="font-size:9px;opacity:0.5;margin-right:5px">►</span>’:’’)+p.name+’</td>’
+function renderRow(tb,p,id) {
+var tc=tcol(p.turnover,p.active), noS=!p.active||!p.turnover;
+var sCells=SEASONS.map(function(s){var v=p.seasonTurnover[s];return ‘<td style="color:'+tc.fg+'">’+(v&&p.active?Math.round(v).toLocaleString(‘ru’)+’ р’:’—’)+’</td>’;}).join(’’);
+var tr=document.createElement(‘tr’);
+tr.className=noS?‘ns’:‘pr’;tr.style.background=tc.bg;
+tr.innerHTML=’<td style="color:'+tc.fg+';opacity:'+(p.active?1:0.7)+'">’
++((!noS)?’<span style="font-size:9px;opacity:0.4;margin-right:5px">►</span>’:’’)
++p.name+((!p.active)?’ <span style="font-size:9px;opacity:0.5">[нет в наличии]</span>’:’’)
++’</td>’
 +’<td style="color:'+tc.fg+'">’+p.daysInStock+’</td>’
 +’<td style="color:'+tc.fg+'">’+(p.avgPrice?p.avgPrice.toLocaleString(‘ru’)+’ р’:’—’)+’</td>’
-+’<td style="color:'+tc.fg+';font-weight:700">’+(p.turnover?Math.round(p.turnover).toLocaleString(‘ru’)+’ р’:’—’)+’</td>’
++’<td style="color:'+tc.fg+';font-weight:700">’+(p.turnover&&p.active?Math.round(p.turnover).toLocaleString(‘ru’)+’ р’:’—’)+’</td>’
 +sCells
 +’<td style="color:'+tc.fg+'">’+(p.stock||’—’)+’</td>’
 +’<td style="color:'+tc.fg+'">’+(p.stockDays?Math.round(p.stockDays)+’ дн.’:’—’)+’</td>’;
-if (!noS) tr.onclick = function(){toggleDetail(tr, p, id);};
-tbody.appendChild(tr);
+if (!noS) tr.onclick=function(){toggleDet(tr,p,id);};
+tb.appendChild(tr);
 }
 
-function toggleDetail(tr, p, id) {
-var ex = document.getElementById(‘d_’+id);
-var arr = tr.querySelector(‘span’);
-if (ex) { ex.remove(); if(arr) arr.innerHTML=’►’; return; }
+function toggleDet(tr,p,id) {
+var ex=document.getElementById(‘d_’+id);
+var arr=tr.querySelector(‘span’);
+if (ex){ex.remove();if(arr)arr.innerHTML=’►’;return;}
 if (arr) arr.innerHTML=’▼’;
-var opct = p.stockDays ? Math.round((p.stockDays/90)*100) : 0;
-var spct = Math.max(0, 100-opct);
-var sUnits = spct>0&&p.stock>0 ? Math.ceil(spct/100*p.stock) : 0;
-var oc = ovColor(opct);
-var sc = spct<=30?’#27ae60’:spct<=70?’#e67e22’:’#c0392b’;
-var orderHTML = SEASONS.map(function(s){
-var u = p.seasonTurnover[s]&&p.avgPrice ? Math.ceil(p.seasonTurnover[s]/p.avgPrice*90) : 0;
-return ‘<div class="oi"><span class="os">’+s+’</span><span class="ov" style="color:'+(u>0?'#1a1714':'#bbb')+'">’+( u||’—’)+’</span></div>’;
-}).join(’’);
-var detTr = document.createElement(‘tr’);
-detTr.id = ‘d_’+id;
-detTr.className = ‘detail-row’;
-detTr.innerHTML = ‘<td colspan="10"><div class="detail-inner">’
-+’<div class="chart-wrap"><div class="chart-title">ДИНАМИКА ОБОРАЧИВАЕМОСТИ / РУБ В ДЕНЬ / ЛОГ. ШКАЛА</div>’
-+’<canvas class="sc" id="cv_'+id+'"></canvas></div>’
-+’<div class="rp">’
-+’<div class="pc"><div class="pl">ЗАТОВАРИВАНИЕ (90 ДНЕЙ = 100%)</div><div class="pb"><div class="pf" style="width:'+Math.min(opct,100)+'%;background:'+oc+'"></div><div class="pt">’+opct+’%’+(p.selloutDate?’ · ‘+p.selloutDate:’’)+’</div></div></div>’
-+’<div class="pc"><div class="pl">НЕДОСТАТОК</div><div class="pb"><div class="pf" style="width:'+Math.min(spct,100)+'%;background:'+sc+'"></div><div class="pt">’+(sUnits>0?spct+’% · ‘+sUnits+’ ед.’:‘0% норма’)+’</div></div></div>’
-+’<div class="pc"><div class="pl">ЗАКАЗ НА СЕЗОН (90 ДНЕЙ)</div><div class="og">’+orderHTML+’</div></div>’
+var op=p.stockDays?Math.round((p.stockDays/90)*100):0;
+var sp=Math.max(0,100-op), su=sp>0&&p.stock>0?Math.ceil(sp/100*p.stock):0;
+var oc=ocol(op), sc=sp<=30?’#27ae60’:sp<=70?’#e67e22’:’#c0392b’;
+var ord=SEASONS.map(function(s){var u=p.seasonTurnover[s]&&p.avgPrice?Math.ceil(p.seasonTurnover[s]/p.avgPrice*90):0;return ‘<div class="oi"><span class="os">’+s+’</span><span class="ov" style="color:'+(u?'#1a1714':'#bbb')+'">’+( u||’—’)+’</span></div>’;}).join(’’);
+var dt=document.createElement(‘tr’);dt.id=‘d_’+id;dt.className=‘detail-row’;
+dt.innerHTML=’<td colspan="10"><div class="det">’
++’<div class="cw"><div class="ct">ОБОРАЧИВАЕМОСТЬ ПО СЕЗОНАМ / РУБ В ДЕНЬ / ЛОГ. ШКАЛА</div><canvas class="cv" id="cv_'+id+'"></canvas></div>’
++’<div class="rp"><div class="pc"><div class="pl">ЗАТОВАРИВАНИЕ (90 ДНЕЙ = 100%)</div><div class="pb"><div class="pf" style="width:'+Math.min(op,100)+'%;background:'+oc+'"></div><div class="pt">’+op+’%’+(p.selloutDate?’ · ‘+p.selloutDate:’’)+’</div></div></div>’
++’<div class="pc"><div class="pl">НЕДОСТАТОК</div><div class="pb"><div class="pf" style="width:'+Math.min(sp,100)+'%;background:'+sc+'"></div><div class="pt">’+(su>0?sp+’% · ‘+su+’ ед.’:‘0% норма’)+’</div></div></div>’
++’<div class="pc"><div class="pl">ЗАКАЗ НА СЕЗОН (90 ДНЕЙ)</div><div class="og">’+ord+’</div></div>’
 +’<div class="tc"><span class="tl">ВЫРУЧКА ЗА ГОД</span><span class="tv">’+p.totalSum.toLocaleString(‘ru’)+’ руб</span></div>’
 +’</div></div></td>’;
-tr.after(detTr);
+tr.after(dt);
 setTimeout(function(){var cv=document.getElementById(‘cv_’+id);if(cv)drawChart(cv,p);},50);
 }
 
-function filterProducts() {
-var q = document.getElementById(‘srch’).value.toLowerCase();
+function filterRows() {
+var q=document.getElementById(‘srch’).value.toLowerCase();
 document.querySelectorAll(‘tr.pr,tr.ns’).forEach(function(tr){
-var name = (tr.querySelector(‘td’)||{}).textContent||’’;
-tr.style.display = name.toLowerCase().includes(q)?’’:‘none’;
+var t=(tr.querySelector(‘td’)||{}).textContent||’’;
+tr.style.display=t.toLowerCase().includes(q)?’’:‘none’;
 });
 }
 
@@ -529,31 +433,30 @@ document.getElementById(‘dash’).style.display=‘none’;
 document.getElementById(‘errbox’).style.display=‘none’;
 document.getElementById(‘rbtn’).disabled=true;
 try {
+var t=’&t=’+Date.now();
 document.getElementById(‘ltxt’).textContent=‘ЗАГРУЖАЕМ ДАННЫЕ…’;
-var t = ‘&t=’+Date.now();
-var [r1,r2,r3,r4] = await Promise.all([
-fetch(CSV_SALES+t).then(function(r){if(!r.ok)throw new Error(’Ошибка продаж ’+r.status);return r.text();}),
-fetch(CSV_INTAKE+t).then(function(r){if(!r.ok)throw new Error(’Ошибка приёмок ’+r.status);return r.text();}),
-fetch(CSV_MOVES+t).then(function(r){if(!r.ok)throw new Error(’Ошибка перемещений ’+r.status);return r.text();}),
-fetch(CSV_RETURNS+t).then(function(r){if(!r.ok)throw new Error(’Ошибка возвратов ’+r.status);return r.text();})
+var results=await Promise.all([
+fetch(U_SALES+t).then(function(r){if(!r.ok)throw new Error(‘Ошибка продаж’);return r.text();}),
+fetch(U_INTAKE+t).then(function(r){if(!r.ok)throw new Error(‘Ошибка приёмок’);return r.text();}),
+fetch(U_MOVES+t).then(function(r){if(!r.ok)throw new Error(‘Ошибка перемещений’);return r.text();}),
+fetch(U_RETURNS+t).then(function(r){if(!r.ok)throw new Error(‘Ошибка возвратов’);return r.text();})
 ]);
 document.getElementById(‘ltxt’).textContent=‘ОБРАБАТЫВАЕМ…’;
-var byCat = processData(parseCSV(r1),parseCSV(r2),parseCSV(r3),parseCSV(r4));
-renderDashboard(byCat);
+var byCat=processData(csv(results[0]),csv(results[1]),csv(results[2]),csv(results[3]));
+renderDash(byCat);
 document.getElementById(‘loading’).style.display=‘none’;
 document.getElementById(‘dash’).style.display=‘block’;
 document.getElementById(‘upd’).textContent=’Обновлено: ’+new Date().toLocaleTimeString(‘ru’);
 } catch(e) {
 document.getElementById(‘loading’).style.display=‘none’;
-var eb=document.getElementById(‘errbox’);
-eb.style.display=‘block’;
+var eb=document.getElementById(‘errbox’);eb.style.display=‘block’;
 eb.innerHTML=‘Ошибка: ‘+e.message+’ <button class="btn" onclick="loadData()">Повторить</button>’;
 } finally {
 document.getElementById(‘rbtn’).disabled=false;
 }
 }
 
-setInterval(loadData, 10*60*1000);
+setInterval(loadData,10*60*1000);
 loadData();
 </script>
 
