@@ -1,11 +1,9 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
 import pandas as pd
 import sqlite3
 import os
-import subprocess
 import tempfile
 from datetime import datetime
 from typing import Optional
@@ -35,28 +33,75 @@ def init_db():
 init_db()
 
 def parse_xls(file_path):
-    with tempfile.TemporaryDirectory() as tmpdir:
-        subprocess.run(['libreoffice','--headless','--convert-to','csv','--outdir',tmpdir,file_path],
-                       capture_output=True, timeout=60)
-        csv_name = os.path.basename(file_path).replace('.xls','.csv').replace('.XLS','.csv')
-        csv_path = os.path.join(tmpdir, csv_name)
-        if not os.path.exists(csv_path):
-            raise ValueError("Не удалось сконвертировать файл")
-        raw = pd.read_csv(csv_path, nrows=8, header=None, on_bad_lines='skip')
-        date_str = None
-        for _, row in raw.iterrows():
-            if str(row.get(2,'')).strip() == 'на момент:':
-                date_str = str(row.get(3,'')).strip(); break
-        if not date_str:
-            raise ValueError("Не найдена дата. Убедитесь что это отчёт остатков из МоегоСклада")
+    # Read raw xls as html (MoySklad exports xls as HTML table)
+    try:
+        tables = pd.read_html(file_path, encoding='utf-8')
+    except Exception:
+        try:
+            tables = pd.read_html(file_path, encoding='cp1251')
+        except Exception as e:
+            raise ValueError(f"Не удалось прочитать файл: {e}")
+
+    if not tables:
+        raise ValueError("Файл пустой или не распознан")
+
+    # Find the main table
+    df = None
+    date_str = None
+
+    for tbl in tables:
+        # Look for date row
+        for i, row in tbl.iterrows():
+            for val in row.values:
+                v = str(val).strip()
+                if 'на момент:' in v.lower():
+                    # date is likely in next cell
+                    vals = list(row.values)
+                    for j, cell in enumerate(vals):
+                        if 'на момент:' in str(cell).lower() and j+1 < len(vals):
+                            date_str = str(vals[j+1]).strip()
+                            break
+
+        # Find header row with "Наименование"
+        for i, row in tbl.iterrows():
+            row_vals = [str(v).strip() for v in row.values]
+            if any('аименование' in v for v in row_vals):
+                # This is the header row, data starts after
+                tbl.columns = tbl.iloc[i]
+                tbl = tbl.iloc[i+1:].reset_index(drop=True)
+                df = tbl
+                break
+        if df is not None:
+            break
+
+    if df is None or date_str is None:
+        raise ValueError("Не найдена дата или таблица в файле. Убедитесь что это отчёт остатков из МоегоСклада")
+
+    # Find name and stock columns
+    name_col = None
+    stock_col = None
+    for col in df.columns:
+        c = str(col).strip()
+        if 'аименование' in c:
+            name_col = col
+        if 'статок' in c and 'сумм' not in c.lower():
+            stock_col = col
+
+    if name_col is None or stock_col is None:
+        raise ValueError("Не найдены колонки Наименование/Остаток")
+
+    df = df[[name_col, stock_col]].copy()
+    df.columns = ['sku_name', 'stock_qty']
+    df = df[df['sku_name'].notna() & (df['sku_name'].astype(str) != 'nan')]
+    df = df[df['sku_name'].astype(str).str.strip() != '']
+    df['stock_qty'] = pd.to_numeric(df['stock_qty'], errors='coerce').fillna(0)
+
+    try:
         report_date = pd.to_datetime(date_str, dayfirst=True).normalize()
-        df = pd.read_csv(csv_path, skiprows=9, header=None, on_bad_lines='skip')
-        df.columns = ['drop','Код','Артикул','Наименование','Ед_изм','Доступно','Резерв',
-                      'Ожидание','Остаток','Себестоимость','Сумма_себест','Цена_продажи','Сумма_продажи','Дней_на_складе']
-        df = df[df['Артикул'].notna() & (df['Артикул'].astype(str) != 'Артикул')]
-        df['Остаток'] = pd.to_numeric(df['Остаток'], errors='coerce').fillna(0)
-        df['date'] = report_date.strftime('%Y-%m-%d')
-        return report_date.strftime('%Y-%m-%d'), df[['Наименование','Остаток','date']]
+    except Exception:
+        raise ValueError(f"Не удалось распознать дату: {date_str}")
+
+    return report_date.strftime('%Y-%m-%d'), df
 
 @app.post("/api/upload")
 async def upload_stock(file: UploadFile = File(...)):
@@ -76,7 +121,7 @@ async def upload_stock(file: UploadFile = File(...)):
     for _, row in df.iterrows():
         before = conn.total_changes
         conn.execute("INSERT OR IGNORE INTO stock_snapshots (date,sku_name,stock_qty,uploaded_at) VALUES (?,?,?,?)",
-                     (date_str, str(row['Наименование']), float(row['Остаток']), uploaded_at))
+                     (date_str, str(row['sku_name']).strip(), float(row['stock_qty']), uploaded_at))
         if conn.total_changes > before: inserted += 1
     conn.commit(); conn.close()
     return {"date": date_str, "inserted": inserted, "skipped": len(df)-inserted, "total_skus": len(df)}
@@ -118,9 +163,9 @@ def get_stats():
     return {"total_records": total_records, "total_skus": total_skus, "total_dates": total_dates,
             "date_from": dr["mn"], "date_to": dr["mx"]}
 
-if os.path.exists("index.html"):
-    @app.get("/{full_path:path}")
-    def serve_frontend(full_path: str):
+@app.get("/{full_path:path}")
+def serve_frontend(full_path: str):
+    if os.path.exists("index.html"):
         return FileResponse("index.html")
-
+    return {"error": "Frontend not found"}
 
