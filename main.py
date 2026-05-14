@@ -143,8 +143,9 @@ def get_stats():
 @app.get("/analytics")
 def serve_analytics():
     if os.path.exists("analytics.html"):
-        return FileResponse("analytics.html")
-    return FileResponse("index.html")
+        return FileResponse("analytics.html", media_type="text/html")
+    return FileResponse("index.html", media_type="text/html")
+
 
 @app.get("/{full_path:path}")
 def serve_frontend(full_path: str):
