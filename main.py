@@ -7,10 +7,11 @@ from typing import Optional
 
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
-DB_PATH = "data/stocks.db"
+
+DB_PATH = "/data/stocks.db"
 
 def get_db():
-    os.makedirs("data", exist_ok=True)
+    os.makedirs("/data", exist_ok=True)
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
@@ -24,6 +25,9 @@ def init_db():
         UNIQUE(date, sku_name))""")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_date ON stock_snapshots(date)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_sku ON stock_snapshots(sku_name)")
+    conn.execute("""CREATE TABLE IF NOT EXISTS hidden_items (
+        sku_base TEXT PRIMARY KEY,
+        hidden_at TEXT NOT NULL)""")
     conn.commit(); conn.close()
 
 init_db()
@@ -32,40 +36,31 @@ def parse_xls(file_path):
     import xlrd
     book = xlrd.open_workbook(file_path)
     sheet = book.sheet_by_index(0)
-    
     date_str = None
     header_row = None
     name_col = None
     stock_col = None
-    
-    # Find date and header
     for i in range(min(15, sheet.nrows)):
         row = [str(sheet.cell_value(i, j)).strip() for j in range(sheet.ncols)]
-        # Find date
         for j, val in enumerate(row):
             if 'на момент' in val.lower() and j+1 < len(row):
                 date_str = row[j+1]
-            # Also check if date is in same cell after colon
             if 'на момент:' in val.lower():
                 parts = val.split(':', 1)
                 if len(parts) > 1 and parts[1].strip():
                     date_str = parts[1].strip()
-        # Find header row
         if any('аименование' in v for v in row):
             header_row = i
             for j, v in enumerate(row):
                 if 'аименование' in v: name_col = j
                 if 'статок' in v and 'умм' not in v.lower(): stock_col = j
             break
-    
     if not date_str:
         raise ValueError("Не найдена дата в файле")
     if header_row is None or name_col is None or stock_col is None:
         raise ValueError("Не найдена таблица с остатками")
-    
     import pandas as pd
     report_date = pd.to_datetime(date_str.split()[0], dayfirst=True).normalize()
-    
     rows = []
     for i in range(header_row + 1, sheet.nrows):
         name = str(sheet.cell_value(i, name_col)).strip()
@@ -75,10 +70,8 @@ def parse_xls(file_path):
         except:
             qty = 0.0
         rows.append({'sku_name': name, 'stock_qty': qty})
-    
     if not rows:
         raise ValueError("Таблица пустая")
-    
     return report_date.strftime('%Y-%m-%d'), rows
 
 @app.post("/api/upload")
@@ -140,16 +133,36 @@ def get_stats():
     conn.close()
     return {"total_records": r1, "total_skus": r2, "total_dates": r3, "date_from": dr["mn"], "date_to": dr["mx"]}
 
+@app.post("/api/hide")
+async def hide_item(data: dict):
+    conn = get_db()
+    conn.execute("INSERT OR IGNORE INTO hidden_items (sku_base, hidden_at) VALUES (?,?)",
+                 (data["sku_base"], datetime.now().isoformat()))
+    conn.commit(); conn.close()
+    return {"ok": True}
+
+@app.delete("/api/hide/{sku_base}")
+def unhide_item(sku_base: str):
+    conn = get_db()
+    conn.execute("DELETE FROM hidden_items WHERE sku_base=?", (sku_base,))
+    conn.commit(); conn.close()
+    return {"ok": True}
+
+@app.get("/api/hidden")
+def get_hidden():
+    conn = get_db()
+    rows = conn.execute("SELECT sku_base FROM hidden_items ORDER BY hidden_at DESC").fetchall()
+    conn.close()
+    return [r["sku_base"] for r in rows]
+
 @app.get("/analytics")
 def serve_analytics():
     if os.path.exists("analytics.html"):
         return FileResponse("analytics.html", media_type="text/html")
     return FileResponse("index.html", media_type="text/html")
 
-
 @app.get("/{full_path:path}")
 def serve_frontend(full_path: str):
     if os.path.exists("index.html"):
-        return FileResponse("index.html")
+        return FileResponse("index.html", media_type="text/html")
     return {"error": "not found"}
-
