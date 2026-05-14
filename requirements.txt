@@ -5,3 +5,4 @@ pandas
 openpyxl
 lxml
 html5lib
+beautifulsoup4
