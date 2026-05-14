@@ -1,13 +1,14 @@
 #!/bin/bash
 set -e
-echo "=== Installing Node ==="
-curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-apt-get install -y nodejs
-echo "=== Building frontend ==="
+
+echo "=== Installing Python dependencies ==="
+pip install -r backend/requirements.txt
+
+echo "=== Installing Node dependencies ==="
 cd frontend
 npm install
 npm run build
 cd ..
-echo "=== Installing Python deps ==="
-pip install -r backend/requirements.txt
-echo "=== Done ==="
+
+echo "=== Build complete ==="
+
