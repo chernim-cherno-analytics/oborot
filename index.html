@@ -1,12 +1,204 @@
 <!DOCTYPE html>
+
 <html lang="ru">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>CernimCherno · Остатки</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/App.jsx"></script>
-  </body>
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>CernimCherno · Остатки</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root{--bg:#0e0e0e;--bg2:#161616;--bg3:#1e1e1e;--border:#2a2a2a;--border2:#333;--text:#e8e8e8;--text2:#888;--text3:#555;--accent:#c8ff00;--orange:#ff8c00;--red:#ff4444;--mono:"IBM Plex Mono",monospace;--sans:"IBM Plex Sans",sans-serif}
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh}
+    .header{border-bottom:1px solid var(--border);padding:0 24px;height:52px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--bg);z-index:100}
+    .logo{font-family:var(--mono);font-size:13px;font-weight:600;letter-spacing:.15em}
+    .logo span{color:#c8ff00}
+    .hstats{font-family:var(--mono);font-size:11px;color:var(--text3)}
+    .main{max-width:1400px;margin:0 auto;padding:32px 24px;display:flex;flex-direction:column;gap:20px}
+    .upload-zone{border:1px dashed var(--border2);border-radius:4px;padding:32px;text-align:center;cursor:pointer;background:var(--bg2);transition:all .15s}
+    .upload-zone:hover,.upload-zone.drag{border-color:#c8ff00;background:#161f00}
+    .upload-icon{font-size:28px;color:#c8ff00;margin-bottom:10px;font-family:var(--mono)}
+    .upload-text{font-size:14px;font-weight:500;margin-bottom:6px}
+    .upload-hint{font-size:12px;color:var(--text3);font-family:var(--mono)}
+    .msg{border-radius:4px;padding:12px 40px 12px 14px;position:relative;font-family:var(--mono);font-size:12px;display:none}
+    .msg.show{display:block}
+    .msg.ok{background:#161f00;border:1px solid #3a4f00}
+    .msg.err{background:#1f0000;border:1px solid #4f0000;color:var(--red)}
+    .msg-title{font-weight:600;font-size:13px;color:#c8ff00;margin-bottom:6px}
+    .msg-details{color:var(--text2);line-height:1.7}
+    .close-btn{position:absolute;top:10px;right:12px;background:none;border:none;color:var(--text3);cursor:pointer;font-size:14px}
+    .controls{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap}
+    .date-tabs{display:flex;flex-wrap:wrap;gap:6px;flex:1}
+    .date-tab{background:var(--bg2);border:1px solid var(--border);color:var(--text2);padding:6px 12px;font-family:var(--mono);font-size:11px;cursor:pointer;border-radius:2px;display:flex;align-items:center;gap:6px;transition:all .1s}
+    .date-tab:hover{border-color:var(--border2);color:var(--text)}
+    .date-tab.active{border-color:#c8ff00;color:#c8ff00;background:#161f00}
+    .dtc{background:var(--bg3);padding:1px 5px;border-radius:2px;font-size:10px;color:var(--text3)}
+    .date-tab.active .dtc{background:#1e2e00;color:#a0cc00}
+    .search-wrap{position:relative;min-width:260px}
+    .search-input{width:100%;background:var(--bg2);border:1px solid var(--border);color:var(--text);padding:8px 32px 8px 12px;font-family:var(--mono);font-size:12px;border-radius:2px;outline:none}
+    .search-input:focus{border-color:#c8ff00}
+    .search-input::placeholder{color:var(--text3)}
+    .search-clear{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text3);cursor:pointer;font-size:12px;display:none}
+    .table-wrap{background:var(--bg2);border:1px solid var(--border);border-radius:4px;overflow:hidden}
+    .table-meta{padding:12px 16px;border-bottom:1px solid var(--border);font-size:12px;color:var(--text3);font-family:var(--mono)}
+    .table-meta b{color:var(--text2)}
+    table{width:100%;border-collapse:collapse}
+    th{background:var(--bg3);padding:10px 16px;text-align:left;font-family:var(--mono);font-size:11px;font-weight:500;color:var(--text3);letter-spacing:.08em;text-transform:uppercase;border-bottom:1px solid var(--border)}
+    td{padding:9px 16px;border-bottom:1px solid var(--border);font-size:13px}
+    tr:last-child td{border-bottom:none}
+    tbody tr:hover td{background:var(--bg3)}
+    .zero td{opacity:.35}
+    .col-name{width:100%}
+    .col-qty{white-space:nowrap;text-align:right}
+    .badge{font-family:var(--mono);font-size:12px;font-weight:500;padding:2px 8px;border-radius:2px;background:var(--bg3)}
+    .badge.zero{color:var(--text3);background:transparent}
+    .badge.low{color:var(--orange);background:#1f1200}
+    .placeholder{text-align:center;padding:48px;color:var(--text3);font-family:var(--mono);font-size:13px}
+    .pagination{display:flex;align-items:center;justify-content:center;gap:16px;padding:14px;border-top:1px solid var(--border)}
+    .pagination button{background:var(--bg3);border:1px solid var(--border);color:var(--text2);padding:6px 14px;font-family:var(--mono);font-size:13px;cursor:pointer;border-radius:2px}
+    .pagination button:hover:not(:disabled){border-color:#c8ff00;color:#c8ff00}
+    .pagination button:disabled{opacity:.3;cursor:default}
+    .pagination span{font-family:var(--mono);font-size:12px;color:var(--text3)}
+  </style>
+</head>
+<body>
+<div class="header">
+  <div class="logo">CERNIM<span>CHERNO</span></div>
+  <div class="hstats" id="hstats"></div>
+</div>
+<div class="main">
+  <div class="upload-zone" id="dropzone">
+    <input type="file" id="file-input" accept=".xls" multiple style="display:none">
+    <div class="upload-icon" id="upload-icon">↑</div>
+    <div class="upload-text" id="upload-text">Перетащите XLS файлы или нажмите для выбора</div>
+    <div class="upload-hint">Отчёты остатков из МоегоСклада · Гороховая, Мясницкая, Интернет-магазин</div>
+  </div>
+  <div class="msg" id="msg-ok"><div class="msg-title" id="msg-title"></div><div class="msg-details" id="msg-details"></div><button class="close-btn" onclick="document.getElementById('msg-ok').classList.remove('show')">✕</button></div>
+  <div class="msg err" id="msg-err"><span id="msg-err-text"></span><button class="close-btn" onclick="document.getElementById('msg-err').classList.remove('show')">✕</button></div>
+  <div class="controls">
+    <div class="date-tabs" id="date-tabs"></div>
+    <div class="search-wrap">
+      <input class="search-input" id="search" placeholder="Поиск по названию...">
+      <button class="search-clear" id="search-clear" onclick="clearSearch()">✕</button>
+    </div>
+  </div>
+  <div class="table-wrap">
+    <div class="table-meta" id="table-meta"></div>
+    <table><thead><tr><th class="col-name">Наименование</th><th class="col-qty">Остаток</th></tr></thead>
+    <tbody id="tbody"></tbody></table>
+    <div class="pagination" id="pagination" style="display:none">
+      <button id="prev-btn" onclick="changePage(-1)">←</button>
+      <span id="page-info"></span>
+      <button id="next-btn" onclick="changePage(1)">→</button>
+    </div>
+  </div>
+</div>
+<script>
+let selectedDate = null, currentPage = 1, searchVal = "", totalPages = 0;
+let searchTimer = null;
+
+async function loadStats(){
+try{
+const r = await fetch(”/api/stats”); const d = await r.json();
+if(d.total_dates > 0) document.getElementById(“hstats”).textContent = d.total_skus+” SKU · “+d.total_dates+” дней · “+d.date_from+” — “+d.date_to;
+}catch(e){}
+}
+
+async function loadDates(){
+try{
+const r = await fetch(”/api/dates”); const dates = await r.json();
+const tabs = document.getElementById(“date-tabs”);
+tabs.innerHTML = “”;
+dates.forEach(d => {
+const btn = document.createElement(“button”);
+btn.className = “date-tab” + (d.date === selectedDate ? “ active” : “”);
+const parts = d.date.split(”-”);
+btn.innerHTML = parts[2]+”.”+parts[1]+”.”+parts[0]+” <span class='dtc'>”+d.sku_count+”</span>”;
+btn.onclick = () => { selectedDate = d.date; currentPage = 1; loadDates(); loadStocks(); };
+tabs.appendChild(btn);
+});
+if(!selectedDate && dates.length > 0){ selectedDate = dates[0].date; loadDates(); loadStocks(); }
+}catch(e){}
+}
+
+async function loadStocks(){
+if(!selectedDate) return;
+document.getElementById(“tbody”).innerHTML = “<tr><td colspan='2' class='placeholder'>Загрузка…</td></tr>”;
+try{
+const params = new URLSearchParams({date: selectedDate, page: currentPage, per_page: 50});
+if(searchVal) params.set(“search”, searchVal);
+const r = await fetch(”/api/stocks?”+params); const d = await r.json();
+totalPages = d.pages || 0;
+const parts = selectedDate.split(”-”);
+document.getElementById(“table-meta”).innerHTML = “Остатки на <b>”+parts[2]+”.”+parts[1]+”.”+parts[0]+”</b> · “+d.total+” позиций”;
+const tbody = document.getElementById(“tbody”);
+if(!d.items || d.items.length === 0){
+tbody.innerHTML = “<tr><td colspan='2' class='placeholder'>Ничего не найдено</td></tr>”;
+} else {
+tbody.innerHTML = d.items.map(s => {
+const cls = s.stock_qty === 0 ? “zero” : s.stock_qty <= 3 ? “low” : “”;
+return “<tr class='"+(s.stock_qty===0?"zero":"")+"'><td class='col-name'>”+s.sku_name+”</td><td class='col-qty'><span class='badge "+cls+"'>”+s.stock_qty+”</span></td></tr>”;
+}).join(””);
+}
+const pg = document.getElementById(“pagination”);
+if(totalPages > 1){
+pg.style.display = “flex”;
+document.getElementById(“page-info”).textContent = currentPage+” / “+totalPages;
+document.getElementById(“prev-btn”).disabled = currentPage === 1;
+document.getElementById(“next-btn”).disabled = currentPage === totalPages;
+} else { pg.style.display = “none”; }
+}catch(e){ document.getElementById(“tbody”).innerHTML = “<tr><td colspan='2' class='placeholder'>Ошибка загрузки</td></tr>”; }
+}
+
+function changePage(dir){ currentPage += dir; loadStocks(); }
+
+function clearSearch(){ document.getElementById(“search”).value = “”; searchVal = “”; document.getElementById(“search-clear”).style.display=“none”; currentPage=1; loadStocks(); }
+
+document.getElementById(“search”).addEventListener(“input”, e => {
+searchVal = e.target.value;
+document.getElementById(“search-clear”).style.display = searchVal ? “block” : “none”;
+clearTimeout(searchTimer);
+searchTimer = setTimeout(() => { currentPage=1; loadStocks(); }, 350);
+});
+
+async function uploadFiles(files){
+const xlsFiles = Array.from(files).filter(f => f.name.toLowerCase().endsWith(”.xls”));
+if(!xlsFiles.length){ showErr(“Только .xls файлы из МоегоСклада”); return; }
+document.getElementById(“upload-icon”).textContent = “⟳”;
+document.getElementById(“upload-text”).textContent = “Загружаю…”;
+document.getElementById(“dropzone”).style.pointerEvents = “none”;
+let ok=0; const details=[];
+for(const file of xlsFiles){
+const fd = new FormData(); fd.append(“file”, file);
+try{
+const res = await fetch(”/api/upload”,{method:“POST”,body:fd});
+const data = await res.json();
+if(res.ok){ details.push(“✓ “+data.date+”: +”+data.inserted+” записей”); ok++; }
+else { details.push(“✗ “+file.name+”: “+data.detail); }
+}catch{ details.push(“✗ “+file.name+”: ошибка сети”); }
+}
+document.getElementById(“upload-icon”).textContent = “↑”;
+document.getElementById(“upload-text”).textContent = “Перетащите XLS файлы или нажмите для выбора”;
+document.getElementById(“dropzone”).style.pointerEvents = “”;
+const ok_el = document.getElementById(“msg-ok”);
+document.getElementById(“msg-title”).textContent = “Загружено “+ok+” из “+xlsFiles.length+” файлов”;
+document.getElementById(“msg-details”).innerHTML = details.join(”<br>”);
+ok_el.classList.add(“show”);
+selectedDate = null; loadStats(); loadDates();
+}
+
+function showErr(msg){ document.getElementById(“msg-err-text”).textContent=msg; document.getElementById(“msg-err”).classList.add(“show”); }
+
+const dz = document.getElementById(“dropzone”);
+dz.addEventListener(“click”, () => document.getElementById(“file-input”).click());
+dz.addEventListener(“dragover”, e => { e.preventDefault(); dz.classList.add(“drag”); });
+dz.addEventListener(“dragleave”, () => dz.classList.remove(“drag”));
+dz.addEventListener(“drop”, e => { e.preventDefault(); dz.classList.remove(“drag”); uploadFiles(e.dataTransfer.files); });
+document.getElementById(“file-input”).addEventListener(“change”, e => uploadFiles(e.target.files));
+
+loadStats(); loadDates();
+</script>
+
+</body>
 </html>
