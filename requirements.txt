@@ -3,3 +3,4 @@ uvicorn
 python-multipart
 pandas
 openpyxl
+lxml
