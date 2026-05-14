@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>CernimCherno · Аналитика</title>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --bg:#0e0e0e;--bg2:#161616;--bg3:#1e1e1e;--bg4:#222;
+      --border:#2a2a2a;--border2:#333;
+      --text:#e8e8e8;--text2:#888;--text3:#555;
+      --accent:#c8ff00;--mono:"IBM Plex Mono",monospace;--sans:"IBM Plex Sans",sans-serif;
+      --winter:rgba(59,130,246,0.15);--spring:rgba(34,197,94,0.15);
+      --summer:rgba(251,146,60,0.15);--autumn:rgba(120,80,40,0.15);
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh}
+    
+    /* Header */
+    .header{border-bottom:1px solid var(--border);padding:0 24px;height:52px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--bg);z-index:200}
+    .logo{font-family:var(--mono);font-size:13px;font-weight:600;letter-spacing:.15em;text-decoration:none;color:var(--text)}
+    .logo span{color:#c8ff00}
+    .nav{display:flex;gap:4px}
+    .nav a{font-family:var(--mono);font-size:11px;color:var(--text3);text-decoration:none;padding:5px 10px;border-radius:2px;border:1px solid transparent}
+    .nav a:hover{color:var(--text2);border-color:var(--border)}
+    .nav a.active{color:#c8ff00;border-color:#c8ff00;background:#161f00}
+
+    /* Category tabs */
+    .cat-bar{padding:16px 24px;border-bottom:1px solid var(--border);display:flex;gap:6px;flex-wrap:wrap;background:var(--bg)}
+    .cat-btn{font-family:var(--mono);font-size:11px;padding:5px 12px;border:1px solid var(--border);background:var(--bg2);color:var(--text2);cursor:pointer;border-radius:2px;transition:all .1s;white-space:nowrap}
+    .cat-btn:hover{border-color:var(--border2);color:var(--text)}
+    .cat-btn.active{border-color:#c8ff00;color:#c8ff00;background:#161f00}
+    .cat-btn .count{font-size:10px;color:var(--text3);margin-left:4px}
+    .cat-btn.active .count{color:#a0cc00}
+
+    /* Main layout */
+    .main{padding:24px;max-width:1600px;margin:0 auto}
+    
+    /* Season legend */
+    .season-legend{display:flex;gap:16px;margin-bottom:20px;align-items:center}
+    .season-legend span{font-family:var(--mono);font-size:11px;color:var(--text3);display:flex;align-items:center;gap:5px}
+    .season-dot{width:10px;height:10px;border-radius:2px}
+    .s-winter{background:rgba(59,130,246,0.6)}
+    .s-spring{background:rgba(34,197,94,0.6)}
+    .s-summer{background:rgba(251,146,60,0.6)}
+    .s-autumn{background:rgba(120,80,40,0.6)}
+
+    /* Product list */
+    .product-list{display:flex;flex-direction:column;gap:2px}
+    
+    .product-row{background:var(--bg2);border:1px solid var(--border);border-radius:3px;overflow:hidden}
+    .product-header{display:flex;align-items:center;gap:12px;padding:10px 14px;cursor:pointer;transition:background .1s}
+    .product-header:hover{background:var(--bg3)}
+    .product-header.open{background:var(--bg3);border-bottom:1px solid var(--border)}
+    
+    .expand-icon{font-family:var(--mono);font-size:11px;color:var(--text3);width:16px;flex-shrink:0;transition:transform .15s}
+    .expand-icon.open{transform:rotate(90deg)}
+    
+    .product-name{font-size:13px;font-weight:500;flex:1;min-width:0}
+    .product-total{font-family:var(--mono);font-size:12px;color:var(--text2);white-space:nowrap}
+    
+    /* Chart area */
+    .chart-wrap{position:relative;height:48px;flex:1;min-width:200px;margin:0 8px}
+    .chart-canvas{width:100%;height:48px;display:block}
+    
+    /* Sizes section */
+    .sizes-section{padding:0 14px 10px 42px;display:flex;flex-direction:column;gap:4px}
+    .size-row{display:flex;align-items:center;gap:12px}
+    .size-label{font-family:var(--mono);font-size:11px;color:var(--text3);width:80px;flex-shrink:0}
+    .size-chart-wrap{position:relative;height:32px;flex:1}
+    .size-stock{font-family:var(--mono);font-size:11px;color:var(--text2);width:40px;text-align:right;flex-shrink:0}
+    
+    .loading{text-align:center;padding:80px;color:var(--text3);font-family:var(--mono);font-size:13px}
+    .empty{text-align:center;padding:40px;color:var(--text3);font-family:var(--mono);font-size:12px}
+  </style>
+</head>
+<body>
+<div class="header">
+  <a class="logo" href="/">CERNIM<span>CHERNO</span></a>
+  <nav class="nav">
+    <a href="/">Остатки</a>
+    <a href="/analytics" class="active">Аналитика</a>
+  </nav>
+</div>
+
+<div class="cat-bar" id="cat-bar">
+  <div class="loading" style="padding:8px">Загрузка...</div>
+</div>
+
+<div class="main">
+  <div class="season-legend">
+    <span><div class="season-dot s-winter"></div>Зима</span>
+    <span><div class="season-dot s-spring"></div>Весна</span>
+    <span><div class="season-dot s-summer"></div>Лето</span>
+    <span><div class="season-dot s-autumn"></div>Осень</span>
+  </div>
+  <div id="product-list" class="product-list">
+    <div class="loading">Загрузка данных...</div>
+  </div>
+</div>
+
+<script>
+const CATEGORIES = {
+  "Верхняя одежда": ["бомбер","куртка","тренч","пальто","ветровка","олимпийка","комбинезон","фрак","меховой пиджак"],
+  "Костюмы": ["пиджак","жилет-галстук","корсетный жилет"],
+  "Брюки": ["брюки","джинсы","спортивные брюки"],
+  "Рубашки": ["рубашка"],
+  "Свитера": ["свитер"],
+  "Худи и свитшоты": ["худи","свитшот"],
+  "Шорты": ["шорты"],
+  "Майки": ["майка","топ","лонгслив","кроп кольчуга","манишка кольчуга","майка кольчуга"],
+  "Футболки": ["футболка"],
+  "Сумки": ["сумка","клатч"],
+  "Аксессуары": ["ремень","галстук","шарф","шапка","носки","воротник","меховой ворот"],
+  "Украшения": ["браслет","кольцо","подвеска","серьга","кафф","цепь","цепочка","сет из"],
+  "Нижнее белье": ["боксер","брифы","комплект"],
+  "Очки": ["очки"],
+  "Прочее": []
+};
+
+const CAT_ORDER = ["Верхняя одежда","Костюмы","Брюки","Рубашки","Свитера","Худи и свитшоты","Шорты","Майки","Футболки","Сумки","Аксессуары","Украшения","Нижнее белье","Очки","Прочее"];
+
+function getCategory(name) {
+  const nl = name.toLowerCase();
+  if (nl.includes("sample")) return null;
+  if (nl.includes("сертификат") || nl.includes("кошелек")) return "Прочее";
+  for (const [cat, kws] of Object.entries(CATEGORIES)) {
+    if (cat === "Прочее") continue;
+    if (kws.some(k => nl.includes(k))) return cat;
+  }
+  return "Прочее";
+}
+
+function stripSize(name) {
+  return name.replace(/\s*\([^)]*\)\s*$/, '').trim();
+}
+
+function getSize(name) {
+  const m = name.match(/\(([^)]+)\)\s*$/);
+  return m ? m[1] : null;
+}
+
+function getSeason(dateStr) {
+  const m = parseInt(dateStr.split('-')[1]);
+  if (m === 12 || m <= 2) return 'winter';
+  if (m <= 5) return 'spring';
+  if (m <= 8) return 'summer';
+  return 'autumn';
+}
+
+const SEASON_COLORS = {
+  winter: 'rgba(59,130,246,0.25)',
+  spring: 'rgba(34,197,94,0.25)',
+  summer: 'rgba(251,146,60,0.25)',
+  autumn: 'rgba(120,80,40,0.25)'
+};
+
+const LINE_COLOR = '#c8ff00';
+const LINE_COLOR_DIM = 'rgba(200,255,0,0.4)';
+
+let allDates = [];
+let stockData = {}; // sku_name -> {date -> qty}
+let currentCat = "Верхняя одежда";
+
+async function loadAllData() {
+  // Get all dates
+  const datesRes = await fetch('/api/dates');
+  const datesJson = await datesRes.json();
+  allDates = datesJson.map(d => d.date).sort();
+  
+  if (allDates.length === 0) {
+    document.getElementById('product-list').innerHTML = '<div class="empty">Нет данных. Загрузите отчёты остатков на странице Остатки.</div>';
+    return;
+  }
+
+  // Load all stock data for all dates
+  // We'll load per-date in batches
+  const total = allDates.length;
+  document.getElementById('product-list').innerHTML = `<div class="loading">Загружаю данные: 0 / ${total} дней...</div>`;
+
+  for (let i = 0; i < allDates.length; i++) {
+    const date = allDates[i];
+    let page = 1, hasMore = true;
+    while (hasMore) {
+      const res = await fetch(`/api/stocks?date=${date}&page=${page}&per_page=200`);
+      const data = await res.json();
+      for (const item of data.items) {
+        if (!stockData[item.sku_name]) stockData[item.sku_name] = {};
+        stockData[item.sku_name][date] = item.stock_qty;
+      }
+      if (page >= data.pages) hasMore = false;
+      page++;
+    }
+    if (i % 10 === 0) {
+      document.getElementById('product-list').innerHTML = `<div class="loading">Загружаю данные: ${i+1} / ${total} дней...</div>`;
+      await new Promise(r => setTimeout(r, 0));
+    }
+  }
+
+  buildCategoryTabs();
+  renderCategory(currentCat);
+}
+
+function buildCategoryTabs() {
+  // Group positions by category
+  const allSkus = Object.keys(stockData);
+  const catCounts = {};
+  const positionsByName = {};
+
+  for (const sku of allSkus) {
+    const base = stripSize(sku);
+    const cat = getCategory(base);
+    if (!cat) continue;
+    catCounts[cat] = (catCounts[cat] || 0);
+    if (!positionsByName[base]) {
+      catCounts[cat]++;
+      positionsByName[base] = true;
+    }
+  }
+
+  const bar = document.getElementById('cat-bar');
+  bar.innerHTML = CAT_ORDER.filter(c => catCounts[c] > 0).map(cat =>
+    `<button class="cat-btn ${cat === currentCat ? 'active' : ''}" onclick="selectCat('${cat}')">
+      ${cat}<span class="count">${catCounts[cat]}</span>
+    </button>`
+  ).join('');
+}
+
+function selectCat(cat) {
+  currentCat = cat;
+  document.querySelectorAll('.cat-btn').forEach(b => b.classList.toggle('active', b.textContent.trim().startsWith(cat)));
+  renderCategory(cat);
+}
+
+function getPositionsForCat(cat) {
+  const positions = {}; // baseName -> { sizes: {sizeName -> {date->qty}}, all: {date->qty} }
+  
+  for (const [sku, dateMap] of Object.entries(stockData)) {
+    const base = stripSize(sku);
+    if (getCategory(base) !== cat) continue;
+    const size = getSize(sku) || 'One Size';
+    
+    if (!positions[base]) positions[base] = { sizes: {}, all: {} };
+    positions[base].sizes[size] = dateMap;
+    
+    // Aggregate all sizes
+    for (const [date, qty] of Object.entries(dateMap)) {
+      positions[base].all[date] = (positions[base].all[date] || 0) + qty;
+    }
+  }
+  return positions;
+}
+
+function renderCategory(cat) {
+  const positions = getPositionsForCat(cat);
+  const names = Object.keys(positions).sort();
+  
+  if (names.length === 0) {
+    document.getElementById('product-list').innerHTML = '<div class="empty">Нет позиций в этой категории</div>';
+    return;
+  }
+
+  const list = document.getElementById('product-list');
+  list.innerHTML = '';
+
+  for (const name of names) {
+    const pos = positions[name];
+    const sizes = Object.keys(pos.sizes).sort();
+    const hasSizes = sizes.length > 1 || (sizes.length === 1 && sizes[0] !== 'One Size');
+    
+    // Current stock = last date
+    const lastDate = allDates[allDates.length - 1];
+    const currentStock = pos.all[lastDate] || 0;
+
+    const row = document.createElement('div');
+    row.className = 'product-row';
+
+    const header = document.createElement('div');
+    header.className = 'product-header';
+    header.innerHTML = `
+      <div class="expand-icon">${hasSizes ? '▶' : ' '}</div>
+      <div class="product-name">${name}</div>
+      <canvas class="chart-canvas chart-wrap" width="400" height="48" style="flex:1;min-width:150px;max-width:500px;height:48px"></canvas>
+      <div class="product-total">${currentStock} шт</div>
+    `;
+
+    row.appendChild(header);
+
+    // Draw main chart
+    const canvas = header.querySelector('canvas');
+    drawChart(canvas, pos.all, allDates, false);
+
+    // Sizes section
+    if (hasSizes) {
+      const sizesDiv = document.createElement('div');
+      sizesDiv.className = 'sizes-section';
+      sizesDiv.style.display = 'none';
+
+      // "All sizes" row first
+      const allRow = document.createElement('div');
+      allRow.className = 'size-row';
+      const allCanvas = document.createElement('canvas');
+      allCanvas.width = 400; allCanvas.height = 32;
+      allCanvas.style.cssText = 'flex:1;height:32px;display:block';
+      allRow.innerHTML = `<div class="size-label" style="font-family:var(--mono);font-size:11px;color:var(--text2);width:80px;flex-shrink:0">Все размеры</div>`;
+      allRow.appendChild(allCanvas);
+      const allStock = document.createElement('div');
+      allStock.className = 'size-stock';
+      allStock.textContent = currentStock;
+      allRow.appendChild(allStock);
+      sizesDiv.appendChild(allRow);
+      drawChart(allCanvas, pos.all, allDates, true);
+
+      for (const size of sizes) {
+        const sizeRow = document.createElement('div');
+        sizeRow.className = 'size-row';
+        const sc = document.createElement('canvas');
+        sc.width = 400; sc.height = 32;
+        sc.style.cssText = 'flex:1;height:32px;display:block';
+        sizeRow.innerHTML = `<div class="size-label">${size}</div>`;
+        sizeRow.appendChild(sc);
+        const sStock = document.createElement('div');
+        sStock.className = 'size-stock';
+        sStock.textContent = pos.sizes[size][lastDate] || 0;
+        sizeRow.appendChild(sStock);
+        sizesDiv.appendChild(sizeRow);
+        drawChart(sc, pos.sizes[size], allDates, true);
+      }
+
+      row.appendChild(sizesDiv);
+
+      header.addEventListener('click', () => {
+        const isOpen = sizesDiv.style.display !== 'none';
+        sizesDiv.style.display = isOpen ? 'none' : 'flex';
+        sizesDiv.style.flexDirection = 'column';
+        header.classList.toggle('open', !isOpen);
+        header.querySelector('.expand-icon').classList.toggle('open', !isOpen);
+      });
+    }
+
+    list.appendChild(row);
+  }
+}
+
+function drawChart(canvas, dateMap, dates, small) {
+  const ctx = canvas.getContext('2d');
+  const W = canvas.offsetWidth || canvas.width;
+  const H = canvas.height;
+  canvas.width = W;
+  ctx.clearRect(0, 0, W, H);
+
+  if (dates.length < 2) return;
+
+  // Draw season backgrounds
+  let prevSeason = null, segStart = 0;
+  for (let i = 0; i <= dates.length; i++) {
+    const season = i < dates.length ? getSeason(dates[i]) : null;
+    if (season !== prevSeason && prevSeason !== null) {
+      const x1 = (segStart / (dates.length - 1)) * W;
+      const x2 = (Math.min(i, dates.length - 1) / (dates.length - 1)) * W;
+      ctx.fillStyle = SEASON_COLORS[prevSeason];
+      ctx.fillRect(x1, 0, x2 - x1, H);
+    }
+    if (season !== prevSeason) { prevSeason = season; segStart = i; }
+  }
+
+  // Build values array with forward fill
+  const vals = [];
+  let last = 0;
+  for (const d of dates) {
+    if (dateMap[d] !== undefined) last = dateMap[d];
+    vals.push(last);
+  }
+
+  const maxVal = Math.max(...vals, 1);
+  const pad = small ? 3 : 5;
+
+  // Draw line
+  ctx.beginPath();
+  ctx.strokeStyle = small ? LINE_COLOR_DIM : LINE_COLOR;
+  ctx.lineWidth = small ? 1 : 1.5;
+  ctx.lineJoin = 'round';
+
+  for (let i = 0; i < vals.length; i++) {
+    const x = (i / (vals.length - 1)) * W;
+    const y = H - pad - (vals[i] / maxVal) * (H - pad * 2);
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+
+  // Fill under line
+  ctx.lineTo(W, H);
+  ctx.lineTo(0, H);
+  ctx.closePath();
+  ctx.fillStyle = small ? 'rgba(200,255,0,0.04)' : 'rgba(200,255,0,0.07)';
+  ctx.fill();
+}
+
+// Handle resize
+window.addEventListener('resize', () => renderCategory(currentCat));
+
+loadAllData();
+</script>
+</body>
+</html>
