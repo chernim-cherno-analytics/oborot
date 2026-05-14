@@ -6,3 +6,5 @@ openpyxl
 lxml
 html5lib
 beautifulsoup4
+xlrd
+
