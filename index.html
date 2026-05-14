@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-
 <html lang="ru">
 <head>
   <meta charset="UTF-8"/>
@@ -99,106 +98,105 @@ let selectedDate = null, currentPage = 1, searchVal = "", totalPages = 0;
 let searchTimer = null;
 
 async function loadStats(){
-try{
-const r = await fetch(”/api/stats”); const d = await r.json();
-if(d.total_dates > 0) document.getElementById(“hstats”).textContent = d.total_skus+” SKU · “+d.total_dates+” дней · “+d.date_from+” — “+d.date_to;
-}catch(e){}
+  try{
+    const r = await fetch("/api/stats"); const d = await r.json();
+    if(d.total_dates > 0) document.getElementById("hstats").textContent = d.total_skus+" SKU · "+d.total_dates+" дней · "+d.date_from+" — "+d.date_to;
+  }catch(e){}
 }
 
 async function loadDates(){
-try{
-const r = await fetch(”/api/dates”); const dates = await r.json();
-const tabs = document.getElementById(“date-tabs”);
-tabs.innerHTML = “”;
-dates.forEach(d => {
-const btn = document.createElement(“button”);
-btn.className = “date-tab” + (d.date === selectedDate ? “ active” : “”);
-const parts = d.date.split(”-”);
-btn.innerHTML = parts[2]+”.”+parts[1]+”.”+parts[0]+” <span class='dtc'>”+d.sku_count+”</span>”;
-btn.onclick = () => { selectedDate = d.date; currentPage = 1; loadDates(); loadStocks(); };
-tabs.appendChild(btn);
-});
-if(!selectedDate && dates.length > 0){ selectedDate = dates[0].date; loadDates(); loadStocks(); }
-}catch(e){}
+  try{
+    const r = await fetch("/api/dates"); const dates = await r.json();
+    const tabs = document.getElementById("date-tabs");
+    tabs.innerHTML = "";
+    dates.forEach(d => {
+      const btn = document.createElement("button");
+      btn.className = "date-tab" + (d.date === selectedDate ? " active" : "");
+      const parts = d.date.split("-");
+      btn.innerHTML = parts[2]+"."+parts[1]+"."+parts[0]+" <span class='dtc'>"+d.sku_count+"</span>";
+      btn.onclick = () => { selectedDate = d.date; currentPage = 1; loadDates(); loadStocks(); };
+      tabs.appendChild(btn);
+    });
+    if(!selectedDate && dates.length > 0){ selectedDate = dates[0].date; loadDates(); loadStocks(); }
+  }catch(e){}
 }
 
 async function loadStocks(){
-if(!selectedDate) return;
-document.getElementById(“tbody”).innerHTML = “<tr><td colspan='2' class='placeholder'>Загрузка…</td></tr>”;
-try{
-const params = new URLSearchParams({date: selectedDate, page: currentPage, per_page: 50});
-if(searchVal) params.set(“search”, searchVal);
-const r = await fetch(”/api/stocks?”+params); const d = await r.json();
-totalPages = d.pages || 0;
-const parts = selectedDate.split(”-”);
-document.getElementById(“table-meta”).innerHTML = “Остатки на <b>”+parts[2]+”.”+parts[1]+”.”+parts[0]+”</b> · “+d.total+” позиций”;
-const tbody = document.getElementById(“tbody”);
-if(!d.items || d.items.length === 0){
-tbody.innerHTML = “<tr><td colspan='2' class='placeholder'>Ничего не найдено</td></tr>”;
-} else {
-tbody.innerHTML = d.items.map(s => {
-const cls = s.stock_qty === 0 ? “zero” : s.stock_qty <= 3 ? “low” : “”;
-return “<tr class='"+(s.stock_qty===0?"zero":"")+"'><td class='col-name'>”+s.sku_name+”</td><td class='col-qty'><span class='badge "+cls+"'>”+s.stock_qty+”</span></td></tr>”;
-}).join(””);
-}
-const pg = document.getElementById(“pagination”);
-if(totalPages > 1){
-pg.style.display = “flex”;
-document.getElementById(“page-info”).textContent = currentPage+” / “+totalPages;
-document.getElementById(“prev-btn”).disabled = currentPage === 1;
-document.getElementById(“next-btn”).disabled = currentPage === totalPages;
-} else { pg.style.display = “none”; }
-}catch(e){ document.getElementById(“tbody”).innerHTML = “<tr><td colspan='2' class='placeholder'>Ошибка загрузки</td></tr>”; }
+  if(!selectedDate) return;
+  document.getElementById("tbody").innerHTML = "<tr><td colspan='2' class='placeholder'>Загрузка...</td></tr>";
+  try{
+    const params = new URLSearchParams({date: selectedDate, page: currentPage, per_page: 50});
+    if(searchVal) params.set("search", searchVal);
+    const r = await fetch("/api/stocks?"+params); const d = await r.json();
+    totalPages = d.pages || 0;
+    const parts = selectedDate.split("-");
+    document.getElementById("table-meta").innerHTML = "Остатки на <b>"+parts[2]+"."+parts[1]+"."+parts[0]+"</b> · "+d.total+" позиций";
+    const tbody = document.getElementById("tbody");
+    if(!d.items || d.items.length === 0){
+      tbody.innerHTML = "<tr><td colspan='2' class='placeholder'>Ничего не найдено</td></tr>";
+    } else {
+      tbody.innerHTML = d.items.map(s => {
+        const cls = s.stock_qty === 0 ? "zero" : s.stock_qty <= 3 ? "low" : "";
+        return "<tr class='"+(s.stock_qty===0?"zero":"")+"'><td class='col-name'>"+s.sku_name+"</td><td class='col-qty'><span class='badge "+cls+"'>"+s.stock_qty+"</span></td></tr>";
+      }).join("");
+    }
+    const pg = document.getElementById("pagination");
+    if(totalPages > 1){
+      pg.style.display = "flex";
+      document.getElementById("page-info").textContent = currentPage+" / "+totalPages;
+      document.getElementById("prev-btn").disabled = currentPage === 1;
+      document.getElementById("next-btn").disabled = currentPage === totalPages;
+    } else { pg.style.display = "none"; }
+  }catch(e){ document.getElementById("tbody").innerHTML = "<tr><td colspan='2' class='placeholder'>Ошибка загрузки</td></tr>"; }
 }
 
 function changePage(dir){ currentPage += dir; loadStocks(); }
 
-function clearSearch(){ document.getElementById(“search”).value = “”; searchVal = “”; document.getElementById(“search-clear”).style.display=“none”; currentPage=1; loadStocks(); }
+function clearSearch(){ document.getElementById("search").value = ""; searchVal = ""; document.getElementById("search-clear").style.display="none"; currentPage=1; loadStocks(); }
 
-document.getElementById(“search”).addEventListener(“input”, e => {
-searchVal = e.target.value;
-document.getElementById(“search-clear”).style.display = searchVal ? “block” : “none”;
-clearTimeout(searchTimer);
-searchTimer = setTimeout(() => { currentPage=1; loadStocks(); }, 350);
+document.getElementById("search").addEventListener("input", e => {
+  searchVal = e.target.value;
+  document.getElementById("search-clear").style.display = searchVal ? "block" : "none";
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => { currentPage=1; loadStocks(); }, 350);
 });
 
 async function uploadFiles(files){
-const xlsFiles = Array.from(files).filter(f => f.name.toLowerCase().endsWith(”.xls”));
-if(!xlsFiles.length){ showErr(“Только .xls файлы из МоегоСклада”); return; }
-document.getElementById(“upload-icon”).textContent = “⟳”;
-document.getElementById(“upload-text”).textContent = “Загружаю…”;
-document.getElementById(“dropzone”).style.pointerEvents = “none”;
-let ok=0; const details=[];
-for(const file of xlsFiles){
-const fd = new FormData(); fd.append(“file”, file);
-try{
-const res = await fetch(”/api/upload”,{method:“POST”,body:fd});
-const data = await res.json();
-if(res.ok){ details.push(“✓ “+data.date+”: +”+data.inserted+” записей”); ok++; }
-else { details.push(“✗ “+file.name+”: “+data.detail); }
-}catch{ details.push(“✗ “+file.name+”: ошибка сети”); }
-}
-document.getElementById(“upload-icon”).textContent = “↑”;
-document.getElementById(“upload-text”).textContent = “Перетащите XLS файлы или нажмите для выбора”;
-document.getElementById(“dropzone”).style.pointerEvents = “”;
-const ok_el = document.getElementById(“msg-ok”);
-document.getElementById(“msg-title”).textContent = “Загружено “+ok+” из “+xlsFiles.length+” файлов”;
-document.getElementById(“msg-details”).innerHTML = details.join(”<br>”);
-ok_el.classList.add(“show”);
-selectedDate = null; loadStats(); loadDates();
+  const xlsFiles = Array.from(files).filter(f => f.name.toLowerCase().endsWith(".xls"));
+  if(!xlsFiles.length){ showErr("Только .xls файлы из МоегоСклада"); return; }
+  document.getElementById("upload-icon").textContent = "⟳";
+  document.getElementById("upload-text").textContent = "Загружаю...";
+  document.getElementById("dropzone").style.pointerEvents = "none";
+  let ok=0; const details=[];
+  for(const file of xlsFiles){
+    const fd = new FormData(); fd.append("file", file);
+    try{
+      const res = await fetch("/api/upload",{method:"POST",body:fd});
+      const data = await res.json();
+      if(res.ok){ details.push("✓ "+data.date+": +"+data.inserted+" записей"); ok++; }
+      else { details.push("✗ "+file.name+": "+data.detail); }
+    }catch{ details.push("✗ "+file.name+": ошибка сети"); }
+  }
+  document.getElementById("upload-icon").textContent = "↑";
+  document.getElementById("upload-text").textContent = "Перетащите XLS файлы или нажмите для выбора";
+  document.getElementById("dropzone").style.pointerEvents = "";
+  const ok_el = document.getElementById("msg-ok");
+  document.getElementById("msg-title").textContent = "Загружено "+ok+" из "+xlsFiles.length+" файлов";
+  document.getElementById("msg-details").innerHTML = details.join("<br>");
+  ok_el.classList.add("show");
+  selectedDate = null; loadStats(); loadDates();
 }
 
-function showErr(msg){ document.getElementById(“msg-err-text”).textContent=msg; document.getElementById(“msg-err”).classList.add(“show”); }
+function showErr(msg){ document.getElementById("msg-err-text").textContent=msg; document.getElementById("msg-err").classList.add("show"); }
 
-const dz = document.getElementById(“dropzone”);
-dz.addEventListener(“click”, () => document.getElementById(“file-input”).click());
-dz.addEventListener(“dragover”, e => { e.preventDefault(); dz.classList.add(“drag”); });
-dz.addEventListener(“dragleave”, () => dz.classList.remove(“drag”));
-dz.addEventListener(“drop”, e => { e.preventDefault(); dz.classList.remove(“drag”); uploadFiles(e.dataTransfer.files); });
-document.getElementById(“file-input”).addEventListener(“change”, e => uploadFiles(e.target.files));
+const dz = document.getElementById("dropzone");
+dz.addEventListener("click", () => document.getElementById("file-input").click());
+dz.addEventListener("dragover", e => { e.preventDefault(); dz.classList.add("drag"); });
+dz.addEventListener("dragleave", () => dz.classList.remove("drag"));
+dz.addEventListener("drop", e => { e.preventDefault(); dz.classList.remove("drag"); uploadFiles(e.dataTransfer.files); });
+document.getElementById("file-input").addEventListener("change", e => uploadFiles(e.target.files));
 
 loadStats(); loadDates();
 </script>
-
 </body>
 </html>
