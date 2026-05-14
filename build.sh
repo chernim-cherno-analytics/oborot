@@ -9,3 +9,5 @@ npm install
 npm run build
 
 echo "=== Build complete ==="
+
+
