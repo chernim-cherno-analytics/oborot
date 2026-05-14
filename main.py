@@ -118,8 +118,7 @@ def get_stats():
     return {"total_records": total_records, "total_skus": total_skus, "total_dates": total_dates,
             "date_from": dr["mn"], "date_to": dr["mx"]}
 
-if os.path.exists("frontend/dist"):
-    app.mount("/assets", StaticFiles(directory="frontend/dist/assets"), name="assets")
+if return FileResponse("dist/index.html")
     @app.get("/{full_path:path}")
     def serve_frontend(full_path: str):
         return FileResponse("frontend/dist/index.html")
