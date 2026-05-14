@@ -140,6 +140,12 @@ def get_stats():
     conn.close()
     return {"total_records": r1, "total_skus": r2, "total_dates": r3, "date_from": dr["mn"], "date_to": dr["mx"]}
 
+@app.get("/analytics")
+def serve_analytics():
+    if os.path.exists("analytics.html"):
+        return FileResponse("analytics.html")
+    return FileResponse("index.html")
+
 @app.get("/{full_path:path}")
 def serve_frontend(full_path: str):
     if os.path.exists("index.html"):
