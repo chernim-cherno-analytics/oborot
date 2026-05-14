@@ -72,6 +72,16 @@
     .size-stock{font-family:var(--mono);font-size:11px;color:var(--text2);width:40px;text-align:right;flex-shrink:0}
     
     .loading{text-align:center;padding:80px;color:var(--text3);font-family:var(--mono);font-size:13px}
+    .hide-btn{background:none;border:none;color:var(--text3);cursor:pointer;font-family:var(--mono);font-size:11px;padding:3px 8px;border-radius:2px;opacity:0;transition:all .1s;white-space:nowrap}
+    .product-header:hover .hide-btn{opacity:1}
+    .hide-btn:hover{background:#1f0000;color:#ff4444;border:1px solid #4f0000}
+    .hidden-panel{margin-top:20px;border:1px solid var(--border);border-radius:3px;overflow:hidden}
+    .hidden-panel-header{padding:10px 14px;background:var(--bg2);font-family:var(--mono);font-size:11px;color:var(--text3);cursor:pointer;display:flex;justify-content:space-between}
+    .hidden-panel-header:hover{background:var(--bg3)}
+    .hidden-list{display:none;flex-direction:column}
+    .hidden-item{display:flex;align-items:center;justify-content:space-between;padding:8px 14px;border-top:1px solid var(--border);font-size:12px}
+    .restore-btn{background:none;border:1px solid var(--border);color:var(--text3);cursor:pointer;font-family:var(--mono);font-size:10px;padding:2px 8px;border-radius:2px}
+    .restore-btn:hover{border-color:#c8ff00;color:#c8ff00}
     .empty{text-align:center;padding:40px;color:var(--text3);font-family:var(--mono);font-size:12px}
   </style>
 </head>
@@ -97,6 +107,13 @@
   </div>
   <div id="product-list" class="product-list">
     <div class="loading">Загрузка данных...</div>
+  </div>
+  <div class="hidden-panel" id="hidden-panel" style="display:none">
+    <div class="hidden-panel-header" onclick="toggleHiddenPanel()">
+      <span>Скрытые позиции <span id="hidden-count">0</span></span>
+      <span>▼</span>
+    </div>
+    <div class="hidden-list" id="hidden-list"></div>
   </div>
 </div>
 
@@ -162,6 +179,48 @@ const LINE_COLOR_DIM = 'rgba(200,255,0,0.4)';
 let allDates = [];
 let stockData = {}; // sku_name -> {date -> qty}
 let currentCat = "Верхняя одежда";
+let hiddenItems = new Set();
+
+async function loadHidden() {
+  const r = await fetch('/api/hidden');
+  const data = await r.json();
+  hiddenItems = new Set(data);
+  renderHiddenPanel();
+}
+
+async function hideItem(name) {
+  hiddenItems.add(name);
+  await fetch('/api/hide', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({sku_base: name})});
+  renderCategory(currentCat);
+  renderHiddenPanel();
+}
+
+async function restoreItem(name) {
+  hiddenItems.delete(name);
+  await fetch(`/api/hide/${encodeURIComponent(name)}`, {method:'DELETE'});
+  renderCategory(currentCat);
+  renderHiddenPanel();
+}
+
+function toggleHiddenPanel() {
+  const list = document.getElementById('hidden-list');
+  list.style.display = list.style.display === 'flex' ? 'none' : 'flex';
+  list.style.flexDirection = 'column';
+}
+
+function renderHiddenPanel() {
+  const panel = document.getElementById('hidden-panel');
+  const list = document.getElementById('hidden-list');
+  const count = document.getElementById('hidden-count');
+  count.textContent = hiddenItems.size;
+  panel.style.display = hiddenItems.size > 0 ? 'block' : 'none';
+  list.innerHTML = [...hiddenItems].sort().map(name =>
+    `<div class="hidden-item">
+      <span>${name}</span>
+      <button class="restore-btn" onclick="restoreItem('${name.replace(/'/g,"\'")}')">Восстановить</button>
+    </div>`
+  ).join('');
+}
 
 async function loadAllData() {
   // Get all dates
@@ -239,6 +298,7 @@ function getPositionsForCat(cat) {
   for (const [sku, dateMap] of Object.entries(stockData)) {
     const base = stripSize(sku);
     if (getCategory(base) !== cat) continue;
+    if (hiddenItems.has(base)) continue;
     const size = getSize(sku) || 'One Size';
     
     if (!positions[base]) positions[base] = { sizes: {}, all: {} };
@@ -283,6 +343,7 @@ function renderCategory(cat) {
       <div class="product-name">${name}</div>
       <canvas class="chart-canvas chart-wrap" width="400" height="48" style="flex:1;min-width:150px;max-width:500px;height:48px"></canvas>
       <div class="product-total">${currentStock} шт</div>
+      <button class="hide-btn" onclick="event.stopPropagation();hideItem('${name.replace(/'/g,"\'")}')">Скрыть</button>
     `;
 
     row.appendChild(header);
@@ -400,6 +461,7 @@ function drawChart(canvas, dateMap, dates, small) {
 // Handle resize
 window.addEventListener('resize', () => renderCategory(currentCat));
 
+loadHidden();
 loadAllData();
 </script>
 </body>
