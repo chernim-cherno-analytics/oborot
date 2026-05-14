@@ -35,10 +35,10 @@ init_db()
 def parse_xls(file_path):
     # Read raw xls as html (MoySklad exports xls as HTML table)
     try:
-        tables = pd.read_html(file_path, encoding='utf-8')
+        tables = pd.read_html(file_path, encoding='cp1251')
     except Exception:
         try:
-            tables = pd.read_html(file_path, encoding='cp1251')
+            tables = pd.read_html(file_path, encoding='latin1')
         except Exception as e:
             raise ValueError(f"Не удалось прочитать файл: {e}")
 
