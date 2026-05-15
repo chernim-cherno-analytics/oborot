@@ -4,90 +4,257 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
   <title>CernimCherno · Аналитика</title>
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
   <style>
-    :root{
-      --bg:#0e0e0e;--bg2:#161616;--bg3:#1e1e1e;--bg4:#222;
-      --border:#2a2a2a;--border2:#333;
-      --text:#e8e8e8;--text2:#888;--text3:#555;
-      --accent:#c8ff00;--mono:"IBM Plex Mono",monospace;--sans:"IBM Plex Sans",sans-serif;
-      --winter:rgba(59,130,246,0.15);--spring:rgba(34,197,94,0.15);
-      --summer:rgba(251,146,60,0.15);--autumn:rgba(120,80,40,0.15);
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0 }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      min-height: 100vh;
+      background: #b8d4e8;
+      color: white;
+      overflow-x: hidden;
     }
-    *{box-sizing:border-box;margin:0;padding:0}
-    body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh}
-    
+
+    /* Sky gradient background with grain */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: 
+        radial-gradient(ellipse at 20% 20%, #c8dff0 0%, transparent 60%),
+        radial-gradient(ellipse at 80% 10%, #d4e8f5 0%, transparent 50%),
+        radial-gradient(ellipse at 50% 80%, #a8c8e0 0%, transparent 60%),
+        linear-gradient(160deg, #c2dff2 0%, #9ec4dc 40%, #b0d0e8 70%, #8ab8d4 100%);
+      z-index: -2;
+    }
+
+    /* Grain overlay */
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+      background-size: 200px 200px;
+      opacity: 0.4;
+      z-index: -1;
+      pointer-events: none;
+    }
+
+    /* Glass mixin */
+    .glass {
+      background: rgba(255,255,255,0.18);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255,255,255,0.3);
+    }
+
     /* Header */
-    .header{border-bottom:1px solid var(--border);padding:0 24px;height:52px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--bg);z-index:200}
-    .logo{font-family:var(--mono);font-size:13px;font-weight:600;letter-spacing:.15em;text-decoration:none;color:var(--text)}
-    .logo span{color:#c8ff00}
-    .nav{display:flex;gap:4px}
-    .nav a{font-family:var(--mono);font-size:11px;color:var(--text3);text-decoration:none;padding:5px 10px;border-radius:2px;border:1px solid transparent}
-    .nav a:hover{color:var(--text2);border-color:var(--border)}
-    .nav a.active{color:#c8ff00;border-color:#c8ff00;background:#161f00}
+    .header {
+      position: sticky; top: 0; z-index: 200;
+      background: rgba(255,255,255,0.15);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-bottom: 1px solid rgba(255,255,255,0.25);
+      padding: 0 28px;
+      height: 56px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
 
-    /* Category tabs */
-    .cat-bar{padding:16px 24px;border-bottom:1px solid var(--border);display:flex;gap:6px;flex-wrap:wrap;background:var(--bg)}
-    .cat-btn{font-family:var(--mono);font-size:11px;padding:5px 12px;border:1px solid var(--border);background:var(--bg2);color:var(--text2);cursor:pointer;border-radius:2px;transition:all .1s;white-space:nowrap}
-    .cat-btn:hover{border-color:var(--border2);color:var(--text)}
-    .cat-btn.active{border-color:#c8ff00;color:#c8ff00;background:#161f00}
-    .cat-btn .count{font-size:10px;color:var(--text3);margin-left:4px}
-    .cat-btn.active .count{color:#a0cc00}
+    .logo {
+      font-size: 14px; font-weight: 600; letter-spacing: 0.18em;
+      color: white; text-decoration: none; opacity: 0.95;
+    }
 
-    /* Main layout */
-    .main{padding:24px;max-width:1600px;margin:0 auto}
-    
+    .nav { display: flex; gap: 6px }
+    .nav a {
+      font-size: 12px; font-weight: 500;
+      color: rgba(255,255,255,0.7);
+      text-decoration: none;
+      padding: 6px 14px; border-radius: 20px;
+      border: 1px solid rgba(255,255,255,0.2);
+      transition: all .2s;
+    }
+    .nav a:hover { background: rgba(255,255,255,0.15); color: white }
+    .nav a.active {
+      background: white;
+      color: #6a9ab8;
+      border-color: white;
+    }
+
+    /* Category bar */
+    .cat-bar {
+      padding: 16px 28px;
+      display: flex; gap: 8px; flex-wrap: wrap;
+      border-bottom: 1px solid rgba(255,255,255,0.15);
+    }
+
+    .cat-btn {
+      font-size: 12px; font-weight: 500;
+      padding: 6px 14px; border-radius: 20px;
+      border: 1px solid rgba(255,255,255,0.3);
+      background: rgba(255,255,255,0.12);
+      color: rgba(255,255,255,0.8);
+      cursor: pointer; transition: all .2s;
+      white-space: nowrap;
+    }
+    .cat-btn:hover { background: rgba(255,255,255,0.22); color: white }
+    .cat-btn.active {
+      background: white; color: #6a9ab8;
+      border-color: white; font-weight: 600;
+    }
+    .cat-btn .count {
+      font-size: 10px; opacity: 0.6; margin-left: 4px;
+    }
+    .cat-btn.active .count { opacity: 0.5 }
+
+    /* Main */
+    .main { padding: 24px 28px; max-width: 1600px; margin: 0 auto }
+
     /* Season legend */
-    .season-legend{display:flex;gap:16px;margin-bottom:20px;align-items:center}
-    .season-legend span{font-family:var(--mono);font-size:11px;color:var(--text3);display:flex;align-items:center;gap:5px}
-    .season-dot{width:10px;height:10px;border-radius:2px}
-    .s-winter{background:rgba(59,130,246,0.6)}
-    .s-spring{background:rgba(34,197,94,0.6)}
-    .s-summer{background:rgba(251,146,60,0.6)}
-    .s-autumn{background:rgba(120,80,40,0.6)}
+    .season-legend {
+      display: flex; gap: 20px; margin-bottom: 18px; align-items: center;
+    }
+    .season-legend span {
+      font-size: 11px; color: rgba(255,255,255,0.7);
+      display: flex; align-items: center; gap: 6px; font-weight: 500;
+    }
+    .season-dot { width: 10px; height: 10px; border-radius: 3px }
+    .s-winter { background: rgba(140,180,230,0.8) }
+    .s-spring { background: rgba(140,210,160,0.8) }
+    .s-summer { background: rgba(240,180,100,0.8) }
+    .s-autumn { background: rgba(180,130,90,0.8) }
 
     /* Product list */
-    .product-list{display:flex;flex-direction:column;gap:2px}
-    
-    .product-row{background:var(--bg2);border:1px solid var(--border);border-radius:3px;overflow:hidden}
-    .product-header{display:flex;align-items:center;gap:12px;padding:10px 14px;cursor:pointer;transition:background .1s}
-    .product-header:hover{background:var(--bg3)}
-    .product-header.open{background:var(--bg3);border-bottom:1px solid var(--border)}
-    
-    .expand-icon{font-family:var(--mono);font-size:11px;color:var(--text3);width:16px;flex-shrink:0;transition:transform .15s}
-    .expand-icon.open{transform:rotate(90deg)}
-    
-    .product-name{font-size:13px;font-weight:500;flex:1;min-width:0}
-    .product-total{font-family:var(--mono);font-size:12px;color:var(--text2);white-space:nowrap}
-    
-    /* Chart area */
-    .chart-wrap{position:relative;height:48px;flex:1;min-width:200px;margin:0 8px}
-    .chart-canvas{width:100%;height:48px;display:block}
-    
-    /* Sizes section */
-    .sizes-section{padding:0 14px 10px 42px;display:flex;flex-direction:column;gap:4px}
-    .size-row{display:flex;align-items:center;gap:12px}
-    .size-label{font-family:var(--mono);font-size:11px;color:var(--text3);width:80px;flex-shrink:0}
-    .size-chart-wrap{position:relative;height:32px;flex:1}
-    .size-stock{font-family:var(--mono);font-size:11px;color:var(--text2);width:40px;text-align:right;flex-shrink:0}
-    
-    .loading{text-align:center;padding:80px;color:var(--text3);font-family:var(--mono);font-size:13px}
-    .hide-btn{background:none;border:none;color:var(--text3);cursor:pointer;font-family:var(--mono);font-size:11px;padding:3px 8px;border-radius:2px;opacity:0;transition:all .1s;white-space:nowrap}
-    .product-header:hover .hide-btn{opacity:1}
-    .hide-btn:hover{background:#1f0000;color:#ff4444;border:1px solid #4f0000}
-    .hidden-panel{margin-top:20px;border:1px solid var(--border);border-radius:3px;overflow:hidden}
-    .hidden-panel-header{padding:10px 14px;background:var(--bg2);font-family:var(--mono);font-size:11px;color:var(--text3);cursor:pointer;display:flex;justify-content:space-between}
-    .hidden-panel-header:hover{background:var(--bg3)}
-    .hidden-list{display:none;flex-direction:column}
-    .hidden-item{display:flex;align-items:center;justify-content:space-between;padding:8px 14px;border-top:1px solid var(--border);font-size:12px}
-    .restore-btn{background:none;border:1px solid var(--border);color:var(--text3);cursor:pointer;font-family:var(--mono);font-size:10px;padding:2px 8px;border-radius:2px}
-    .restore-btn:hover{border-color:#c8ff00;color:#c8ff00}
-    .empty{text-align:center;padding:40px;color:var(--text3);font-family:var(--mono);font-size:12px}
+    .product-list { display: flex; flex-direction: column; gap: 3px }
+
+    .product-row {
+      background: rgba(255,255,255,0.14);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255,255,255,0.22);
+      border-radius: 10px;
+      overflow: hidden;
+      transition: background .15s;
+    }
+    .product-row:hover { background: rgba(255,255,255,0.2) }
+
+    .product-header {
+      display: flex; align-items: center; gap: 12px;
+      padding: 10px 14px; cursor: pointer;
+    }
+
+    .expand-icon {
+      font-size: 9px; color: rgba(255,255,255,0.5);
+      width: 14px; flex-shrink: 0; transition: transform .15s;
+    }
+    .expand-icon.open { transform: rotate(90deg) }
+
+    .product-name { font-size: 13px; font-weight: 400; flex: 1; min-width: 0; color: white }
+    .product-total {
+      font-size: 12px; font-weight: 500;
+      color: rgba(255,255,255,0.7); white-space: nowrap;
+    }
+
+    /* Hide button */
+    .hide-btn {
+      background: rgba(255,255,255,0.15);
+      border: 1px solid rgba(255,255,255,0.3);
+      color: rgba(255,255,255,0.6);
+      cursor: pointer; font-size: 10px; font-weight: 500;
+      padding: 3px 10px; border-radius: 12px;
+      opacity: 0; transition: all .15s; white-space: nowrap;
+      font-family: 'Inter', sans-serif;
+    }
+    .product-header:hover .hide-btn { opacity: 1 }
+    .hide-btn:hover { background: rgba(255,80,80,0.25); border-color: rgba(255,100,100,0.5); color: white }
+
+    /* Chart */
+    .chart-wrap { position: relative; height: 48px; flex: 1; min-width: 150px; max-width: 600px; cursor: zoom-in }
+
+    /* Chart modal */
+    .chart-modal {
+      display: none; position: fixed; inset: 0; z-index: 500;
+      background: rgba(100,150,180,0.4);
+      backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+      align-items: center; justify-content: center;
+    }
+    .chart-modal.open { display: flex }
+    .chart-modal-inner {
+      background: rgba(255,255,255,0.2);
+      backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+      border: 1px solid rgba(255,255,255,0.35);
+      border-radius: 16px; padding: 28px;
+      width: 90vw; max-width: 1000px;
+    }
+    .chart-modal-title {
+      font-size: 16px; font-weight: 600; color: white;
+      margin-bottom: 20px;
+    }
+    .chart-modal-close {
+      float: right; background: rgba(255,255,255,0.2);
+      border: 1px solid rgba(255,255,255,0.3);
+      color: white; cursor: pointer; padding: 4px 12px;
+      border-radius: 12px; font-size: 12px; font-family: 'Inter', sans-serif;
+    }
+
+    /* Sizes */
+    .sizes-section {
+      padding: 4px 14px 12px 40px;
+      display: flex; flex-direction: column; gap: 4px;
+      border-top: 1px solid rgba(255,255,255,0.1);
+    }
+    .size-row { display: flex; align-items: center; gap: 12px }
+    .size-label { font-size: 11px; color: rgba(255,255,255,0.5); width: 80px; flex-shrink: 0 }
+    .size-stock { font-size: 11px; color: rgba(255,255,255,0.6); width: 36px; text-align: right; flex-shrink: 0 }
+
+    /* Hidden panel */
+    .hidden-panel {
+      margin-top: 20px;
+      background: rgba(255,255,255,0.1);
+      backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 10px; overflow: hidden;
+    }
+    .hidden-panel-header {
+      padding: 12px 16px; cursor: pointer;
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: 12px; color: rgba(255,255,255,0.7); font-weight: 500;
+    }
+    .hidden-panel-header:hover { background: rgba(255,255,255,0.08) }
+    .hidden-list { display: none; flex-direction: column }
+    .hidden-item {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 16px; border-top: 1px solid rgba(255,255,255,0.1);
+      font-size: 12px; color: rgba(255,255,255,0.8);
+    }
+    .restore-btn {
+      background: white; border: none; color: #6a9ab8;
+      cursor: pointer; font-size: 11px; font-weight: 600;
+      padding: 4px 12px; border-radius: 12px;
+      font-family: 'Inter', sans-serif; transition: opacity .15s;
+    }
+    .restore-btn:hover { opacity: 0.8 }
+
+    .loading {
+      text-align: center; padding: 60px;
+      color: rgba(255,255,255,0.6); font-size: 13px;
+    }
+    .empty { text-align: center; padding: 40px; color: rgba(255,255,255,0.5); font-size: 12px }
+    .progress-bar {
+      height: 2px; background: rgba(255,255,255,0.15);
+      border-radius: 1px; margin: 12px 0; overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%; background: rgba(255,255,255,0.6);
+      border-radius: 1px; transition: width .3s;
+    }
   </style>
 </head>
 <body>
+
 <div class="header">
-  <a class="logo" href="/">CERNIM<span>CHERNO</span></a>
+  <a class="logo" href="/">CERNIM CHERNO</a>
   <nav class="nav">
     <a href="/">Остатки</a>
     <a href="/analytics" class="active">Аналитика</a>
@@ -95,7 +262,7 @@
 </div>
 
 <div class="cat-bar" id="cat-bar">
-  <div class="loading" style="padding:8px">Загрузка...</div>
+  <div style="color:rgba(255,255,255,0.5);font-size:12px;padding:4px 0">Загрузка...</div>
 </div>
 
 <div class="main">
@@ -106,14 +273,28 @@
     <span><div class="season-dot s-autumn"></div>Осень</span>
   </div>
   <div id="product-list" class="product-list">
-    <div class="loading">Загрузка данных...</div>
+    <div class="loading">
+      <div>Загружаю данные...</div>
+      <div class="progress-bar"><div class="progress-fill" id="progress" style="width:0%"></div></div>
+      <div id="progress-text" style="font-size:11px;margin-top:8px;opacity:0.6"></div>
+    </div>
   </div>
   <div class="hidden-panel" id="hidden-panel" style="display:none">
     <div class="hidden-panel-header" onclick="toggleHiddenPanel()">
-      <span>Скрытые позиции <span id="hidden-count">0</span></span>
-      <span>▼</span>
+      <span>Скрытые позиции — <span id="hidden-count">0</span></span>
+      <span style="opacity:0.5">▼</span>
     </div>
     <div class="hidden-list" id="hidden-list"></div>
+  </div>
+</div>
+
+<!-- Chart modal -->
+<div class="chart-modal" id="chart-modal" onclick="closeModal()">
+  <div class="chart-modal-inner" onclick="event.stopPropagation()">
+    <div class="chart-modal-title" id="modal-title">
+      <button class="chart-modal-close" onclick="closeModal()">✕ Закрыть</button>
+    </div>
+    <canvas id="modal-canvas" style="width:100%;height:300px;display:block"></canvas>
   </div>
 </div>
 
@@ -135,8 +316,27 @@ const CATEGORIES = {
   "Очки": ["очки"],
   "Прочее": []
 };
-
 const CAT_ORDER = ["Верхняя одежда","Костюмы","Брюки","Рубашки","Свитера","Худи и свитшоты","Шорты","Майки","Футболки","Сумки","Аксессуары","Украшения","Нижнее белье","Очки","Прочее"];
+
+// Season colors in sky palette
+const SEASON_COLORS = {
+  winter: 'rgba(140,185,230,0.3)',
+  spring: 'rgba(140,210,165,0.3)',
+  summer: 'rgba(240,185,100,0.3)',
+  autumn: 'rgba(180,130,90,0.3)'
+};
+const LINE_COLOR = 'rgba(255,255,255,0.85)';
+const LINE_COLOR_DIM = 'rgba(255,255,255,0.45)';
+const FILL_COLOR = 'rgba(255,255,255,0.08)';
+
+const CACHE_KEY = 'cc_analytics_v2';
+const CACHE_DATES_KEY = 'cc_analytics_dates_v2';
+
+let allDates = [];
+let stockData = {};
+let currentCat = "Верхняя одежда";
+let hiddenItems = new Set();
+let modalData = null;
 
 function getCategory(name) {
   const nl = name.toLowerCase();
@@ -149,43 +349,23 @@ function getCategory(name) {
   return "Прочее";
 }
 
-function stripSize(name) {
-  return name.replace(/\s*\([^)]*\)\s*$/, '').trim();
-}
-
-function getSize(name) {
-  const m = name.match(/\(([^)]+)\)\s*$/);
-  return m ? m[1] : null;
-}
-
-function getSeason(dateStr) {
-  const m = parseInt(dateStr.split('-')[1]);
-  if (m === 12 || m <= 2) return 'winter';
-  if (m <= 5) return 'spring';
-  if (m <= 8) return 'summer';
+function stripSize(name) { return name.replace(/\s*\([^)]*\)\s*$/, '').trim() }
+function getSize(name) { const m = name.match(/\(([^)]+)\)\s*$/); return m ? m[1] : null }
+function getSeason(d) {
+  const m = parseInt(d.split('-')[1]);
+  if (m===12||m<=2) return 'winter';
+  if (m<=5) return 'spring';
+  if (m<=8) return 'summer';
   return 'autumn';
 }
 
-const SEASON_COLORS = {
-  winter: 'rgba(59,130,246,0.25)',
-  spring: 'rgba(34,197,94,0.25)',
-  summer: 'rgba(251,146,60,0.25)',
-  autumn: 'rgba(120,80,40,0.25)'
-};
-
-const LINE_COLOR = '#c8ff00';
-const LINE_COLOR_DIM = 'rgba(200,255,0,0.4)';
-
-let allDates = [];
-let stockData = {}; // sku_name -> {date -> qty}
-let currentCat = "Верхняя одежда";
-let hiddenItems = new Set();
-
 async function loadHidden() {
-  const r = await fetch('/api/hidden');
-  const data = await r.json();
-  hiddenItems = new Set(data);
-  renderHiddenPanel();
+  try {
+    const r = await fetch('/api/hidden');
+    const data = await r.json();
+    hiddenItems = new Set(data);
+    renderHiddenPanel();
+  } catch(e) {}
 }
 
 async function hideItem(name) {
@@ -204,40 +384,77 @@ async function restoreItem(name) {
 
 function toggleHiddenPanel() {
   const list = document.getElementById('hidden-list');
-  list.style.display = list.style.display === 'flex' ? 'none' : 'flex';
-  list.style.flexDirection = 'column';
+  const isOpen = list.style.display === 'flex';
+  list.style.display = isOpen ? 'none' : 'flex';
+  if (!isOpen) list.style.flexDirection = 'column';
 }
 
 function renderHiddenPanel() {
   const panel = document.getElementById('hidden-panel');
   const list = document.getElementById('hidden-list');
-  const count = document.getElementById('hidden-count');
-  count.textContent = hiddenItems.size;
+  document.getElementById('hidden-count').textContent = hiddenItems.size;
   panel.style.display = hiddenItems.size > 0 ? 'block' : 'none';
   list.innerHTML = [...hiddenItems].sort().map(name =>
     `<div class="hidden-item">
       <span>${name}</span>
-      <button class="restore-btn" onclick="restoreItem('${name.replace(/'/g,"\'")}')">Восстановить</button>
+      <button class="restore-btn" data-name="${name.replace(/"/g,'&quot;').replace(/'/g,'&#39;')}" onclick="restoreItem(this.dataset.name)">Восстановить</button>
     </div>`
   ).join('');
 }
 
+// Modal
+function openModal(name, dateMap) {
+  document.getElementById('modal-title').innerHTML =
+    `<button class="chart-modal-close" onclick="closeModal()">✕</button>${name}`;
+  document.getElementById('chart-modal').classList.add('open');
+  const canvas = document.getElementById('modal-canvas');
+  canvas.width = canvas.offsetWidth;
+  canvas.height = 300;
+  drawChart(canvas, dateMap, allDates, false, true);
+}
+function closeModal() {
+  document.getElementById('chart-modal').classList.remove('open');
+}
+
+// Cache
 async function loadAllData() {
-  // Get all dates
+  // Check if dates changed
+  let cachedDatesStr = null;
+  try { cachedDatesStr = localStorage.getItem(CACHE_DATES_KEY) } catch(e) {}
+
   const datesRes = await fetch('/api/dates');
   const datesJson = await datesRes.json();
   allDates = datesJson.map(d => d.date).sort();
-  
+  const currentDatesStr = JSON.stringify(allDates);
+
   if (allDates.length === 0) {
-    document.getElementById('product-list').innerHTML = '<div class="empty">Нет данных. Загрузите отчёты остатков на странице Остатки.</div>';
+    document.getElementById('product-list').innerHTML = '<div class="empty">Нет данных. Загрузите отчёты на странице Остатки.</div>';
     return;
   }
 
-  // Load all stock data for all dates
-  // We'll load per-date in batches
-  const total = allDates.length;
-  document.getElementById('product-list').innerHTML = `<div class="loading">Загружаю данные: 0 / ${total} дней...</div>`;
+  // Try cache
+  if (cachedDatesStr === currentDatesStr) {
+    try {
+      const cached = JSON.parse(localStorage.getItem(CACHE_KEY));
+      if (cached) {
+        stockData = cached;
+        buildCategoryTabs();
+        renderCategory(currentCat);
+        return;
+      }
+    } catch(e) {}
+  }
 
+  // Load fresh
+  const total = allDates.length;
+  document.getElementById('product-list').innerHTML = `
+    <div class="loading">
+      <div>Загружаю данные...</div>
+      <div class="progress-bar"><div class="progress-fill" id="progress" style="width:0%"></div></div>
+      <div id="progress-text" style="font-size:11px;margin-top:8px;opacity:0.6">0 / ${total} дней</div>
+    </div>`;
+
+  stockData = {};
   for (let i = 0; i < allDates.length; i++) {
     const date = allDates[i];
     let page = 1, hasMore = true;
@@ -251,36 +468,37 @@ async function loadAllData() {
       if (page >= data.pages) hasMore = false;
       page++;
     }
-    if (i % 10 === 0) {
-      document.getElementById('product-list').innerHTML = `<div class="loading">Загружаю данные: ${i+1} / ${total} дней...</div>`;
-      await new Promise(r => setTimeout(r, 0));
-    }
+    const pct = Math.round(((i+1)/total)*100);
+    const prog = document.getElementById('progress');
+    const pt = document.getElementById('progress-text');
+    if (prog) prog.style.width = pct+'%';
+    if (pt) pt.textContent = `${i+1} / ${total} дней`;
+    if (i % 5 === 0) await new Promise(r => setTimeout(r, 0));
   }
+
+  // Save to cache
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify(stockData));
+    localStorage.setItem(CACHE_DATES_KEY, currentDatesStr);
+  } catch(e) {}
 
   buildCategoryTabs();
   renderCategory(currentCat);
 }
 
 function buildCategoryTabs() {
-  // Group positions by category
   const allSkus = Object.keys(stockData);
   const catCounts = {};
-  const positionsByName = {};
-
+  const seen = {};
   for (const sku of allSkus) {
     const base = stripSize(sku);
     const cat = getCategory(base);
     if (!cat) continue;
-    catCounts[cat] = (catCounts[cat] || 0);
-    if (!positionsByName[base]) {
-      catCounts[cat]++;
-      positionsByName[base] = true;
-    }
+    if (!seen[base]) { catCounts[cat] = (catCounts[cat]||0)+1; seen[base]=true; }
   }
-
   const bar = document.getElementById('cat-bar');
-  bar.innerHTML = CAT_ORDER.filter(c => catCounts[c] > 0).map(cat =>
-    `<button class="cat-btn ${cat === currentCat ? 'active' : ''}" onclick="selectCat('${cat}')">
+  bar.innerHTML = CAT_ORDER.filter(c => catCounts[c]>0).map(cat =>
+    `<button class="cat-btn ${cat===currentCat?'active':''}" onclick="selectCat('${cat}')">
       ${cat}<span class="count">${catCounts[cat]}</span>
     </button>`
   ).join('');
@@ -288,25 +506,23 @@ function buildCategoryTabs() {
 
 function selectCat(cat) {
   currentCat = cat;
-  document.querySelectorAll('.cat-btn').forEach(b => b.classList.toggle('active', b.textContent.trim().startsWith(cat)));
+  document.querySelectorAll('.cat-btn').forEach(b => {
+    b.classList.toggle('active', b.textContent.trim().startsWith(cat));
+  });
   renderCategory(cat);
 }
 
 function getPositionsForCat(cat) {
-  const positions = {}; // baseName -> { sizes: {sizeName -> {date->qty}}, all: {date->qty} }
-  
+  const positions = {};
   for (const [sku, dateMap] of Object.entries(stockData)) {
     const base = stripSize(sku);
     if (getCategory(base) !== cat) continue;
     if (hiddenItems.has(base)) continue;
     const size = getSize(sku) || 'One Size';
-    
-    if (!positions[base]) positions[base] = { sizes: {}, all: {} };
+    if (!positions[base]) positions[base] = { sizes:{}, all:{} };
     positions[base].sizes[size] = dateMap;
-    
-    // Aggregate all sizes
     for (const [date, qty] of Object.entries(dateMap)) {
-      positions[base].all[date] = (positions[base].all[date] || 0) + qty;
+      positions[base].all[date] = (positions[base].all[date]||0) + qty;
     }
   }
   return positions;
@@ -315,152 +531,132 @@ function getPositionsForCat(cat) {
 function renderCategory(cat) {
   const positions = getPositionsForCat(cat);
   const names = Object.keys(positions).sort();
-  
-  if (names.length === 0) {
-    document.getElementById('product-list').innerHTML = '<div class="empty">Нет позиций в этой категории</div>';
-    return;
-  }
-
   const list = document.getElementById('product-list');
   list.innerHTML = '';
+  if (!names.length) { list.innerHTML='<div class="empty">Нет позиций</div>'; return; }
+
+  const lastDate = allDates[allDates.length-1];
 
   for (const name of names) {
     const pos = positions[name];
     const sizes = Object.keys(pos.sizes).sort();
-    const hasSizes = sizes.length > 1 || (sizes.length === 1 && sizes[0] !== 'One Size');
-    
-    // Current stock = last date
-    const lastDate = allDates[allDates.length - 1];
-    const currentStock = pos.all[lastDate] || 0;
+    const hasSizes = sizes.length > 1 || (sizes.length===1 && sizes[0]!=='One Size');
+    const currentStock = pos.all[lastDate]||0;
 
     const row = document.createElement('div');
     row.className = 'product-row';
 
     const header = document.createElement('div');
     header.className = 'product-header';
-    header.innerHTML = `
-      <div class="expand-icon">${hasSizes ? '▶' : ' '}</div>
-      <div class="product-name">${name}</div>
-      <canvas class="chart-canvas chart-wrap" width="400" height="48" style="flex:1;min-width:150px;max-width:500px;height:48px"></canvas>
-      <div class="product-total">${currentStock} шт</div>
-      <button class="hide-btn" onclick="event.stopPropagation();hideItem('${name.replace(/'/g,"\'")}')">Скрыть</button>
-    `;
 
+    const safeAttr = name.replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+
+    header.innerHTML = `
+      <div class="expand-icon">${hasSizes?'▶':' '}</div>
+      <div class="product-name">${name}</div>
+      <canvas class="chart-wrap" width="400" height="48" style="flex:1;min-width:150px;max-width:500px;height:48px;cursor:zoom-in"></canvas>
+      <div class="product-total">${currentStock} шт</div>
+      <button class="hide-btn" data-name="${safeAttr}" onclick="event.stopPropagation();hideItem(this.dataset.name)">Скрыть</button>
+    `;
     row.appendChild(header);
 
-    // Draw main chart
     const canvas = header.querySelector('canvas');
-    drawChart(canvas, pos.all, allDates, false);
+    drawChart(canvas, pos.all, allDates, false, false);
+    canvas.addEventListener('click', (e) => { e.stopPropagation(); openModal(name, pos.all); });
 
-    // Sizes section
     if (hasSizes) {
       const sizesDiv = document.createElement('div');
       sizesDiv.className = 'sizes-section';
       sizesDiv.style.display = 'none';
 
-      // "All sizes" row first
+      // All sizes row
       const allRow = document.createElement('div');
       allRow.className = 'size-row';
-      const allCanvas = document.createElement('canvas');
-      allCanvas.width = 400; allCanvas.height = 32;
-      allCanvas.style.cssText = 'flex:1;height:32px;display:block';
-      allRow.innerHTML = `<div class="size-label" style="font-family:var(--mono);font-size:11px;color:var(--text2);width:80px;flex-shrink:0">Все размеры</div>`;
-      allRow.appendChild(allCanvas);
-      const allStock = document.createElement('div');
-      allStock.className = 'size-stock';
-      allStock.textContent = currentStock;
-      allRow.appendChild(allStock);
+      const allC = document.createElement('canvas');
+      allC.width=400; allC.height=32; allC.style.cssText='flex:1;height:32px;display:block';
+      allRow.innerHTML = `<div class="size-label" style="color:rgba(255,255,255,0.7);font-weight:500">Все</div>`;
+      allRow.appendChild(allC);
+      const allS = document.createElement('div'); allS.className='size-stock'; allS.textContent=currentStock;
+      allRow.appendChild(allS);
       sizesDiv.appendChild(allRow);
-      drawChart(allCanvas, pos.all, allDates, true);
+      drawChart(allC, pos.all, allDates, true, false);
 
       for (const size of sizes) {
-        const sizeRow = document.createElement('div');
-        sizeRow.className = 'size-row';
+        const sRow = document.createElement('div'); sRow.className='size-row';
         const sc = document.createElement('canvas');
-        sc.width = 400; sc.height = 32;
-        sc.style.cssText = 'flex:1;height:32px;display:block';
-        sizeRow.innerHTML = `<div class="size-label">${size}</div>`;
-        sizeRow.appendChild(sc);
-        const sStock = document.createElement('div');
-        sStock.className = 'size-stock';
-        sStock.textContent = pos.sizes[size][lastDate] || 0;
-        sizeRow.appendChild(sStock);
-        sizesDiv.appendChild(sizeRow);
-        drawChart(sc, pos.sizes[size], allDates, true);
+        sc.width=400; sc.height=32; sc.style.cssText='flex:1;height:32px;display:block';
+        sRow.innerHTML=`<div class="size-label">${size}</div>`;
+        sRow.appendChild(sc);
+        const ss=document.createElement('div'); ss.className='size-stock';
+        ss.textContent=pos.sizes[size][lastDate]||0;
+        sRow.appendChild(ss);
+        sizesDiv.appendChild(sRow);
+        drawChart(sc, pos.sizes[size], allDates, true, false);
       }
 
       row.appendChild(sizesDiv);
-
       header.addEventListener('click', () => {
-        const isOpen = sizesDiv.style.display !== 'none';
-        sizesDiv.style.display = isOpen ? 'none' : 'flex';
-        sizesDiv.style.flexDirection = 'column';
-        header.classList.toggle('open', !isOpen);
+        if (!hasSizes) return;
+        const isOpen = sizesDiv.style.display!=='none';
+        sizesDiv.style.display = isOpen?'none':'flex';
+        if (!isOpen) sizesDiv.style.flexDirection='column';
         header.querySelector('.expand-icon').classList.toggle('open', !isOpen);
       });
     }
-
     list.appendChild(row);
   }
 }
 
-function drawChart(canvas, dateMap, dates, small) {
+function drawChart(canvas, dateMap, dates, small, large) {
   const ctx = canvas.getContext('2d');
-  const W = canvas.offsetWidth || canvas.width;
+  const W = canvas.offsetWidth||canvas.width;
   const H = canvas.height;
   canvas.width = W;
-  ctx.clearRect(0, 0, W, H);
+  ctx.clearRect(0,0,W,H);
+  if (dates.length<2) return;
 
-  if (dates.length < 2) return;
-
-  // Draw season backgrounds
-  let prevSeason = null, segStart = 0;
-  for (let i = 0; i <= dates.length; i++) {
-    const season = i < dates.length ? getSeason(dates[i]) : null;
-    if (season !== prevSeason && prevSeason !== null) {
-      const x1 = (segStart / (dates.length - 1)) * W;
-      const x2 = (Math.min(i, dates.length - 1) / (dates.length - 1)) * W;
-      ctx.fillStyle = SEASON_COLORS[prevSeason];
-      ctx.fillRect(x1, 0, x2 - x1, H);
+  // Season backgrounds
+  let prevS=null, segStart=0;
+  for (let i=0; i<=dates.length; i++) {
+    const s = i<dates.length ? getSeason(dates[i]) : null;
+    if (s!==prevS && prevS!==null) {
+      const x1=(segStart/(dates.length-1))*W;
+      const x2=(Math.min(i,dates.length-1)/(dates.length-1))*W;
+      ctx.fillStyle=SEASON_COLORS[prevS];
+      ctx.fillRect(x1,0,x2-x1,H);
     }
-    if (season !== prevSeason) { prevSeason = season; segStart = i; }
+    if (s!==prevS){prevS=s;segStart=i;}
   }
 
-  // Build values array with forward fill
-  const vals = [];
-  let last = 0;
+  // Build values with forward fill
+  const vals=[]; let last=0;
   for (const d of dates) {
-    if (dateMap[d] !== undefined) last = dateMap[d];
+    if (dateMap[d]!==undefined) last=dateMap[d];
     vals.push(last);
   }
+  const maxVal=Math.max(...vals,1);
+  const pad=small?2:large?16:4;
 
-  const maxVal = Math.max(...vals, 1);
-  const pad = small ? 3 : 5;
-
-  // Draw line
+  // Line
   ctx.beginPath();
-  ctx.strokeStyle = small ? LINE_COLOR_DIM : LINE_COLOR;
-  ctx.lineWidth = small ? 1 : 1.5;
-  ctx.lineJoin = 'round';
-
-  for (let i = 0; i < vals.length; i++) {
-    const x = (i / (vals.length - 1)) * W;
-    const y = H - pad - (vals[i] / maxVal) * (H - pad * 2);
-    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  ctx.strokeStyle=small?LINE_COLOR_DIM:LINE_COLOR;
+  ctx.lineWidth=small?1:large?2:1.5;
+  ctx.lineJoin='round';
+  for (let i=0;i<vals.length;i++) {
+    const x=(i/(vals.length-1))*W;
+    const y=H-pad-(vals[i]/maxVal)*(H-pad*2);
+    if (i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
   }
   ctx.stroke();
 
-  // Fill under line
-  ctx.lineTo(W, H);
-  ctx.lineTo(0, H);
-  ctx.closePath();
-  ctx.fillStyle = small ? 'rgba(200,255,0,0.04)' : 'rgba(200,255,0,0.07)';
+  // Fill
+  const lastX=W, lastY=H;
+  ctx.lineTo(lastX,H); ctx.lineTo(0,H); ctx.closePath();
+  ctx.fillStyle=small?'rgba(255,255,255,0.05)':'rgba(255,255,255,0.1)';
   ctx.fill();
 }
 
-// Handle resize
-window.addEventListener('resize', () => renderCategory(currentCat));
-
+window.addEventListener('resize', ()=>renderCategory(currentCat));
 loadHidden();
 loadAllData();
 </script>
