@@ -66,20 +66,21 @@
     .table-outer {
       background: rgba(255,255,255,0.2); backdrop-filter: blur(16px);
       border: 1px solid rgba(255,255,255,0.35); border-radius: 12px;
-      overflow: hidden; overflow-x: auto;
+      overflow: auto;
+      max-height: calc(100vh - 190px);
     }
     table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 1200px }
     thead th {
       background: rgba(26,42,58,0.08); padding: 10px 10px; text-align: center;
       font-size: 10px; font-weight: 600; color: rgba(26,42,58,0.5);
       letter-spacing: 0.06em; text-transform: uppercase;
-      border-bottom: 1px solid rgba(255,255,255,0.3); white-space: nowrap; position: sticky; top: 56px;
+      border-bottom: 1px solid rgba(255,255,255,0.3); white-space: nowrap; position: sticky; top: 0;
     }
     thead th:first-child { text-align: left; padding-left: 14px; min-width: 220px }
     .subhead th {
       background: rgba(26,42,58,0.04); padding: 5px 10px;
       font-size: 10px; color: rgba(26,42,58,0.35); font-weight: 400;
-      border-bottom: 1px solid rgba(255,255,255,0.25); position: sticky; top: 93px;
+      border-bottom: 1px solid rgba(255,255,255,0.25); position: sticky; top: 37px;
     }
     tbody tr.pr td {
       padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,0.12);

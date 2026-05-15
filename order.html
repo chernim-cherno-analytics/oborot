@@ -81,7 +81,8 @@
     .table-outer {
       background: rgba(255,255,255,0.2); backdrop-filter: blur(16px);
       border: 1px solid rgba(255,255,255,0.35); border-radius: 12px;
-      overflow: hidden; overflow-x: auto;
+      overflow: auto;
+      max-height: calc(100vh - 130px);
     }
 
     table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 900px }
@@ -90,7 +91,7 @@
       font-size: 10px; font-weight: 600; color: rgba(26,42,58,0.45);
       letter-spacing: 0.06em; text-transform: uppercase;
       border-bottom: 1px solid rgba(255,255,255,0.3);
-      white-space: nowrap; position: sticky; top: 56px;
+      white-space: nowrap; position: sticky; top: 0;
     }
     thead th.right { text-align: right }
     thead th.center { text-align: center }
@@ -392,7 +393,7 @@ function computeOrder(base) {
 
   // Needed for 90 days from arrival
   const neededQty = Math.ceil(dailyQty * 90);
-  const orderQty = Math.max(0, neededQty - stockAtArrival);
+  const orderQty = Math.ceil(Math.max(0, neededQty - stockAtArrival));
 
   // Revenue potential
   const revPotential = orderQty * turnover;
