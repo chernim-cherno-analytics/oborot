@@ -420,69 +420,28 @@ function closeModal() {
 
 // Cache
 async function loadAllData() {
-  // Check if dates changed
-  let cachedDatesStr = null;
-  try { cachedDatesStr = localStorage.getItem(CACHE_DATES_KEY) } catch(e) {}
-
-  const datesRes = await fetch('/api/dates');
-  const datesJson = await datesRes.json();
-  allDates = datesJson.map(d => d.date).sort();
-  const currentDatesStr = JSON.stringify(allDates);
-
-  if (allDates.length === 0) {
-    document.getElementById('product-list').innerHTML = '<div class="empty">Нет данных. Загрузите отчёты на странице Остатки.</div>';
-    return;
-  }
-
-  // Try cache
-  if (cachedDatesStr === currentDatesStr) {
-    try {
-      const cached = JSON.parse(localStorage.getItem(CACHE_KEY));
-      if (cached) {
-        stockData = cached;
-        buildCategoryTabs();
-        renderCategory(currentCat);
-        return;
-      }
-    } catch(e) {}
-  }
-
-  // Load fresh
-  const total = allDates.length;
   document.getElementById('product-list').innerHTML = `
     <div class="loading">
       <div>Загружаю данные...</div>
-      <div class="progress-bar"><div class="progress-fill" id="progress" style="width:0%"></div></div>
-      <div id="progress-text" style="font-size:11px;margin-top:8px;opacity:0.6">0 / ${total} дней</div>
+      <div class="progress-bar"><div class="progress-fill" style="width:60%;transition:none"></div></div>
+      <div style="font-size:11px;margin-top:8px;opacity:0.6">Подготовка данных на сервере...</div>
     </div>`;
 
-  stockData = {};
-  for (let i = 0; i < allDates.length; i++) {
-    const date = allDates[i];
-    let page = 1, hasMore = true;
-    while (hasMore) {
-      const res = await fetch(`/api/stocks?date=${date}&page=${page}&per_page=200`);
-      const data = await res.json();
-      for (const item of data.items) {
-        if (!stockData[item.sku_name]) stockData[item.sku_name] = {};
-        stockData[item.sku_name][date] = item.stock_qty;
-      }
-      if (page >= data.pages) hasMore = false;
-      page++;
-    }
-    const pct = Math.round(((i+1)/total)*100);
-    const prog = document.getElementById('progress');
-    const pt = document.getElementById('progress-text');
-    if (prog) prog.style.width = pct+'%';
-    if (pt) pt.textContent = `${i+1} / ${total} дней`;
-    if (i % 5 === 0) await new Promise(r => setTimeout(r, 0));
-  }
-
-  // Save to cache
   try {
-    localStorage.setItem(CACHE_KEY, JSON.stringify(stockData));
-    localStorage.setItem(CACHE_DATES_KEY, currentDatesStr);
-  } catch(e) {}
+    const res = await fetch('/api/analytics-data');
+    const data = await res.json();
+    allDates = data.dates || [];
+    // data.stock is {base: {date: qty}}
+    stockData = data.stock || {};
+
+    if (allDates.length === 0) {
+      document.getElementById('product-list').innerHTML = '<div class="empty">Нет данных. Загрузите отчёты на странице Остатки.</div>';
+      return;
+    }
+  } catch(e) {
+    document.getElementById('product-list').innerHTML = '<div class="empty">Ошибка загрузки данных</div>';
+    return;
+  }
 
   buildCategoryTabs();
   renderCategory(currentCat);

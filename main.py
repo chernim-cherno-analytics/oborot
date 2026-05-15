@@ -16,7 +16,34 @@ def get_db():
     conn.row_factory = sqlite3.Row
     return conn
 
-def init_db():
+def init_db()
+
+import re as _re
+def _strip_size(n): return _re.sub(r'[\s]*\([^)]*\)[\s]*$', '', str(n)).strip()
+
+_analytics_cache = None
+_analytics_cache_key = None
+
+def get_analytics_cache_key(conn):
+    row = conn.execute("SELECT COUNT(*) as c, MAX(date) as d FROM stock_snapshots").fetchone()
+    return f"{row['c']}_{row['d']}"
+
+def build_analytics_data(conn):
+    import pandas as pd
+    # Get all dates
+    dates = [r[0] for r in conn.execute("SELECT DISTINCT date FROM stock_snapshots ORDER BY date").fetchall()]
+    if not dates:
+        return {"dates": [], "stock": {}}
+    # Get all stock data
+    rows = conn.execute("SELECT date, sku_name, stock_qty FROM stock_snapshots").fetchall()
+    # Build {base: {date: qty}}
+    stock = {}
+    for r in rows:
+        base = _strip_size(r["sku_name"])
+        if base not in stock:
+            stock[base] = {}
+        stock[base][r["date"]] = stock[base].get(r["date"], 0) + r["stock_qty"]
+    return {"dates": dates, "stock": stock}:
     conn = get_db()
     conn.execute("""CREATE TABLE IF NOT EXISTS stock_snapshots (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -39,6 +66,33 @@ def init_db():
     conn.commit(); conn.close()
 
 init_db()
+
+import re as _re
+def _strip_size(n): return _re.sub(r'[\s]*\([^)]*\)[\s]*$', '', str(n)).strip()
+
+_analytics_cache = None
+_analytics_cache_key = None
+
+def get_analytics_cache_key(conn):
+    row = conn.execute("SELECT COUNT(*) as c, MAX(date) as d FROM stock_snapshots").fetchone()
+    return f"{row['c']}_{row['d']}"
+
+def build_analytics_data(conn):
+    import pandas as pd
+    # Get all dates
+    dates = [r[0] for r in conn.execute("SELECT DISTINCT date FROM stock_snapshots ORDER BY date").fetchall()]
+    if not dates:
+        return {"dates": [], "stock": {}}
+    # Get all stock data
+    rows = conn.execute("SELECT date, sku_name, stock_qty FROM stock_snapshots").fetchall()
+    # Build {base: {date: qty}}
+    stock = {}
+    for r in rows:
+        base = _strip_size(r["sku_name"])
+        if base not in stock:
+            stock[base] = {}
+        stock[base][r["date"]] = stock[base].get(r["date"], 0) + r["stock_qty"]
+    return {"dates": dates, "stock": stock}
 
 def parse_xls(file_path):
     import xlrd
@@ -103,6 +157,9 @@ async def upload_stock(file: UploadFile = File(...)):
                      (date_str, row['sku_name'], row['stock_qty'], uploaded_at))
         if conn.total_changes > before: inserted += 1
     conn.commit(); conn.close()
+    global _analytics_cache, _analytics_cache_key
+    _analytics_cache = None
+    _analytics_cache_key = None
     return {"date": date_str, "inserted": inserted, "skipped": len(rows)-inserted, "total_skus": len(rows)}
 
 @app.get("/api/dates")
@@ -223,6 +280,27 @@ def serve_turnover():
     if os.path.exists("turnover.html"):
         return FileResponse("turnover.html", media_type="text/html")
     return FileResponse("index.html", media_type="text/html")
+
+@app.get("/api/analytics-data")
+def get_analytics_data():
+    global _analytics_cache, _analytics_cache_key
+    conn = get_db()
+    key = get_analytics_cache_key(conn)
+    if _analytics_cache is not None and _analytics_cache_key == key:
+        conn.close()
+        return _analytics_cache
+    data = build_analytics_data(conn)
+    conn.close()
+    _analytics_cache = data
+    _analytics_cache_key = key
+    return data
+
+@app.post("/api/invalidate-cache")
+def invalidate_cache():
+    global _analytics_cache, _analytics_cache_key
+    _analytics_cache = None
+    _analytics_cache_key = None
+    return {"ok": True}
 
 @app.get("/analytics")
 def serve_analytics():

@@ -229,26 +229,15 @@ async function loadHidden() {
 }
 
 async function loadStock() {
-  const dj = await (await fetch("/api/dates")).json();
-  allDates = dj.map(d=>d.date).sort();
-  if (!allDates.length) return;
-  const ck="cc_to_stock_v1", dk="cc_to_dates_v1", cds=JSON.stringify(allDates);
+  document.getElementById("tb").innerHTML=`<tr><td colspan="16" class="loading">Загружаю данные с сервера...</td></tr>`;
   try {
-    if (localStorage.getItem(dk)===cds) {
-      const c=JSON.parse(localStorage.getItem(ck)); if(c){stockData=c;return;}
-    }
-  } catch(e){}
-  stockData={};
-  for (let i=0;i<allDates.length;i++) {
-    const date=allDates[i]; let page=1,more=true;
-    while(more){
-      const r=await(await fetch(`/api/stocks?date=${date}&page=${page}&per_page=200`)).json();
-      for(const it of r.items){const b=stripSize(it.sku_name);if(!stockData[b])stockData[b]={};stockData[b][date]=(stockData[b][date]||0)+it.stock_qty;}
-      if(page>=r.pages)more=false; page++;
-    }
-    if(i%10===0)await new Promise(r=>setTimeout(r,0));
+    const res = await fetch("/api/analytics-data");
+    const data = await res.json();
+    allDates = data.dates || [];
+    stockData = data.stock || {};
+  } catch(e) {
+    document.getElementById("tb").innerHTML=`<tr><td colspan="16" class="loading">Ошибка загрузки</td></tr>`;
   }
-  try{localStorage.setItem(ck,JSON.stringify(stockData));localStorage.setItem(dk,cds);}catch(e){}
 }
 
 function compute() {
