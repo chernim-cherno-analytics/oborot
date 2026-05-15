@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>CernimCherno · Оборачиваемость</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0 }
+    body { font-family: "Inter", sans-serif; min-height: 100vh; background: #b8d4e8; color: #1a2a3a; }
+    body::before {
+      content: ""; position: fixed; inset: 0;
+      background: radial-gradient(ellipse at 20% 20%, #c8dff0 0%, transparent 60%),
+                  radial-gradient(ellipse at 80% 10%, #d4e8f5 0%, transparent 50%),
+                  linear-gradient(160deg, #c2dff2 0%, #9ec4dc 40%, #b0d0e8 70%, #8ab8d4 100%);
+      z-index: -2;
+    }
+    body::after {
+      content: ""; position: fixed; inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+      background-size: 200px 200px; opacity: 0.4; z-index: -1; pointer-events: none;
+    }
+
+    .header {
+      position: sticky; top: 0; z-index: 200;
+      background: rgba(255,255,255,0.25); backdrop-filter: blur(20px);
+      border-bottom: 1px solid rgba(255,255,255,0.4);
+      padding: 0 28px; height: 56px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .logo { font-size: 14px; font-weight: 600; letter-spacing: 0.18em; color: #1a2a3a; text-decoration: none }
+    .nav { display: flex; gap: 6px }
+    .nav a {
+      font-size: 12px; font-weight: 500; color: rgba(26,42,58,0.6);
+      text-decoration: none; padding: 6px 14px; border-radius: 20px;
+      border: 1px solid rgba(26,42,58,0.15); transition: all .2s;
+    }
+    .nav a:hover { background: rgba(255,255,255,0.4); color: #1a2a3a }
+    .nav a.active { background: #1a2a3a; color: white; border-color: #1a2a3a }
+
+    /* Category tabs */
+    .cat-bar {
+      padding: 14px 28px; display: flex; gap: 8px; flex-wrap: wrap;
+      border-bottom: 1px solid rgba(255,255,255,0.3);
+      background: rgba(255,255,255,0.1); backdrop-filter: blur(10px);
+    }
+    .cat-btn {
+      font-size: 12px; font-weight: 500; padding: 5px 14px; border-radius: 20px;
+      border: 1px solid rgba(26,42,58,0.2); background: rgba(255,255,255,0.3);
+      color: rgba(26,42,58,0.7); cursor: pointer; transition: all .15s; white-space: nowrap;
+    }
+    .cat-btn:hover { background: rgba(255,255,255,0.5); color: #1a2a3a }
+    .cat-btn.active { background: #1a2a3a; color: white; border-color: #1a2a3a }
+    .cat-btn .cnt { font-size: 10px; opacity: 0.6; margin-left: 3px }
+
+    /* Main */
+    .main { padding: 20px 28px; max-width: 1800px; margin: 0 auto }
+
+    /* Upload bar */
+    .upload-bar {
+      display: flex; align-items: center; gap: 12px;
+      padding: 10px 16px; margin-bottom: 16px;
+      background: rgba(255,255,255,0.25); backdrop-filter: blur(12px);
+      border: 1px solid rgba(255,255,255,0.4); border-radius: 10px;
+      font-size: 12px; color: rgba(26,42,58,0.7);
+    }
+    .upload-bar input { display: none }
+    .upload-btn {
+      background: #1a2a3a; color: white; border: none;
+      padding: 6px 14px; border-radius: 16px; font-size: 12px; font-weight: 500;
+      cursor: pointer; font-family: "Inter", sans-serif; white-space: nowrap;
+    }
+    .upload-btn:hover { opacity: 0.85 }
+    .upload-status { color: rgba(26,42,58,0.5) }
+
+    /* Table wrapper */
+    .table-outer {
+      background: rgba(255,255,255,0.2); backdrop-filter: blur(16px);
+      border: 1px solid rgba(255,255,255,0.35); border-radius: 12px; overflow: hidden;
+    }
+
+    /* Table */
+    table { width: 100%; border-collapse: collapse; font-size: 12px }
+    thead th {
+      background: rgba(26,42,58,0.08);
+      padding: 10px 10px; text-align: center;
+      font-size: 10px; font-weight: 600; color: rgba(26,42,58,0.5);
+      letter-spacing: 0.06em; text-transform: uppercase;
+      border-bottom: 1px solid rgba(255,255,255,0.3);
+      white-space: nowrap;
+    }
+    thead th:first-child { text-align: left; padding-left: 14px; min-width: 220px }
+
+    /* Category header row */
+    .cat-row td {
+      background: rgba(26,42,58,0.85); color: white;
+      padding: 8px 14px; font-size: 11px; font-weight: 600;
+      letter-spacing: 0.1em; text-transform: uppercase;
+    }
+
+    /* Product rows */
+    tbody tr.product-row td {
+      padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,0.15);
+      text-align: center; vertical-align: middle;
+    }
+    tbody tr.product-row td:first-child { text-align: left; padding-left: 14px; cursor: pointer }
+    tbody tr.product-row:hover td { background: rgba(255,255,255,0.15) }
+    tbody tr.product-row.size-row td { padding: 5px 10px; font-size: 11px }
+    tbody tr.product-row.size-row td:first-child { padding-left: 32px; color: rgba(26,42,58,0.6) }
+
+    /* Color coding */
+    .row-green2  td { background: rgba(34,197,94,0.18) }
+    .row-green1  td { background: rgba(134,239,172,0.18) }
+    .row-orange  td { background: rgba(251,146,60,0.18) }
+    .row-red     td { background: rgba(239,68,68,0.18) }
+    .row-gray    td { background: rgba(26,42,58,0.05); opacity: 0.5 }
+    .row-green2:hover td { background: rgba(34,197,94,0.28) !important }
+    .row-green1:hover td { background: rgba(134,239,172,0.28) !important }
+    .row-orange:hover td  { background: rgba(251,146,60,0.28) !important }
+    .row-red:hover td     { background: rgba(239,68,68,0.28) !important }
+
+    .product-name { font-weight: 500; font-size: 12px; color: #1a2a3a }
+    .expand-icon { font-size: 9px; margin-right: 5px; color: rgba(26,42,58,0.4); display: inline-block; transition: transform .15s }
+    .expand-icon.open { transform: rotate(90deg) }
+
+    .num { font-variant-numeric: tabular-nums; font-size: 12px }
+    .num-big { font-weight: 600; font-size: 13px }
+
+    /* Stock bar for zatovarivaniye */
+    .stock-bar-wrap { position: relative; width: 100%; height: 20px; border-radius: 4px; overflow: hidden; background: rgba(26,42,58,0.08); min-width: 60px }
+    .stock-bar-fill { position: absolute; left: 0; top: 0; height: 100%; border-radius: 4px; transition: width .3s }
+    .stock-bar-text { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 600; color: #1a2a3a }
+
+    /* Deficit cell */
+    .deficit-wrap { position: relative; width: 100%; min-width: 70px }
+    .deficit-bg { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 4px }
+    .deficit-text { position: relative; z-index: 1; font-size: 11px; font-weight: 600; padding: 2px 4px }
+
+    /* Order cells */
+    .order-cell { font-size: 11px; font-weight: 600; color: #1a2a3a; padding: 2px 6px; border-radius: 4px; background: rgba(255,255,255,0.4) }
+
+    /* Detail panel */
+    .detail-row td { padding: 0 !important; border-bottom: 1px solid rgba(255,255,255,0.2) }
+    .detail-panel {
+      padding: 16px 20px; display: none;
+      background: rgba(255,255,255,0.15); backdrop-filter: blur(8px);
+    }
+    .detail-panel.open { display: flex; gap: 24px; align-items: flex-start }
+    .chart-container { flex: 1; min-width: 0 }
+    .chart-title { font-size: 12px; font-weight: 600; color: #1a2a3a; margin-bottom: 10px }
+    canvas.detail-chart { width: 100%; height: 160px; display: block }
+    .detail-side { width: 200px; flex-shrink: 0; display: flex; flex-direction: column; gap: 10px }
+    .detail-card {
+      background: rgba(255,255,255,0.35); border: 1px solid rgba(255,255,255,0.4);
+      border-radius: 8px; padding: 10px 12px;
+    }
+    .detail-card-title { font-size: 10px; font-weight: 600; color: rgba(26,42,58,0.5); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px }
+    .detail-card-value { font-size: 18px; font-weight: 700; color: #1a2a3a }
+    .detail-card-sub { font-size: 11px; color: rgba(26,42,58,0.5); margin-top: 2px }
+    .order-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px }
+    .order-item { background: rgba(255,255,255,0.35); border-radius: 6px; padding: 6px 8px; text-align: center }
+    .order-item-season { font-size: 10px; color: rgba(26,42,58,0.5); font-weight: 600 }
+    .order-item-val { font-size: 16px; font-weight: 700; color: #1a2a3a }
+
+    .empty-state { text-align: center; padding: 60px; color: rgba(26,42,58,0.4); font-size: 13px }
+    .loading-state { text-align: center; padding: 60px; color: rgba(26,42,58,0.5); font-size: 13px }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <a class="logo" href="/">CERNIM CHERNO</a>
+  <nav class="nav">
+    <a href="/">Остатки</a>
+    <a href="/analytics">Аналитика</a>
+    <a href="/turnover" class="active">Оборачиваемость</a>
+  </nav>
+</div>
+
+<div class="cat-bar" id="cat-bar">
+  <span style="font-size:12px;color:rgba(26,42,58,0.5)">Загрузка...</span>
+</div>
+
+<div class="main">
+  <div class="upload-bar">
+    <input type="file" id="sales-input" accept=".csv" multiple>
+    <button class="upload-btn" onclick="document.getElementById('sales-input').click()">↑ Загрузить CSV продаж</button>
+    <span class="upload-status" id="upload-status">Загрузите CSV файлы продаж и возвратов из МоегоСклада</span>
+  </div>
+
+  <div class="table-outer">
+    <table id="main-table">
+      <thead>
+        <tr>
+          <th>Название</th>
+          <th>Дней<br>в стоке</th>
+          <th>Ср. цена<br>продажи</th>
+          <th>Оборач.<br>за год</th>
+          <th>Зима</th>
+          <th>Весна</th>
+          <th>Лето</th>
+          <th>Осень</th>
+          <th>Остаток</th>
+          <th>Запас<br>дней</th>
+          <th>Затовари-<br>вание</th>
+          <th>Недостаток</th>
+          <th colspan="4">Заказ</th>
+        </tr>
+        <tr style="background:rgba(26,42,58,0.05);border-bottom:1px solid rgba(255,255,255,0.2)">
+          <th></th><th></th><th></th><th>₽/день</th>
+          <th>₽/день</th><th>₽/день</th><th>₽/день</th><th>₽/день</th>
+          <th>шт</th><th>дней</th><th>90дн=100%</th><th>шт</th>
+          <th style="color:#4ade80">Весна</th>
+          <th style="color:#fb923c">Лето</th>
+          <th style="color:#a78bfa">Осень</th>
+          <th style="color:#60a5fa">Зима</th>
+        </tr>
+      </thead>
+      <tbody id="tbody">
+        <tr><td colspan="16" class="loading-state">Загружаю данные...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+const SALES_DATA = {"Майка кольчуга": {"net_qty": 1, "net_revenue": 54000, "avg_price": 54000, "seasonal": {"winter": 0, "spring": 0, "summer": 0, "autumn": 54000}}, "Черные брюки \"Молниеносные\"": {"net_qty": 33, "net_revenue": 336990, "avg_price": 10212, "seasonal": {"winter": 89102, "spring": 119860, "summer": 72481, "autumn": 55547}}, "Синяя майка \"Спасение\"": {"net_qty": 47, "net_revenue": 174145, "avg_price": 3705, "seasonal": {"winter": 44868, "spring": 69765, "summer": 6800, "autumn": 52712}}, "Серая рубашка \"Галстук\"": {"net_qty": 82, "net_revenue": 475532, "avg_price": 5799, "seasonal": {"winter": 105660, "spring": 230866, "summer": 47329, "autumn": 91677}}, "Черная кожаная куртка \"Оригами\"": {"net_qty": 1, "net_revenue": 63000, "avg_price": 63000, "seasonal": {"winter": 0, "spring": 63000, "summer": 0, "autumn": 0}}, "Черная футболка без рукавов \"Кролик\"": {"net_qty": 24, "net_revenue": 132815, "avg_price": 5534, "seasonal": {"winter": 28959, "spring": 5950, "summer": 72800, "autumn": 25106}}, "Черные шорты \"Оригами\"": {"net_qty": 24, "net_revenue": 175892, "avg_price": 7329, "seasonal": {"winter": 22200, "spring": 26640, "summer": 114212, "autumn": 12840}}, "Желтая рубашка \"Амальфи\"": {"net_qty": 19, "net_revenue": 149744, "avg_price": 7881, "seasonal": {"winter": 0, "spring": 149744, "summer": 0, "autumn": 0}}, "Белая футболка \"Искал такую\"": {"net_qty": 169, "net_revenue": 674572, "avg_price": 3992, "seasonal": {"winter": 185845, "spring": 143509, "summer": 131418, "autumn": 213800}}, "Бежевая рубашка \"Ножницы\"": {"net_qty": 2, "net_revenue": 13860, "avg_price": 6930, "seasonal": {"winter": 0, "spring": 13860, "summer": 0, "autumn": 0}}, "Черные брюки \"Лаконичные\"": {"net_qty": 61, "net_revenue": 712800, "avg_price": 11685, "seasonal": {"winter": 74800, "spring": 360800, "summer": 192127, "autumn": 85073}}, "Белые брифы \"В рубчик\"": {"net_qty": 187, "net_revenue": 400968, "avg_price": 2144, "seasonal": {"winter": 0, "spring": 257749, "summer": 114627, "autumn": 28592}}, "Белый свитер \"Комфорт плюс\" с надписью": {"net_qty": 112, "net_revenue": 827967, "avg_price": 7393, "seasonal": {"winter": 203964, "spring": 227790, "summer": 224135, "autumn": 172078}}, "Бежевые брюки \"Одиссея\"": {"net_qty": 15, "net_revenue": 150204, "avg_price": 10014, "seasonal": {"winter": 47323, "spring": 73098, "summer": 0, "autumn": 29783}}, "Пиджак черный \"Себастьян\"": {"net_qty": 9, "net_revenue": 155592, "avg_price": 17288, "seasonal": {"winter": 36125, "spring": 119467, "summer": 0, "autumn": 0}}, "Черные брюки \"По наклонной\"": {"net_qty": 86, "net_revenue": 606073, "avg_price": 7047, "seasonal": {"winter": 171476, "spring": 139821, "summer": 173580, "autumn": 121196}}, "Рубашка \"Тюльпан\" черная": {"net_qty": 9, "net_revenue": 107789, "avg_price": 11977, "seasonal": {"winter": 0, "spring": 0, "summer": 0, "autumn": 107789}}, "Черная футболка \"Данко\"": {"net_qty": 28, "net_revenue": 129900, "avg_price": 4639, "seasonal": {"winter": 51700, "spring": 13600, "summer": 52700, "autumn": 11900}}, "Ремень \"Заяц\" черный": {"net_qty": 118, "net_revenue": 611870, "avg_price": 5185, "seasonal": {"winter": 146050, "spring": 315668, "summer": 107559, "autumn": 42593}}, "Серая олимпийка": {"net_qty": 29, "net_revenue": 343793, "avg_price": 11855, "seasonal": {"winter": 83258, "spring": 148377, "summer": 87486, "autumn": 24672}}, "Комплект белых боксеров \"Боксёр\" (3 шт)": {"net_qty": 42, "net_revenue": 314028, "avg_price": 7477, "seasonal": {"winter": 51799, "spring": 48002, "summer": 162846, "autumn": 51381}}, "Черная футболка без рукавов \"Себастьян\"": {"net_qty": 23, "net_revenue": 137286, "avg_price": 5969, "seasonal": {"winter": 8500, "spring": 0, "summer": 115804, "autumn": 12982}}, "Черная футболка \"По тонкому льду\"": {"net_qty": 352, "net_revenue": 1470667, "avg_price": 4178, "seasonal": {"winter": 304429, "spring": 694130, "summer": 316490, "autumn": 155618}}, "Черная жаккардовая рубашка \"Драма\"": {"net_qty": 147, "net_revenue": 1040039, "avg_price": 7075, "seasonal": {"winter": 258759, "spring": 293480, "summer": 310600, "autumn": 177200}}, "Черная рубашка-оригами": {"net_qty": 52, "net_revenue": 448667, "avg_price": 8628, "seasonal": {"winter": 191449, "spring": 90960, "summer": 7786, "autumn": 158472}}, "Белая футболка \"Kiss\"": {"net_qty": 60, "net_revenue": 327369, "avg_price": 5456, "seasonal": {"winter": 159648, "spring": 158773, "summer": 8948, "autumn": 0}}, "Черные брюки \"Сатурн\"": {"net_qty": 10, "net_revenue": 135758, "avg_price": 13576, "seasonal": {"winter": 0, "spring": 135758, "summer": 0, "autumn": 0}}, "Серебряная рубашка \"Блеск\"": {"net_qty": 29, "net_revenue": 301183, "avg_price": 10386, "seasonal": {"winter": 140035, "spring": 32900, "summer": 45655, "autumn": 82593}}, "Кроп кольчуга": {"net_qty": 1, "net_revenue": 49000, "avg_price": 49000, "seasonal": {"winter": 0, "spring": 0, "summer": 0, "autumn": 49000}}, "Ремень \"Молния\" черный": {"net_qty": 9, "net_revenue": 47808, "avg_price": 5312, "seasonal": {"winter": 34718, "spring": 13090, "summer": 0, "autumn": 0}}, "Двойная футболка черная": {"net_qty": 4, "net_revenue": 13860, "avg_price": 3465, "seasonal": {"winter": 0, "spring": 13860, "summer": 0, "autumn": 0}}, "Белые брюки-карго \"Всё сложится\"": {"net_qty": 4, "net_revenue": 19381, "avg_price": 4845, "seasonal": {"winter": -5840, "spring": 5920, "summer": 0, "autumn": 19301}}, "Черная джинсовая рубашка \"Молоко\"": {"net_qty": 2, "net_revenue": 31250, "avg_price": 15625, "seasonal": {"winter": 20500, "spring": 0, "summer": 0, "autumn": 10750}}, "Серые брюки \"Танец\"": {"net_qty": 11, "net_revenue": 117256, "avg_price": 10660, "seasonal": {"winter": 47025, "spring": 50369, "summer": 13262, "autumn": 6600}}, "Черная футболка с логотипом": {"net_qty": 52, "net_revenue": 313985, "avg_price": 6038, "seasonal": {"winter": 99404, "spring": 199743, "summer": 5950, "autumn": 8888}}, "Голубые брифы \"В рубчик\"": {"net_qty": 182, "net_revenue": 425994, "avg_price": 2341, "seasonal": {"winter": 236236, "spring": 61422, "summer": 0, "autumn": 128336}}, "Хаки брюки \"Змея\"": {"net_qty": 1, "net_revenue": 8100, "avg_price": 8100, "seasonal": {"winter": 0, "spring": 8100, "summer": 0, "autumn": 0}}, "Красные брюки \"Амур\"": {"net_qty": 4, "net_revenue": 60000, "avg_price": 15000, "seasonal": {"winter": 30000, "spring": 30000, "summer": 0, "autumn": 0}}, "Черная рубашка \"Ковбой\"": {"net_qty": 60, "net_revenue": 593894, "avg_price": 9898, "seasonal": {"winter": 158038, "spring": 123561, "summer": 156954, "autumn": 155341}}, "Оливковый бомбер \"Ретрокар\"": {"net_qty": 3, "net_revenue": 70658, "avg_price": 23553, "seasonal": {"winter": 96202, "spring": -41544, "summer": 16000, "autumn": 0}}, "Комплект коричневых боксеров \"Боксёр\" (3 шт)": {"net_qty": 47, "net_revenue": 344151, "avg_price": 7322, "seasonal": {"winter": 33966, "spring": 39275, "summer": 203742, "autumn": 67168}}, "Молочная рубашка \"Ножницы\"": {"net_qty": 14, "net_revenue": 176200, "avg_price": 12586, "seasonal": {"winter": 19800, "spring": 103940, "summer": 52460, "autumn": 0}}, "Молочная олимпийка \"Буран\"": {"net_qty": 1, "net_revenue": 16065, "avg_price": 16065, "seasonal": {"winter": 0, "spring": 0, "summer": 0, "autumn": 16065}}, "Желтая сумка \"Килл Билл\"": {"net_qty": 95, "net_revenue": 546538, "avg_price": 5753, "seasonal": {"winter": 81763, "spring": 142552, "summer": 230174, "autumn": 92049}}, "Меховой ворот": {"net_qty": 4, "net_revenue": 30660, "avg_price": 7665, "seasonal": {"winter": 17800, "spring": 3960, "summer": 0, "autumn": 8900}}, "Синяя трикотажная майка": {"net_qty": 1, "net_revenue": 2950, "avg_price": 2950, "seasonal": {"winter": 0, "spring": 2950, "summer": 0, "autumn": 0}}, "Брюки бежевые \"На выход\"": {"net_qty": 16, "net_revenue": 214730, "avg_price": 13421, "seasonal": {"winter": 29550, "spring": 185180, "summer": 0, "autumn": 0}}, "Черные брюки \"Галстук\"": {"net_qty": 65, "net_revenue": 403757, "avg_price": 6212, "seasonal": {"winter": 120180, "spring": 112024, "summer": 63660, "autumn": 107893}}, "Белая трикотажная майка": {"net_qty": 21, "net_revenue": 87460, "avg_price": 4165, "seasonal": {"winter": 35711, "spring": 13259, "summer": 18290, "autumn": 20200}}, "Черная рубашка \"Мандарин\"": {"net_qty": 7, "net_revenue": 58000, "avg_price": 8286, "seasonal": {"winter": 29000, "spring": 14500, "summer": 14500, "autumn": 0}}, "Серая рубашка \"Лебедь\"": {"net_qty": 86, "net_revenue": 900192, "avg_price": 10467, "seasonal": {"winter": 321876, "spring": 60656, "summer": 312549, "autumn": 205111}}, "Бархатная футболка \"Искал такую\"": {"net_qty": 2, "net_revenue": 0, "avg_price": 0, "seasonal": {"winter": 0, "spring": 0, "summer": 0, "autumn": 0}}, "Бежевые брюки с накладными карманами": {"net_qty": 6, "net_revenue": 46710, "avg_price": 7785, "seasonal": {"winter": 0, "spring": 39790, "summer": 0, "autumn": 6920}}, "Черная майка \"Посмотрим\"": {"net_qty": 134, "net_revenue": 419831, "avg_price": 3133, "seasonal": {"winter": 103012, "spring": 61079, "summer": 147523, "autumn": 108217}}, "Кожаный кошелек \"Кэш\"": {"net_qty": 2, "net_revenue": 6480, "avg_price": 3240, "seasonal": {"winter": 6480, "spring": 0, "summer": 0, "autumn": 0}}, "Атласная рубашка с бабочками": {"net_qty": 34, "net_revenue": 258673, "avg_price": 7608, "seasonal": {"winter": 210073, "spring": 37800, "summer": 0, "autumn": 10800}}, "Черный свитер \"Амальфи\"": {"net_qty": 40, "net_revenue": 380020, "avg_price": 9500, "seasonal": {"winter": 221735, "spring": 53284, "summer": 0, "autumn": 105001}}, "Черный фрак \"Кульминация\"": {"net_qty": 9, "net_revenue": 186100, "avg_price": 20678, "seasonal": {"winter": 153100, "spring": 33000, "summer": 0, "autumn": 0}}, "Шелковая рубашка \"Ястребинка\"": {"net_qty": 10, "net_revenue": 145200, "avg_price": 14520, "seasonal": {"winter": 0, "spring": 145200, "summer": 0, "autumn": 0}}, "Черный тренч \"Зонт\"": {"net_qty": 8, "net_revenue": 183960, "avg_price": 22995, "seasonal": {"winter": -81590, "spring": 52056, "summer": 0, "autumn": 213494}}, "Черная футболка без рукавов \"Данко\"": {"net_qty": 19, "net_revenue": 121548, "avg_price": 6397, "seasonal": {"winter": 14885, "spring": 5139, "summer": 87808, "autumn": 13716}}, "Белая рубашка \"Тетрадка в клетку\"": {"net_qty": 29, "net_revenue": 349296, "avg_price": 12045, "seasonal": {"winter": 20600, "spring": 17280, "summer": 0, "autumn": 311416}}, "Лонгслив \"Конфетти\"": {"net_qty": 10, "net_revenue": 104400, "avg_price": 10440, "seasonal": {"winter": 104400, "spring": 0, "summer": 0, "autumn": 0}}, "Атласные шорты \"Шик\" жаккард": {"net_qty": 27, "net_revenue": 195903, "avg_price": 7256, "seasonal": {"winter": 31447, "spring": 55276, "summer": 50300, "autumn": 58880}}, "Белый свитер \"Комфорт плюс\" с логотипом": {"net_qty": 309, "net_revenue": 2170791, "avg_price": 7025, "seasonal": {"winter": 1024346, "spring": 761570, "summer": 237703, "autumn": 147172}}, "Черная куртка \"Меридиан\"": {"net_qty": 12, "net_revenue": 253500, "avg_price": 21125, "seasonal": {"winter": 130400, "spring": 98280, "summer": 0, "autumn": 24820}}, "Белая рубашка \"Амур\"": {"net_qty": 1, "net_revenue": 0, "avg_price": 0, "seasonal": {"winter": 0, "spring": 0, "summer": 0, "autumn": 0}}, "Коричневый лонгслив \"Всё ровно\"": {"net_qty": 28, "net_revenue": 145728, "avg_price": 5205, "seasonal": {"winter": 20992, "spring": 27873, "summer": 43322, "autumn": 53541}}, "Серебряная рубашка \"В самое сердце\"": {"net_qty": 4, "net_revenue": 20700, "avg_price": 5175, "seasonal": {"winter": 0, "spring": 20700, "summer": 0, "autumn": 0}}, "Белая футболка без рукавов \"Амур\"": {"net_qty": 20, "net_revenue": 105136, "avg_price": 5257, "seasonal": {"winter": 29196, "spring": 75940, "summer": 0, "autumn": 0}}, "Черные брюки \"На волне\"": {"net_qty": 76, "net_revenue": 1105539, "avg_price": 14547, "seasonal": {"winter": 182901, "spring": 107325, "summer": 253558, "autumn": 561755}}, "Серый свитер \"Нападающий\"": {"net_qty": 23, "net_revenue": 195305, "avg_price": 8492, "seasonal": {"winter": 0, "spring": 0, "summer": 62475, "autumn": 132830}}, "Черная футболка \"Кролик\"": {"net_qty": 25, "net_revenue": 123250, "avg_price": 4930, "seasonal": {"winter": 23800, "spring": 20400, "summer": 64600, "autumn": 14450}}, "Куртка \"Полёт\"": {"net_qty": 12, "net_revenue": 145975, "avg_price": 12165, "seasonal": {"winter": 58590, "spring": 6901, "summer": 63744, "autumn": 16740}}, "Белая рубашка \"Мандарин\"": {"net_qty": 110, "net_revenue": 958661, "avg_price": 8715, "seasonal": {"winter": 178763, "spring": 418576, "summer": 180245, "autumn": 181077}}, "Серые брифы \"В рубчик\"": {"net_qty": 176, "net_revenue": 385969, "avg_price": 2193, "seasonal": {"winter": 141731, "spring": 177891, "summer": 0, "autumn": 66347}}, "Бомбер-шарпей темный хаки": {"net_qty": 5, "net_revenue": 46416, "avg_price": 9283, "seasonal": {"winter": 0, "spring": 46416, "summer": 0, "autumn": 0}}, "Футболка без рукавов белая": {"net_qty": 52, "net_revenue": 191523, "avg_price": 3683, "seasonal": {"winter": 9720, "spring": 51840, "summer": 103982, "autumn": 25981}}, "Белая рубашка \"В самое сердце\"": {"net_qty": 40, "net_revenue": 302933, "avg_price": 7573, "seasonal": {"winter": 127056, "spring": 175877, "summer": 0, "autumn": 0}}, "Пальто \"Леопард\"": {"net_qty": 39, "net_revenue": 1139696, "avg_price": 29223, "seasonal": {"winter": 136716, "spring": 466845, "summer": 431172, "autumn": 104963}}, "Худи с принтом \"Плеер\"": {"net_qty": 8, "net_revenue": 117354, "avg_price": 14669, "seasonal": {"winter": 88800, "spring": 8204, "summer": 12950, "autumn": 7400}}, "Ремень \"Заяц\" золотой": {"net_qty": 12, "net_revenue": 55980, "avg_price": 4665, "seasonal": {"winter": 4620, "spring": 51360, "summer": 0, "autumn": 0}}, "Серый бомбер": {"net_qty": 17, "net_revenue": 348542, "avg_price": 20502, "seasonal": {"winter": 94415, "spring": 80810, "summer": 48065, "autumn": 125252}}, "Голубая рубашка \"Куда и ветер\"": {"net_qty": 59, "net_revenue": 601972, "avg_price": 10203, "seasonal": {"winter": 254506, "spring": 192495, "summer": 125777, "autumn": 29194}}, "Розовая футболка \"Искал такую\"": {"net_qty": 34, "net_revenue": 122693, "avg_price": 3609, "seasonal": {"winter": 4060, "spring": 33679, "summer": 54813, "autumn": 30141}}, "Коричневый тренч \"Звезды\"": {"net_qty": 15, "net_revenue": 300302, "avg_price": 20020, "seasonal": {"winter": 131975, "spring": 128367, "summer": 0, "autumn": 39960}}, "Графитовая шелковая футболка": {"net_qty": 2, "net_revenue": 6900, "avg_price": 3450, "seasonal": {"winter": 0, "spring": 6900, "summer": 0, "autumn": 0}}, "Белый клатч \"Одиссея\"": {"net_qty": 7, "net_revenue": 57681, "avg_price": 8240, "seasonal": {"winter": 0, "spring": 12287, "summer": 0, "autumn": 45394}}, "Пиджак черный \"На выход\"": {"net_qty": 121, "net_revenue": 3102936, "avg_price": 25644, "seasonal": {"winter": 398653, "spring": 1263215, "summer": 774475, "autumn": 666593}}, "Белая футболка \"Вулкан\"": {"net_qty": 3, "net_revenue": 12000, "avg_price": 4000, "seasonal": {"winter": 0, "spring": 3750, "summer": 0, "autumn": 8250}}, "Коричневые шорты \"На вечер\"": {"net_qty": 5, "net_revenue": 43560, "avg_price": 8712, "seasonal": {"winter": 0, "spring": 33660, "summer": 9900, "autumn": 0}}, "Белая футболка \"По тонкому льду\"": {"net_qty": 199, "net_revenue": 792690, "avg_price": 3983, "seasonal": {"winter": 160576, "spring": 309517, "summer": 220140, "autumn": 102457}}, "Шелковые брюки Бордо": {"net_qty": 2, "net_revenue": 3840, "avg_price": 1920, "seasonal": {"winter": 0, "spring": 3840, "summer": 0, "autumn": 0}}, "Графитовая шелковая майка": {"net_qty": 1, "net_revenue": 1080, "avg_price": 1080, "seasonal": {"winter": 0, "spring": 1080, "summer": 0, "autumn": 0}}, "Рубашка-оригами": {"net_qty": 95, "net_revenue": 807771, "avg_price": 8503, "seasonal": {"winter": 111365, "spring": 235494, "summer": 255303, "autumn": 205609}}, "Черные шорты \"Скетч\"": {"net_qty": 17, "net_revenue": 96814, "avg_price": 5695, "seasonal": {"winter": 45901, "spring": 38610, "summer": 8053, "autumn": 4250}}, "Белый лонгслив \"С клыками\"": {"net_qty": 79, "net_revenue": 349305, "avg_price": 4422, "seasonal": {"winter": 75497, "spring": 62916, "summer": 78040, "autumn": 132852}}, "Шелковая рубашка \"Черный Ирис\"": {"net_qty": 11, "net_revenue": 130929, "avg_price": 11903, "seasonal": {"winter": 0, "spring": 130929, "summer": 0, "autumn": 0}}, "Серые брюки \"Оригами\"": {"net_qty": 43, "net_revenue": 485627, "avg_price": 11294, "seasonal": {"winter": 86040, "spring": 170088, "summer": 17500, "autumn": 211999}}, "Ремень с золотой клешней краба": {"net_qty": 25, "net_revenue": 127870, "avg_price": 5115, "seasonal": {"winter": 33880, "spring": 33152, "summer": 60838, "autumn": 0}}, "Серые брюки \"Осьминог\"": {"net_qty": 38, "net_revenue": 165300, "avg_price": 4350, "seasonal": {"winter": 0, "spring": 165300, "summer": 0, "autumn": 0}}, "Белая жаккардовая рубашка \"Драма\"": {"net_qty": 193, "net_revenue": 1328901, "avg_price": 6885, "seasonal": {"winter": 268888, "spring": 490493, "summer": 438520, "autumn": 131000}}, "Атласные брюки металлик": {"net_qty": 134, "net_revenue": 778711, "avg_price": 5811, "seasonal": {"winter": 221201, "spring": 338776, "summer": 87320, "autumn": 131414}}, "Бомбер джинсового цвета": {"net_qty": 24, "net_revenue": 348495, "avg_price": 14521, "seasonal": {"winter": 100640, "spring": 8880, "summer": 14076, "autumn": 224899}}, "Черные брюки-карго \"Всё сложится\"": {"net_qty": 3, "net_revenue": 29445, "avg_price": 9815, "seasonal": {"winter": 12835, "spring": 0, "summer": 0, "autumn": 16610}}, "Двойная майка с черной сеткой": {"net_qty": 1, "net_revenue": 0, "avg_price": 0, "seasonal": {"winter": 0, "spring": 0, "summer": 0, "autumn": 0}}, "Черные шорты \"Скала\"": {"net_qty": 21, "net_revenue": 95579, "avg_price": 4551, "seasonal": {"winter": 9000, "spring": 17579, "summer": 59400, "autumn": 9600}}, "Рубашка \"Скетч\"": {"net_qty": 228, "net_revenue": 2444143, "avg_price": 10720, "seasonal": {"winter": 691115, "spring": 1044741, "summer": 677583, "autumn": 30704}}, "Черная майка с рельефами мужская": {"net_qty": 728, "net_revenue": 2745868, "avg_price": 3772, "seasonal": {"winter": 773340, "spring": 1001275, "summer": 683572, "autumn": 287681}}, "Черный бомбер \"Сникерс\"": {"net_qty": 5, "net_revenue": 127248, "avg_price": 25450, "seasonal": {"winter": 33400, "spring": 56780, "summer": 23708, "autumn": 13360}}, "Голубые джинсы \"Лето\"": {"net_qty": 156, "net_revenue": 1437276, "avg_price": 9213, "seasonal": {"winter": 474935, "spring": 169598, "summer": 420588, "autumn": 372155}}, "Черная футболка \"Искал такую\"": {"net_qty": 262, "net_revenue": 1095943, "avg_price": 4183, "seasonal": {"winter": 40504, "spring": 371013, "summer": 282425, "autumn": 402001}}, "Черный свитшот \"Каскад\"": {"net_qty": 126, "net_revenue": 1349204, "avg_price": 10708, "seasonal": {"winter": 342957, "spring": 464496, "summer": 403083, "autumn": 138668}}, "Черный шарф": {"net_qty": 48, "net_revenue": 248863, "avg_price": 5185, "seasonal": {"winter": 242780, "spring": 6083, "summer": 0, "autumn": 0}}, "Черное пальто \"Петербургское\"": {"net_qty": 16, "net_revenue": 619354, "avg_price": 38710, "seasonal": {"winter": 36750, "spring": 582604, "summer": 0, "autumn": 0}}, "Черная рубашка \"Галстук-бабочка\"": {"net_qty": 42, "net_revenue": 329327, "avg_price": 7841, "seasonal": {"winter": 22098, "spring": 130670, "summer": 73550, "autumn": 103009}}, "Шелковая майка Бордо": {"net_qty": 13, "net_revenue": 32417, "avg_price": 2494, "seasonal": {"winter": 0, "spring": 22680, "summer": 0, "autumn": 9737}}, "Черная джинсовая рубашка \"На волне\"": {"net_qty": 23, "net_revenue": 283628, "avg_price": 12332, "seasonal": {"winter": 53479, "spring": 77579, "summer": 85500, "autumn": 67070}}, "Оранжевые брюки \"Змея\"": {"net_qty": 14, "net_revenue": 131546, "avg_price": 9396, "seasonal": {"winter": 37700, "spring": 83696, "summer": 10150, "autumn": 0}}, "Лонгслив \"Кристалл\"": {"net_qty": 1, "net_revenue": 4980, "avg_price": 4980, "seasonal": {"winter": 0, "spring": 4980, "summer": 0, "autumn": 0}}, "Черный свитер \"Yes/No\"": {"net_qty": 51, "net_revenue": 511128, "avg_price": 10022, "seasonal": {"winter": 166021, "spring": 114219, "summer": 81866, "autumn": 149022}}, "Худи с принтом \"Спичка\" черный": {"net_qty": 6, "net_revenue": 51800, "avg_price": 8633, "seasonal": {"winter": 0, "spring": 25900, "summer": 0, "autumn": 25900}}, "Коричневый свитер \"Амальфи\"": {"net_qty": 23, "net_revenue": 198816, "avg_price": 8644, "seasonal": {"winter": 138237, "spring": -347, "summer": 0, "autumn": 60926}}, "Молочные брюки \"Джаз\"": {"net_qty": 7, "net_revenue": 60689, "avg_price": 8670, "seasonal": {"winter": 0, "spring": 60689, "summer": 0, "autumn": 0}}, "Белая майка \"Античная\"": {"net_qty": 89, "net_revenue": 322346, "avg_price": 3622, "seasonal": {"winter": 94301, "spring": 68733, "summer": 134581, "autumn": 24731}}, "Голубая рубашка \"В точку!\"": {"net_qty": 4, "net_revenue": 44292, "avg_price": 11073, "seasonal": {"winter": 0, "spring": 44292, "summer": 0, "autumn": 0}}, "Серо-черные брюки с накладными карманами": {"net_qty": 43, "net_revenue": 448478, "avg_price": 10430, "seasonal": {"winter": 168339, "spring": 134590, "summer": 74523, "autumn": 71026}}, "Комплект разноцветных боксеров \"Боксёр\" (3 шт)": {"net_qty": 38, "net_revenue": 306397, "avg_price": 8063, "seasonal": {"winter": 0, "spring": 134698, "summer": 106108, "autumn": 65591}}, "Черная олимпийка": {"net_qty": 16, "net_revenue": 260936, "avg_price": 16308, "seasonal": {"winter": 125355, "spring": 124601, "summer": 10980, "autumn": 0}}, "Молочная рубашка \"Выкройка\"": {"net_qty": 11, "net_revenue": 107660, "avg_price": 9787, "seasonal": {"winter": 0, "spring": 67680, "summer": 31960, "autumn": 8020}}, "Серый пиджак \"Оригами\"": {"net_qty": 9, "net_revenue": 174064, "avg_price": 19340, "seasonal": {"winter": -39960, "spring": 109362, "summer": 0, "autumn": 104662}}, "Черные брюки \"Регби\"": {"net_qty": 19, "net_revenue": 369303, "avg_price": 19437, "seasonal": {"winter": 135573, "spring": 122560, "summer": 59459, "autumn": 51711}}, "Шелковая рубашка \"Черная мамба\"": {"net_qty": 3, "net_revenue": 39600, "avg_price": 13200, "seasonal": {"winter": 0, "spring": 39600, "summer": 0, "autumn": 0}}, "Черный бомбер \"Регби\"": {"net_qty": 17, "net_revenue": 278177, "avg_price": 16363, "seasonal": {"winter": 12960, "spring": 74351, "summer": 46144, "autumn": 144722}}, "Красная майка \"Спасение\"": {"net_qty": 26, "net_revenue": 107927, "avg_price": 4151, "seasonal": {"winter": 51500, "spring": 29740, "summer": 0, "autumn": 26687}}, "Рубашка \"Полутьма\"": {"net_qty": 122, "net_revenue": 770045, "avg_price": 6312, "seasonal": {"winter": 165634, "spring": 172119, "summer": 247696, "autumn": 184596}}, "Бежевое пальто \"Петербургское\"": {"net_qty": 3, "net_revenue": 35191, "avg_price": 11730, "seasonal": {"winter": 0, "spring": 35191, "summer": 0, "autumn": 0}}, "Молочный пиджак \"Оригами\"": {"net_qty": 20, "net_revenue": 410276, "avg_price": 20514, "seasonal": {"winter": 71595, "spring": 45962, "summer": 0, "autumn": 292719}}, "Черная рубашка \"Галстук\"": {"net_qty": 86, "net_revenue": 712213, "avg_price": 8282, "seasonal": {"winter": 214177, "spring": 172872, "summer": 178433, "autumn": 146731}}, "Черная футболка \"Сатурн\"": {"net_qty": 106, "net_revenue": 543266, "avg_price": 5125, "seasonal": {"winter": 167056, "spring": 224731, "summer": 104915, "autumn": 46564}}, "Бомбер-шарпей серый": {"net_qty": 10, "net_revenue": 185269, "avg_price": 18527, "seasonal": {"winter": 0, "spring": 185269, "summer": 0, "autumn": 0}}, "Белая рубашка \"Тетрадка в линейку\"": {"net_qty": 26, "net_revenue": 291840, "avg_price": 11225, "seasonal": {"winter": 124360, "spring": 100520, "summer": 0, "autumn": 66960}}, "Белая футболка с логотипом": {"net_qty": 25, "net_revenue": 110087, "avg_price": 4403, "seasonal": {"winter": 0, "spring": 72328, "summer": 27031, "autumn": 10728}}, "Черный худи \"Скетч\"": {"net_qty": 314, "net_revenue": 3415749, "avg_price": 10878, "seasonal": {"winter": 811517, "spring": 1754129, "summer": 503122, "autumn": 346981}}, "Темно-серый свитшот \"Каскад\"": {"net_qty": 12, "net_revenue": 144940, "avg_price": 12078, "seasonal": {"winter": 36340, "spring": 86480, "summer": 22120, "autumn": 0}}, "Кофейный свитер \"Приятный\"": {"net_qty": 78, "net_revenue": 689127, "avg_price": 8835, "seasonal": {"winter": 337645, "spring": 137419, "summer": 26195, "autumn": 187868}}, "Белая футболка с надписью": {"net_qty": 2, "net_revenue": 8500, "avg_price": 4250, "seasonal": {"winter": 0, "spring": 0, "summer": 0, "autumn": 8500}}, "Белая футболка \"Сатурн\"": {"net_qty": 157, "net_revenue": 820567, "avg_price": 5227, "seasonal": {"winter": 315783, "spring": 316837, "summer": 134558, "autumn": 53389}}, "Голубые брюки с накладными карманами": {"net_qty": 2, "net_revenue": 13840, "avg_price": 6920, "seasonal": {"winter": 0, "spring": 13840, "summer": 0, "autumn": 0}}, "Спортивные брюки": {"net_qty": 3, "net_revenue": 14144, "avg_price": 4715, "seasonal": {"winter": 0, "spring": 14144, "summer": 0, "autumn": 0}}, "Черный пиджак \"Прямолинейный\"": {"net_qty": 33, "net_revenue": 813980, "avg_price": 24666, "seasonal": {"winter": 443887, "spring": 86396, "summer": 168000, "autumn": 115697}}, "Золотистая шелковая майка": {"net_qty": 12, "net_revenue": 19210, "avg_price": 1601, "seasonal": {"winter": 0, "spring": 19210, "summer": 0, "autumn": 0}}, "Черная рубашка \"Строгость\"": {"net_qty": 50, "net_revenue": 480022, "avg_price": 9600, "seasonal": {"winter": 74091, "spring": 134466, "summer": 171450, "autumn": 100015}}, "Молочные брюки \"Оригами\"": {"net_qty": 64, "net_revenue": 614552, "avg_price": 9602, "seasonal": {"winter": 221463, "spring": 198471, "summer": 0, "autumn": 194618}}, "Пиджак серый \"На выход\"": {"net_qty": 18, "net_revenue": 425011, "avg_price": 23612, "seasonal": {"winter": 161508, "spring": 117892, "summer": 70560, "autumn": 75051}}, "Рубашка \"Лебедь\"": {"net_qty": 172, "net_revenue": 1912350, "avg_price": 11118, "seasonal": {"winter": 605246, "spring": 90007, "summer": 852797, "autumn": 364300}}, "Рубашка \"Тюльпан\" черно-белая": {"net_qty": 49, "net_revenue": 417755, "avg_price": 8526, "seasonal": {"winter": 702, "spring": 0, "summer": 220174, "autumn": 196879}}, "Бежевая джинсовая рубашка \"На волне\"": {"net_qty": 24, "net_revenue": 310193, "avg_price": 12925, "seasonal": {"winter": 18000, "spring": 105005, "summer": 94500, "autumn": 92688}}, "Синий худи \"Скетч\"": {"net_qty": 47, "net_revenue": 348100, "avg_price": 7406, "seasonal": {"winter": 54440, "spring": 80520, "summer": 120440, "autumn": 92700}}, "Черный пиджак \"Оригами\"": {"net_qty": 9, "net_revenue": 190564, "avg_price": 21174, "seasonal": {"winter": 73108, "spring": 38283, "summer": 0, "autumn": 79173}}, "Серая рубашка \"Мандарин\"": {"net_qty": 3, "net_revenue": 24650, "avg_price": 8217, "seasonal": {"winter": 0, "spring": 7250, "summer": 0, "autumn": 17400}}, "Коричневая футболка \"Искал такую\"": {"net_qty": 98, "net_revenue": 353563, "avg_price": 3608, "seasonal": {"winter": 166067, "spring": 96259, "summer": 0, "autumn": 91237}}, "Черная рубашка \"Ласточкин хвост\"": {"net_qty": 83, "net_revenue": 536688, "avg_price": 6466, "seasonal": {"winter": 82721, "spring": 258342, "summer": 144636, "autumn": 50989}}, "Зеленый худи \"Скетч\"": {"net_qty": 4, "net_revenue": 33000, "avg_price": 8250, "seasonal": {"winter": 26400, "spring": 6600, "summer": 0, "autumn": 0}}, "Атласная рубашка \"Шик\" со звездами": {"net_qty": 19, "net_revenue": 136290, "avg_price": 7173, "seasonal": {"winter": 70703, "spring": 14504, "summer": 28560, "autumn": 22523}}, "Серые шорты \"На вечер\"": {"net_qty": 7, "net_revenue": 52302, "avg_price": 7472, "seasonal": {"winter": 0, "spring": 24740, "summer": 27562, "autumn": 0}}, "Молочные шорты \"Оригами\"": {"net_qty": 13, "net_revenue": 132108, "avg_price": 10162, "seasonal": {"winter": 26640, "spring": 11840, "summer": 55911, "autumn": 37717}}, "Молочный пиджак \"Прямолинейный\"": {"net_qty": 7, "net_revenue": 152231, "avg_price": 21747, "seasonal": {"winter": 27200, "spring": 21031, "summer": 81600, "autumn": 22400}}, "Черные брюки \"Себастьян\"": {"net_qty": 4, "net_revenue": 46460, "avg_price": 11615, "seasonal": {"winter": 30300, "spring": 16160, "summer": 0, "autumn": 0}}, "Черный пиджак \"Фата-моргана\"": {"net_qty": 56, "net_revenue": 1320104, "avg_price": 23573, "seasonal": {"winter": 325552, "spring": 368089, "summer": 295386, "autumn": 331077}}, "Футболка \"В круиз\" с серыми вставками": {"net_qty": 54, "net_revenue": 232708, "avg_price": 4309, "seasonal": {"winter": 42590, "spring": 77130, "summer": 77331, "autumn": 35657}}, "Черная рубашка \"Амур\"": {"net_qty": 15, "net_revenue": 134482, "avg_price": 8965, "seasonal": {"winter": 11925, "spring": 122557, "summer": 0, "autumn": 0}}, "Серый комбинезон": {"net_qty": 1, "net_revenue": 9600, "avg_price": 9600, "seasonal": {"winter": 0, "spring": 9600, "summer": 0, "autumn": 0}}, "Серые шорты \"Оригами\"": {"net_qty": 14, "net_revenue": 155182, "avg_price": 11084, "seasonal": {"winter": 11840, "spring": 42702, "summer": 85840, "autumn": 14800}}, "Серые брюки \"Амур\"": {"net_qty": 4, "net_revenue": 51500, "avg_price": 12875, "seasonal": {"winter": 36500, "spring": 15000, "summer": 0, "autumn": 0}}, "Молочный худи \"Скетч\"": {"net_qty": 1, "net_revenue": 6600, "avg_price": 6600, "seasonal": {"winter": 0, "spring": 6600, "summer": 0, "autumn": 0}}, "Черная майка \"Перекресток\"": {"net_qty": 38, "net_revenue": 143068, "avg_price": 3765, "seasonal": {"winter": 4060, "spring": 13615, "summer": 107553, "autumn": 17840}}, "Черный тренч \"Тринити\"": {"net_qty": 89, "net_revenue": 2450332, "avg_price": 27532, "seasonal": {"winter": 1012563, "spring": 354087, "summer": 491131, "autumn": 592551}}, "Шелковая рубашка \"Хризантема\"": {"net_qty": 2, "net_revenue": 22000, "avg_price": 11000, "seasonal": {"winter": 0, "spring": 22000, "summer": 0, "autumn": 0}}, "Черное пальто \"Купеческое\"": {"net_qty": 1, "net_revenue": 33300, "avg_price": 33300, "seasonal": {"winter": 0, "spring": 0, "summer": 0, "autumn": 33300}}, "Черные контрастные брюки \"Одиссея\"": {"net_qty": 12, "net_revenue": 146649, "avg_price": 12221, "seasonal": {"winter": 63458, "spring": 24920, "summer": 0, "autumn": 58271}}, "Красный свитер \"Нападающий\"": {"net_qty": 56, "net_revenue": 407224, "avg_price": 7272, "seasonal": {"winter": 213802, "spring": -2053, "summer": 114660, "autumn": 80815}}, "Белая футболка без рукавов \"Мороженое\"": {"net_qty": 47, "net_revenue": 274604, "avg_price": 5843, "seasonal": {"winter": 56903, "spring": 97315, "summer": 100156, "autumn": 20230}}, "Голубая рубашка \"Амальфи\"": {"net_qty": 129, "net_revenue": 1196289, "avg_price": 9274, "seasonal": {"winter": 236913, "spring": 656417, "summer": 302959, "autumn": 0}}, "Подвеска \"Стрела\"": {"net_qty": 3, "net_revenue": 7325, "avg_price": 2442, "seasonal": {"winter": 0, "spring": 7325, "summer": 0, "autumn": 0}}, "Черный бомбер": {"net_qty": 19, "net_revenue": 351240, "avg_price": 18486, "seasonal": {"winter": 198320, "spring": 105560, "summer": 29600, "autumn": 17760}}, "Рубашка \"Лавировали, лавировали\"": {"net_qty": 61, "net_revenue": 590322, "avg_price": 9677, "seasonal": {"winter": 155011, "spring": 204143, "summer": 124932, "autumn": 106236}}, "Желтая футболка \"Искал такую\"": {"net_qty": 38, "net_revenue": 148765, "avg_price": 3915, "seasonal": {"winter": 46833, "spring": 71877, "summer": 0, "autumn": 30055}}, "Рубашка бело-голубая \"Орёл и Решка\"": {"net_qty": 150, "net_revenue": 892457, "avg_price": 5950, "seasonal": {"winter": 198040, "spring": 335233, "summer": 238713, "autumn": 120471}}, "Черный клатч \"Одиссея\"": {"net_qty": 8, "net_revenue": 67630, "avg_price": 8454, "seasonal": {"winter": 0, "spring": 11291, "summer": 0, "autumn": 56339}}, "Черные шорты \"Клёш\"": {"net_qty": 17, "net_revenue": 217953, "avg_price": 12821, "seasonal": {"winter": 90090, "spring": 72423, "summer": 39600, "autumn": 15840}}, "Оранжевый бомбер \"Ретрокар\"": {"net_qty": 25, "net_revenue": 480690, "avg_price": 19228, "seasonal": {"winter": 324058, "spring": 156632, "summer": 0, "autumn": 0}}, "Корсетный жилет": {"net_qty": 1, "net_revenue": 5100, "avg_price": 5100, "seasonal": {"winter": 0, "spring": 5100, "summer": 0, "autumn": 0}}, "Синий свитер \"Нападающий\"": {"net_qty": 23, "net_revenue": 186442, "avg_price": 8106, "seasonal": {"winter": 0, "spring": 0, "summer": 24990, "autumn": 161452}}, "Майка с глазами мужская": {"net_qty": 5, "net_revenue": 5590, "avg_price": 1118, "seasonal": {"winter": 0, "spring": 5590, "summer": 0, "autumn": 0}}, "Салатовая рубашка \"Матадор\"": {"net_qty": 33, "net_revenue": 330812, "avg_price": 10025, "seasonal": {"winter": 145221, "spring": 1631, "summer": 96752, "autumn": 87208}}, "Черная майка без рукавов \"Стрекоза\"": {"net_qty": 96, "net_revenue": 526201, "avg_price": 5481, "seasonal": {"winter": 149394, "spring": 240129, "summer": 68285, "autumn": 68393}}, "Бежевые брюки \"Сатурн\"": {"net_qty": 1, "net_revenue": 20900, "avg_price": 20900, "seasonal": {"winter": 0, "spring": 20900, "summer": 0, "autumn": 0}}, "Меховой пиджак \"Вороной\"": {"net_qty": 4, "net_revenue": 103275, "avg_price": 25819, "seasonal": {"winter": 103275, "spring": 0, "summer": 0, "autumn": 0}}, "Серый бомбер \"Сникерс\"": {"net_qty": 9, "net_revenue": 202927, "avg_price": 22547, "seasonal": {"winter": 59600, "spring": 121910, "summer": 21417, "autumn": 0}}, "Рубашка \"Тюльпан\" бело-синяя": {"net_qty": 81, "net_revenue": 908667, "avg_price": 11218, "seasonal": {"winter": 59379, "spring": 359221, "summer": 227785, "autumn": 262282}}, "Рубашка сине-голубая \"Орёл и Решка\"": {"net_qty": 3, "net_revenue": 28320, "avg_price": 9440, "seasonal": {"winter": 28320, "spring": 0, "summer": 0, "autumn": 0}}, "Атласная рубашка \"Шик\" в полоску": {"net_qty": 33, "net_revenue": 254085, "avg_price": 7700, "seasonal": {"winter": 58605, "spring": 33495, "summer": 76489, "autumn": 85496}}, "Черные брюки \"Сникерс\"": {"net_qty": 42, "net_revenue": 541972, "avg_price": 12904, "seasonal": {"winter": 156149, "spring": 211133, "summer": -1000, "autumn": 175690}}, "Зеленый свитер \"Нападающий\"": {"net_qty": 69, "net_revenue": 576199, "avg_price": 8351, "seasonal": {"winter": 319464, "spring": 55540, "summer": 89670, "autumn": 111525}}, "Белая рубашка \"Черныш\"": {"net_qty": 22, "net_revenue": 226543, "avg_price": 10297, "seasonal": {"winter": 28737, "spring": 17050, "summer": 92547, "autumn": 88209}}, "Черная футболка без рукавов \"Лебедь\"": {"net_qty": 42, "net_revenue": 228577, "avg_price": 5442, "seasonal": {"winter": 8500, "spring": 11050, "summer": 191715, "autumn": 17312}}, "Физический подарочный сертификат": {"net_qty": 29, "net_revenue": 170000, "avg_price": 5862, "seasonal": {"winter": 105000, "spring": 65000, "summer": 0, "autumn": 0}}, "Черный свитер с белым сердцем": {"net_qty": 68, "net_revenue": 681394, "avg_price": 10020, "seasonal": {"winter": 664850, "spring": 6105, "summer": 0, "autumn": 10439}}, "Рубашка \"Тюльпан\" хаки с черным": {"net_qty": 57, "net_revenue": 605504, "avg_price": 10623, "seasonal": {"winter": 55711, "spring": 190243, "summer": 196704, "autumn": 162846}}, "Серые брюки \"Сникерс\"": {"net_qty": 14, "net_revenue": 140930, "avg_price": 10066, "seasonal": {"winter": 78680, "spring": 17430, "summer": 0, "autumn": 44820}}, "Брюки со складками": {"net_qty": 249, "net_revenue": 2228688, "avg_price": 8951, "seasonal": {"winter": 442200, "spring": 861222, "summer": 355082, "autumn": 570184}}, "Куртка самурайская": {"net_qty": 1, "net_revenue": 11000, "avg_price": 11000, "seasonal": {"winter": 0, "spring": 11000, "summer": 0, "autumn": 0}}, "Спортивная сумка \"С понедельника\"": {"net_qty": 416, "net_revenue": 3412877, "avg_price": 8204, "seasonal": {"winter": 1102914, "spring": 1430208, "summer": 367176, "autumn": 512579}}, "Тонкая цепочка 55 мм": {"net_qty": 3, "net_revenue": 5700, "avg_price": 1900, "seasonal": {"winter": 0, "spring": 5700, "summer": 0, "autumn": 0}}, "Черный тренч \"Звезды\"": {"net_qty": 17, "net_revenue": 336430, "avg_price": 19790, "seasonal": {"winter": 296774, "spring": 39656, "summer": 0, "autumn": 0}}, "Черный комбинезон": {"net_qty": 8, "net_revenue": 132000, "avg_price": 16500, "seasonal": {"winter": 0, "spring": 103200, "summer": 0, "autumn": 28800}}, "Коричневая майка \"Античная\"": {"net_qty": 41, "net_revenue": 127182, "avg_price": 3102, "seasonal": {"winter": 46322, "spring": 30363, "summer": 45011, "autumn": 5486}}, "Очки \"Матадор\" Fakoshima x ChernimCherno": {"net_qty": 59, "net_revenue": 743220, "avg_price": 12597, "seasonal": {"winter": 190989, "spring": 301833, "summer": 171142, "autumn": 79256}}, "Черная олимпийка \"Буран\"": {"net_qty": 1, "net_revenue": 0, "avg_price": 0, "seasonal": {"winter": 0, "spring": 0, "summer": 0, "autumn": 0}}, "Розовые брифы \"В рубчик\"": {"net_qty": 435, "net_revenue": 997649, "avg_price": 2293, "seasonal": {"winter": 44587, "spring": 444810, "summer": 99640, "autumn": 408612}}, "Бомбер-шарпей бархат": {"net_qty": 24, "net_revenue": 285372, "avg_price": 11890, "seasonal": {"winter": 0, "spring": 285372, "summer": 0, "autumn": 0}}, "Желтые брюки с накладными карманами": {"net_qty": 2, "net_revenue": 15620, "avg_price": 7810, "seasonal": {"winter": 0, "spring": 15620, "summer": 0, "autumn": 0}}, "Черные боксеры \"Боксёр\"": {"net_qty": 68, "net_revenue": 147048, "avg_price": 2162, "seasonal": {"winter": 2640, "spring": 103488, "summer": 35640, "autumn": 5280}}, "Бежевая футболка \"Амур\"": {"net_qty": 1, "net_revenue": 16755, "avg_price": 16755, "seasonal": {"winter": 16755, "spring": 0, "summer": 0, "autumn": 0}}, "Контрастные брюки с накладными карманами": {"net_qty": 4, "net_revenue": 38060, "avg_price": 9515, "seasonal": {"winter": 12110, "spring": 12110, "summer": 0, "autumn": 13840}}, "Черная куртка \"Одиссея\"": {"net_qty": 23, "net_revenue": 330420, "avg_price": 14366, "seasonal": {"winter": 81819, "spring": 167889, "summer": 0, "autumn": 80712}}, "Ремень \"Заяц\" серебряный": {"net_qty": 436, "net_revenue": 2344114, "avg_price": 5376, "seasonal": {"winter": 498984, "spring": 1034364, "summer": 353495, "autumn": 457271}}, "Синяя жаккардовая рубашка \"Драма\"": {"net_qty": 42, "net_revenue": 284823, "avg_price": 6782, "seasonal": {"winter": 60111, "spring": 137359, "summer": 80813, "autumn": 6540}}, "Серый пиджак \"Прямолинейный\"": {"net_qty": 22, "net_revenue": 519787, "avg_price": 23627, "seasonal": {"winter": 98754, "spring": 105527, "summer": 163200, "autumn": 152306}}, "Бомбер-шарпей голубой": {"net_qty": 4, "net_revenue": 26760, "avg_price": 6690, "seasonal": {"winter": 0, "spring": 26760, "summer": 0, "autumn": 0}}, "Куртка \"Хорошего парня\"": {"net_qty": 41, "net_revenue": 857695, "avg_price": 20919, "seasonal": {"winter": 19856, "spring": 172562, "summer": 288444, "autumn": 376833}}, "Черный бомбер \"Ретрокар\"": {"net_qty": 25, "net_revenue": 737200, "avg_price": 29488, "seasonal": {"winter": 609200, "spring": 128000, "summer": 0, "autumn": 0}}, "Базовая майка мужская": {"net_qty": 2, "net_revenue": 5000, "avg_price": 2500, "seasonal": {"winter": 0, "spring": 5000, "summer": 0, "autumn": 0}}, "Футболка без рукавов черная": {"net_qty": 91, "net_revenue": 361369, "avg_price": 3971, "seasonal": {"winter": 75998, "spring": 135628, "summer": 119452, "autumn": 30291}}, "Молочные брюки \"Сатурн\"": {"net_qty": 2, "net_revenue": 33391, "avg_price": 16696, "seasonal": {"winter": 0, "spring": 33391, "summer": 0, "autumn": 0}}, "Бомбер \"Леопард\"": {"net_qty": 36, "net_revenue": 945885, "avg_price": 26275, "seasonal": {"winter": 93600, "spring": 572485, "summer": 128600, "autumn": 151200}}, "Бежевые брюки \"Осьминог\"": {"net_qty": 6, "net_revenue": 36103, "avg_price": 6017, "seasonal": {"winter": 0, "spring": 31753, "summer": 0, "autumn": 4350}}, "Черный пиджак \"Молниеносный\"": {"net_qty": 34, "net_revenue": 504872, "avg_price": 14849, "seasonal": {"winter": 99200, "spring": 124191, "summer": 175747, "autumn": 105734}}, "Черная рубашка \"Конфетти\"": {"net_qty": 2, "net_revenue": 38563, "avg_price": 19282, "seasonal": {"winter": 38563, "spring": 0, "summer": 0, "autumn": 0}}, "Черные брюки \"Под прицелом\"": {"net_qty": 1, "net_revenue": 0, "avg_price": 0, "seasonal": {"winter": 0, "spring": 0, "summer": 0, "autumn": 0}}, "Черная рубашка \"Матадор\"": {"net_qty": 82, "net_revenue": 1000329, "avg_price": 12199, "seasonal": {"winter": 265152, "spring": 472987, "summer": 175296, "autumn": 86894}}, "Черные брюки \"Оригами\"": {"net_qty": 45, "net_revenue": 415321, "avg_price": 9229, "seasonal": {"winter": 119847, "spring": 2252, "summer": 0, "autumn": 293222}}, "Лазурные брюки со складками": {"net_qty": 4, "net_revenue": 31655, "avg_price": 7914, "seasonal": {"winter": 10900, "spring": 20755, "summer": 0, "autumn": 0}}, "Белая рубашка \"Строгость\"": {"net_qty": 91, "net_revenue": 681775, "avg_price": 7492, "seasonal": {"winter": 32813, "spring": 407966, "summer": 160742, "autumn": 80254}}, "Бежевые джинсовые шорты \"На волне\"": {"net_qty": 12, "net_revenue": 91000, "avg_price": 7583, "seasonal": {"winter": 10080, "spring": 7560, "summer": 60480, "autumn": 12880}}, "Лонгслив \"Черная жемчужина\"": {"net_qty": 8, "net_revenue": 37800, "avg_price": 4725, "seasonal": {"winter": 0, "spring": 37800, "summer": 0, "autumn": 0}}, "Молочные брюки \"Те самые\"": {"net_qty": 18, "net_revenue": 187901, "avg_price": 10439, "seasonal": {"winter": 41920, "spring": 27219, "summer": 0, "autumn": 118762}}, "Коричневые боксеры \"Боксёр\"": {"net_qty": 47, "net_revenue": 84513, "avg_price": 1798, "seasonal": {"winter": 35640, "spring": 28413, "summer": 17820, "autumn": 2640}}, "Цепь на шею \"База\"": {"net_qty": 60, "net_revenue": 359870, "avg_price": 5998, "seasonal": {"winter": 115037, "spring": 120565, "summer": 76887, "autumn": 47381}}, "Чёрные джинсовые шорты \"Приличные\"": {"net_qty": 3, "net_revenue": 15120, "avg_price": 5040, "seasonal": {"winter": 0, "spring": 15120, "summer": 0, "autumn": 0}}, "Бежевый свитшот \"Каскад\"": {"net_qty": 2, "net_revenue": 22100, "avg_price": 11050, "seasonal": {"winter": 14200, "spring": 7900, "summer": 0, "autumn": 0}}, "Черные брюки \"Стрелы\"": {"net_qty": 18, "net_revenue": 187029, "avg_price": 10390, "seasonal": {"winter": 68915, "spring": 62624, "summer": 17900, "autumn": 37590}}, "Подвеска \"Нож\"": {"net_qty": 2, "net_revenue": 2500, "avg_price": 1250, "seasonal": {"winter": 0, "spring": 2500, "summer": 0, "autumn": 0}}, "Зеленая майка \"Перекресток\"": {"net_qty": 32, "net_revenue": 100543, "avg_price": 3142, "seasonal": {"winter": 23806, "spring": 19419, "summer": 35394, "autumn": 21924}}, "Черные брюки с накладными карманами": {"net_qty": 87, "net_revenue": 876129, "avg_price": 10070, "seasonal": {"winter": 303328, "spring": 369792, "summer": 114180, "autumn": 88829}}, "Серые шелковые брюки": {"net_qty": 2, "net_revenue": 12800, "avg_price": 6400, "seasonal": {"winter": 12800, "spring": 0, "summer": 0, "autumn": 0}}, "Белая рубашка \"Ковбой\"": {"net_qty": 58, "net_revenue": 487104, "avg_price": 8398, "seasonal": {"winter": 53250, "spring": 165473, "summer": 215383, "autumn": 52998}}, "Ремень \"Крыло\" золотой": {"net_qty": 3, "net_revenue": 22100, "avg_price": 7367, "seasonal": {"winter": 7700, "spring": 6700, "summer": 7700, "autumn": 0}}, "Зеленая рубашка \"Амальфи\"": {"net_qty": 1, "net_revenue": 10776, "avg_price": 10776, "seasonal": {"winter": 0, "spring": 10776, "summer": 0, "autumn": 0}}, "Сет из 3-х каффов \"Цепь\"": {"net_qty": 33, "net_revenue": 156835, "avg_price": 4753, "seasonal": {"winter": 10560, "spring": 44540, "summer": 72695, "autumn": 29040}}, "Черный свитшот \"Море волнуется раз\"": {"net_qty": 31, "net_revenue": 321373, "avg_price": 10367, "seasonal": {"winter": 86589, "spring": 7235, "summer": 0, "autumn": 227549}}, "Манишка кольчуга": {"net_qty": 1, "net_revenue": 31084, "avg_price": 31084, "seasonal": {"winter": 0, "spring": 0, "summer": 0, "autumn": 31084}}, "Золотистые шелковые брюки": {"net_qty": 3, "net_revenue": 16560, "avg_price": 5520, "seasonal": {"winter": 0, "spring": 16560, "summer": 0, "autumn": 0}}, "Графитовые шелковые брюки": {"net_qty": 1, "net_revenue": 6900, "avg_price": 6900, "seasonal": {"winter": 0, "spring": 6900, "summer": 0, "autumn": 0}}, "Черные шорты \"Прямолинейные\"": {"net_qty": 15, "net_revenue": 75049, "avg_price": 5003, "seasonal": {"winter": 14860, "spring": 4318, "summer": 31160, "autumn": 24711}}, "Брюки \"Матадор\" белые": {"net_qty": 46, "net_revenue": 451390, "avg_price": 9813, "seasonal": {"winter": 48885, "spring": 305725, "summer": 58542, "autumn": 38238}}, "Черный жилет-галстук": {"net_qty": 55, "net_revenue": 629624, "avg_price": 11448, "seasonal": {"winter": 174162, "spring": 415972, "summer": 19690, "autumn": 19800}}, "Молочная жатая олимпийка \"Буран\"": {"net_qty": 2, "net_revenue": 14175, "avg_price": 7088, "seasonal": {"winter": 14175, "spring": 0, "summer": 0, "autumn": 0}}, "Коричневые шорты из костюмной ткани \"Приличные\"": {"net_qty": 38, "net_revenue": 169480, "avg_price": 4460, "seasonal": {"winter": 41710, "spring": 29718, "summer": 77972, "autumn": 20080}}, "Розовая футболка \"Амур\"": {"net_qty": 1, "net_revenue": 13500, "avg_price": 13500, "seasonal": {"winter": 13500, "spring": 0, "summer": 0, "autumn": 0}}, "Черная рубашка \"Блеск\"": {"net_qty": 19, "net_revenue": 296877, "avg_price": 15625, "seasonal": {"winter": 216638, "spring": 47775, "summer": 12964, "autumn": 19500}}, "Комплект воротник + манжеты \"Ушки\"": {"net_qty": 31, "net_revenue": 327342, "avg_price": 10559, "seasonal": {"winter": 126280, "spring": 138902, "summer": 35520, "autumn": 26640}}, "Пиджак серый \"Себастьян\"": {"net_qty": 4, "net_revenue": 74375, "avg_price": 18594, "seasonal": {"winter": 31875, "spring": 42500, "summer": 0, "autumn": 0}}, "Черные брюки \"Одиссея\"": {"net_qty": 17, "net_revenue": 135922, "avg_price": 7995, "seasonal": {"winter": 42732, "spring": -8495, "summer": 0, "autumn": 101685}}, "Черные шорты \"Тетрис\"": {"net_qty": 7, "net_revenue": 59722, "avg_price": 8532, "seasonal": {"winter": 18260, "spring": 36112, "summer": 0, "autumn": 5350}}, "Черные брюки \"Поле\"": {"net_qty": 44, "net_revenue": 481292, "avg_price": 10938, "seasonal": {"winter": 177377, "spring": 258059, "summer": 0, "autumn": 45856}}, "Серые шорты \"Прямолинейные\"": {"net_qty": 19, "net_revenue": 100753, "avg_price": 5303, "seasonal": {"winter": 46192, "spring": 0, "summer": 42103, "autumn": 12458}}, "Синий тренч \"Тринити\"": {"net_qty": 7, "net_revenue": 150800, "avg_price": 21543, "seasonal": {"winter": 37700, "spring": 0, "summer": 113100, "autumn": 0}}, "Серая майка \"Спасение\"": {"net_qty": 53, "net_revenue": 249496, "avg_price": 4707, "seasonal": {"winter": 93312, "spring": 64226, "summer": 13600, "autumn": 78358}}, "Серые брюки-карго \"Всё сложится\"": {"net_qty": 4, "net_revenue": 29600, "avg_price": 7400, "seasonal": {"winter": 0, "spring": 7400, "summer": 0, "autumn": 22200}}, "Голубая футболка \"Искал такую\"": {"net_qty": 77, "net_revenue": 260923, "avg_price": 3389, "seasonal": {"winter": 85022, "spring": 99587, "summer": 0, "autumn": 76314}}, "Серый свитер \"Амальфи\"": {"net_qty": 2, "net_revenue": 27400, "avg_price": 13700, "seasonal": {"winter": 29700, "spring": -2300, "summer": 0, "autumn": 0}}, "Черный пиджак \"С бокалом\"": {"net_qty": 21, "net_revenue": 413250, "avg_price": 19679, "seasonal": {"winter": 24975, "spring": 388275, "summer": 0, "autumn": 0}}, "Атласные шорты \"Шик\" в полоску": {"net_qty": 23, "net_revenue": 140578, "avg_price": 6112, "seasonal": {"winter": 15635, "spring": 26415, "summer": 38250, "autumn": 60278}}, "Футболка \"В круиз\" с синими вставками": {"net_qty": 49, "net_revenue": 160055, "avg_price": 3266, "seasonal": {"winter": 44075, "spring": 72985, "summer": 20435, "autumn": 22560}}, "Пиджак двойной черный": {"net_qty": 33, "net_revenue": 953288, "avg_price": 28888, "seasonal": {"winter": 182924, "spring": 698824, "summer": 39200, "autumn": 32340}}, "Черная рубашка \"Амальфи\"": {"net_qty": 138, "net_revenue": 1239624, "avg_price": 8983, "seasonal": {"winter": 430121, "spring": 724871, "summer": 84632, "autumn": 0}}, "Черные брюки \"Джаз\"": {"net_qty": 14, "net_revenue": 82360, "avg_price": 5883, "seasonal": {"winter": 0, "spring": 82360, "summer": 0, "autumn": 0}}, "Бомбер \"Мишка\"": {"net_qty": 23, "net_revenue": 573693, "avg_price": 24943, "seasonal": {"winter": 424373, "spring": 149320, "summer": 0, "autumn": 0}}, "Серая майка \"Лето\"": {"net_qty": 4, "net_revenue": 15500, "avg_price": 3875, "seasonal": {"winter": 0, "spring": 15500, "summer": 0, "autumn": 0}}, "Серый тренч \"Звезды\"": {"net_qty": 7, "net_revenue": 138860, "avg_price": 19837, "seasonal": {"winter": 98900, "spring": 16650, "summer": 0, "autumn": 23310}}, "Черная футболка \"Созвездие\"": {"net_qty": 15, "net_revenue": 69701, "avg_price": 4647, "seasonal": {"winter": 0, "spring": 25501, "summer": 22950, "autumn": 21250}}, "Черные брюки \"Франт\"": {"net_qty": 82, "net_revenue": 1064867, "avg_price": 12986, "seasonal": {"winter": 115384, "spring": 63555, "summer": 508191, "autumn": 377737}}, "Фиолетовая майка \"Античная\"": {"net_qty": 47, "net_revenue": 154448, "avg_price": 3286, "seasonal": {"winter": 35073, "spring": 32585, "summer": 72906, "autumn": 13884}}, "Черно-красные брюки \"Амур\"": {"net_qty": 15, "net_revenue": 181500, "avg_price": 12100, "seasonal": {"winter": 97500, "spring": 84000, "summer": 0, "autumn": 0}}, "Черный худи \"Поле\"": {"net_qty": 27, "net_revenue": 274458, "avg_price": 10165, "seasonal": {"winter": 46384, "spring": 228074, "summer": 0, "autumn": 0}}, "Бело-синяя рубашка \"Амур\"": {"net_qty": 52, "net_revenue": 619004, "avg_price": 11904, "seasonal": {"winter": 121992, "spring": 444912, "summer": 52100, "autumn": 0}}, "Серая футболка без рукавов \"Yes/No\"": {"net_qty": 1, "net_revenue": 8500, "avg_price": 8500, "seasonal": {"winter": 0, "spring": 8500, "summer": 0, "autumn": 0}}, "Ремень \"Крыло\" серебряный": {"net_qty": 1, "net_revenue": 4390, "avg_price": 4390, "seasonal": {"winter": 4390, "spring": 0, "summer": 0, "autumn": 0}}, "Майка с рельефами мужская": {"net_qty": 1163, "net_revenue": 4653711, "avg_price": 4001, "seasonal": {"winter": 967495, "spring": 1961419, "summer": 1260301, "autumn": 464496}}, "Подвеска \"Меч\"": {"net_qty": 2, "net_revenue": 3767, "avg_price": 1884, "seasonal": {"winter": 0, "spring": 3767, "summer": 0, "autumn": 0}}, "Молочные шорты \"Прямолинейные\"": {"net_qty": 17, "net_revenue": 104140, "avg_price": 6126, "seasonal": {"winter": 20500, "spring": 49200, "summer": 13120, "autumn": 21320}}, "Черная сумка \"Килл Билл\"": {"net_qty": 178, "net_revenue": 1277718, "avg_price": 7178, "seasonal": {"winter": 541034, "spring": 359872, "summer": 179686, "autumn": 197126}}, "Худи с принтом \"Спичка\" черничный": {"net_qty": 8, "net_revenue": 61900, "avg_price": 7738, "seasonal": {"winter": 0, "spring": 47100, "summer": 0, "autumn": 14800}}, "Пиджак бежевый \"На выход\"": {"net_qty": 10, "net_revenue": 272346, "avg_price": 27235, "seasonal": {"winter": 58800, "spring": 213546, "summer": 0, "autumn": 0}}, "Черный свитер \"Нападающий\"": {"net_qty": 33, "net_revenue": 251006, "avg_price": 7606, "seasonal": {"winter": 167996, "spring": 83010, "summer": 0, "autumn": 0}}, "Чёрные шорты из костюмной ткани \"Приличные\"": {"net_qty": 49, "net_revenue": 265340, "avg_price": 5415, "seasonal": {"winter": 38962, "spring": 61860, "summer": 153118, "autumn": 11400}}, "Брюки коричневые \"На выход\"": {"net_qty": 59, "net_revenue": 785265, "avg_price": 13310, "seasonal": {"winter": 147750, "spring": 374337, "summer": 228292, "autumn": 34886}}, "Кафф на губу \"Змеиный язык\"": {"net_qty": 3, "net_revenue": 4800, "avg_price": 1600, "seasonal": {"winter": 0, "spring": 4800, "summer": 0, "autumn": 0}}, "Белая рубашка \"Выкройка\"": {"net_qty": 11, "net_revenue": 116440, "avg_price": 10585, "seasonal": {"winter": 36600, "spring": 61040, "summer": 18800, "autumn": 0}}, "Серые джинсовые шорты \"Приличные\"": {"net_qty": 4, "net_revenue": 21840, "avg_price": 5460, "seasonal": {"winter": 0, "spring": 13440, "summer": 0, "autumn": 8400}}, "Светло-голубые шелковые брюки": {"net_qty": 1, "net_revenue": 2270, "avg_price": 2270, "seasonal": {"winter": 0, "spring": 2270, "summer": 0, "autumn": 0}}, "Черные брюки \"Расписные\"": {"net_qty": 27, "net_revenue": 219450, "avg_price": 8128, "seasonal": {"winter": 0, "spring": 219450, "summer": 0, "autumn": 0}}, "Шапка \"Сквозь снег\"": {"net_qty": 7, "net_revenue": 81140, "avg_price": 11591, "seasonal": {"winter": 81140, "spring": 0, "summer": 0, "autumn": 0}}, "Ментоловые брюки со складками": {"net_qty": 6, "net_revenue": 34580, "avg_price": 5763, "seasonal": {"winter": 0, "spring": 34580, "summer": 0, "autumn": 0}}, "Ремень с клешней краба серебряный": {"net_qty": 73, "net_revenue": 431904, "avg_price": 5916, "seasonal": {"winter": 130373, "spring": 160645, "summer": 140886, "autumn": 0}}, "Коричневые брюки \"Под прицелом\"": {"net_qty": 3, "net_revenue": 36075, "avg_price": 12025, "seasonal": {"winter": 0, "spring": 36075, "summer": 0, "autumn": 0}}, "Олимпийка \"Буран\" хаки": {"net_qty": 1, "net_revenue": 18900, "avg_price": 18900, "seasonal": {"winter": 0, "spring": 18900, "summer": 0, "autumn": 0}}, "Черный свитер с красным сердцем": {"net_qty": 46, "net_revenue": 466613, "avg_price": 10144, "seasonal": {"winter": 140662, "spring": -4680, "summer": 94093, "autumn": 236538}}, "Черный пиджак \"Лаконичный\"": {"net_qty": 40, "net_revenue": 838686, "avg_price": 20967, "seasonal": {"winter": 27200, "spring": 508715, "summer": 281882, "autumn": 20889}}, "Атласная леопардовая рубашка": {"net_qty": 196, "net_revenue": 1382002, "avg_price": 7051, "seasonal": {"winter": 517738, "spring": 309534, "summer": 332002, "autumn": 222728}}, "Куртка \"Плохого парня\"": {"net_qty": 73, "net_revenue": 1642444, "avg_price": 22499, "seasonal": {"winter": 419585, "spring": 394260, "summer": 245132, "autumn": 583467}}, "Черно-серая рубашка \"Амур\"": {"net_qty": 2, "net_revenue": 15900, "avg_price": 7950, "seasonal": {"winter": 0, "spring": 15900, "summer": 0, "autumn": 0}}, "Топ с собаками": {"net_qty": 6, "net_revenue": 15000, "avg_price": 2500, "seasonal": {"winter": 0, "spring": 15000, "summer": 0, "autumn": 0}}, "Пиджак двойной черно-серый": {"net_qty": 68, "net_revenue": 1603062, "avg_price": 23574, "seasonal": {"winter": 424576, "spring": 243957, "summer": 335671, "autumn": 598858}}, "Серые шорты из костюмной ткани \"Приличные\"": {"net_qty": 43, "net_revenue": 201068, "avg_price": 4676, "seasonal": {"winter": 22725, "spring": 99123, "summer": 51480, "autumn": 27740}}, "Серая куртка \"Меридиан\"": {"net_qty": 1, "net_revenue": 29200, "avg_price": 29200, "seasonal": {"winter": 0, "spring": 29200, "summer": 0, "autumn": 0}}, "Белая рубашка \"Первое сентября\"": {"net_qty": 18, "net_revenue": 243692, "avg_price": 13538, "seasonal": {"winter": 45360, "spring": 73440, "summer": 0, "autumn": 124892}}, "Черно-зеленая рубашка \"Амур\"": {"net_qty": 6, "net_revenue": 61287, "avg_price": 10214, "seasonal": {"winter": 27867, "spring": 15900, "summer": 9570, "autumn": 7950}}, "Черная рубашка \"Скала\"": {"net_qty": 35, "net_revenue": 488370, "avg_price": 13953, "seasonal": {"winter": 54960, "spring": 105340, "summer": 194650, "autumn": 133420}}, "Очки с бровями Fakoshima x ChernimCherno": {"net_qty": 53, "net_revenue": 608258, "avg_price": 11477, "seasonal": {"winter": 98947, "spring": 265186, "summer": 228110, "autumn": 16015}}, "Тай-дай худи \"Скетч\"": {"net_qty": 10, "net_revenue": 96000, "avg_price": 9600, "seasonal": {"winter": 0, "spring": 96000, "summer": 0, "autumn": 0}}, "Золотая рубашка \"Блеск\"": {"net_qty": 10, "net_revenue": 117027, "avg_price": 11703, "seasonal": {"winter": 35100, "spring": 18500, "summer": 43927, "autumn": 19500}}, "Белые боксеры \"Боксёр\"": {"net_qty": 66, "net_revenue": 115533, "avg_price": 1750, "seasonal": {"winter": 5280, "spring": 58113, "summer": 33660, "autumn": 18480}}, "Синий комбинезон": {"net_qty": 1, "net_revenue": 24000, "avg_price": 24000, "seasonal": {"winter": 0, "spring": 24000, "summer": 0, "autumn": 0}}, "Серый худи \"Скетч\"": {"net_qty": 53, "net_revenue": 620120, "avg_price": 11700, "seasonal": {"winter": 287413, "spring": 323467, "summer": 9240, "autumn": 0}}, "Серая жаккардовая рубашка \"Драма\"": {"net_qty": 2, "net_revenue": 10900, "avg_price": 5450, "seasonal": {"winter": 10900, "spring": 0, "summer": 0, "autumn": 0}}, "Белая рубашка \"Матадор\"": {"net_qty": 26, "net_revenue": 358914, "avg_price": 13804, "seasonal": {"winter": 226189, "spring": 132725, "summer": 0, "autumn": 0}}, "Ветровка \"Белый дым\"": {"net_qty": 7, "net_revenue": 99260, "avg_price": 14180, "seasonal": {"winter": 0, "spring": 99260, "summer": 0, "autumn": 0}}, "Брюки \"Матадор\" черно-серые": {"net_qty": 103, "net_revenue": 849154, "avg_price": 8244, "seasonal": {"winter": 257114, "spring": 458228, "summer": 60247, "autumn": 73565}}, "Бежевые брюки \"На волне\"": {"net_qty": 29, "net_revenue": 461314, "avg_price": 15907, "seasonal": {"winter": 45928, "spring": 223501, "summer": 56400, "autumn": 135485}}, "Молочная майка \"Лето\"": {"net_qty": 9, "net_revenue": 27767, "avg_price": 3085, "seasonal": {"winter": 0, "spring": 27767, "summer": 0, "autumn": 0}}, "Молочный лонгслив \"Всё ровно\"": {"net_qty": 38, "net_revenue": 208221, "avg_price": 5480, "seasonal": {"winter": 3138, "spring": 58073, "summer": 71022, "autumn": 75988}}, "Сливочный свитер \"Приятный\"": {"net_qty": 106, "net_revenue": 954303, "avg_price": 9003, "seasonal": {"winter": 444085, "spring": 131343, "summer": 129360, "autumn": 249515}}, "Черные брюки \"Те самые\"": {"net_qty": 28, "net_revenue": 221277, "avg_price": 7903, "seasonal": {"winter": 22126, "spring": 23680, "summer": 0, "autumn": 175471}}, "Атласная рубашка \"Шик\" жаккард": {"net_qty": 42, "net_revenue": 313522, "avg_price": 7465, "seasonal": {"winter": 94418, "spring": 103620, "summer": 70000, "autumn": 45484}}, "Синий бомбер \"Регби\"": {"net_qty": 8, "net_revenue": 175115, "avg_price": 21889, "seasonal": {"winter": 64955, "spring": 74520, "summer": 0, "autumn": 35640}}, "Голубая рубашка \"Лебедь\"": {"net_qty": 38, "net_revenue": 428181, "avg_price": 11268, "seasonal": {"winter": 0, "spring": 16300, "summer": 303890, "autumn": 107991}}, "Голубо-черная рубашка \"Амур\"": {"net_qty": 98, "net_revenue": 1028267, "avg_price": 10493, "seasonal": {"winter": 149998, "spring": 223539, "summer": 334211, "autumn": 320519}}, "Свитшот \"Регби\" коричневый": {"net_qty": 84, "net_revenue": 730176, "avg_price": 8693, "seasonal": {"winter": 297083, "spring": 146599, "summer": 66715, "autumn": 219779}}, "Белая футболка без рукавов \"Kiss\"": {"net_qty": 133, "net_revenue": 789476, "avg_price": 5936, "seasonal": {"winter": 167704, "spring": 194082, "summer": 275733, "autumn": 151957}}, "Черная рубашка \"Выкройка\"": {"net_qty": 28, "net_revenue": 329941, "avg_price": 11784, "seasonal": {"winter": 106622, "spring": 66461, "summer": 83317, "autumn": 73541}}, "Кольцо \"Цепь\"": {"net_qty": 139, "net_revenue": 637547, "avg_price": 4587, "seasonal": {"winter": 183735, "spring": 146985, "summer": 154360, "autumn": 152467}}, "Розовая рубашка \"Ковбой\"": {"net_qty": 3, "net_revenue": 24114, "avg_price": 8038, "seasonal": {"winter": 0, "spring": 14200, "summer": 0, "autumn": 9914}}, "Рубашка \"Ромашки\"": {"net_qty": 5, "net_revenue": 61200, "avg_price": 12240, "seasonal": {"winter": 0, "spring": 61200, "summer": 0, "autumn": 0}}, "Атласная рубашка Зебра": {"net_qty": 3, "net_revenue": 15200, "avg_price": 5067, "seasonal": {"winter": 0, "spring": 9800, "summer": 0, "autumn": 5400}}, "Серо-черный пиджак-майка": {"net_qty": 26, "net_revenue": 519489, "avg_price": 19980, "seasonal": {"winter": 28050, "spring": 245782, "summer": 78457, "autumn": 167200}}, "Кольцо \"Волна\"": {"net_qty": 209, "net_revenue": 923510, "avg_price": 4419, "seasonal": {"winter": 196223, "spring": 230714, "summer": 249325, "autumn": 247248}}, "Молочные брюки \"Поле\"": {"net_qty": 12, "net_revenue": 164081, "avg_price": 13673, "seasonal": {"winter": 39601, "spring": 93798, "summer": 0, "autumn": 30682}}, "Зеленые брюки \"Поле\"": {"net_qty": 29, "net_revenue": 247482, "avg_price": 8534, "seasonal": {"winter": 48435, "spring": 53275, "summer": 115905, "autumn": 29867}}, "Электронный подарочный сертификат": {"net_qty": 65, "net_revenue": 759000, "avg_price": 11677, "seasonal": {"winter": 559000, "spring": 200000, "summer": 0, "autumn": 0}}, "Черная футболка с надписью": {"net_qty": 37, "net_revenue": 217773, "avg_price": 5886, "seasonal": {"winter": 38159, "spring": 100339, "summer": 52140, "autumn": 27135}}, "Голубая рубашка \"Я вас слушаю\"": {"net_qty": 63, "net_revenue": 568632, "avg_price": 9026, "seasonal": {"winter": 74087, "spring": 230145, "summer": 201157, "autumn": 63243}}, "Черные брюки \"Танец\"": {"net_qty": 65, "net_revenue": 658860, "avg_price": 10136, "seasonal": {"winter": 22275, "spring": 191268, "summer": 362248, "autumn": 83069}}, "Голубая рубашка \"Матадор\"": {"net_qty": 39, "net_revenue": 447123, "avg_price": 11465, "seasonal": {"winter": 52800, "spring": 241728, "summer": 115401, "autumn": 37194}}, "Черная футболка \"Под присмотром\"": {"net_qty": 32, "net_revenue": 188496, "avg_price": 5890, "seasonal": {"winter": 121842, "spring": 63211, "summer": 3443, "autumn": 0}}, "Красная трикотажная майка": {"net_qty": 25, "net_revenue": 95211, "avg_price": 3808, "seasonal": {"winter": 24753, "spring": 45880, "summer": 18678, "autumn": 5900}}, "Рубашка черно-серая \"Орёл и Решка\"": {"net_qty": 9, "net_revenue": 57273, "avg_price": 6364, "seasonal": {"winter": 22940, "spring": 23980, "summer": 574, "autumn": 9779}}, "Атласные золотистые брюки": {"net_qty": 16, "net_revenue": 100740, "avg_price": 6296, "seasonal": {"winter": 5520, "spring": 62100, "summer": 13800, "autumn": 19320}}, "Браслет \"База\"": {"net_qty": 57, "net_revenue": 297810, "avg_price": 5225, "seasonal": {"winter": 92110, "spring": 87903, "summer": 92321, "autumn": 25476}}, "Черная майка \"Спасение\"": {"net_qty": 64, "net_revenue": 293486, "avg_price": 4586, "seasonal": {"winter": 116404, "spring": 18310, "summer": 6800, "autumn": 151972}}, "Джинсовая рубашка \"Позвоночник\" Черная": {"net_qty": 1, "net_revenue": 10680, "avg_price": 10680, "seasonal": {"winter": 0, "spring": 0, "summer": 0, "autumn": 10680}}, "Оранжевый свитер \"Амальфи\"": {"net_qty": 9, "net_revenue": 82500, "avg_price": 9167, "seasonal": {"winter": 59400, "spring": 6600, "summer": 16500, "autumn": 0}}, "Голубая рубашка \"Бабочка\"": {"net_qty": 45, "net_revenue": 381039, "avg_price": 8468, "seasonal": {"winter": 96858, "spring": 65675, "summer": 159671, "autumn": 58835}}, "Белая футболка \"Попугай\"": {"net_qty": 85, "net_revenue": 545517, "avg_price": 6418, "seasonal": {"winter": 259708, "spring": 246081, "summer": 0, "autumn": 39728}}, "Черный свитер \"Комфорт плюс\" с надписью": {"net_qty": 32, "net_revenue": 235013, "avg_price": 7344, "seasonal": {"winter": 101010, "spring": 96783, "summer": 20570, "autumn": 16650}}, "Черная куртка \"Звезды\"": {"net_qty": 31, "net_revenue": 889413, "avg_price": 28691, "seasonal": {"winter": 126000, "spring": 138600, "summer": 148339, "autumn": 476474}}, "Брюки серые \"На выход\"": {"net_qty": 53, "net_revenue": 513338, "avg_price": 9686, "seasonal": {"winter": 149085, "spring": 187465, "summer": 88493, "autumn": 88295}}, "Черная базовая майка мужская": {"net_qty": 12, "net_revenue": 28250, "avg_price": 2354, "seasonal": {"winter": 0, "spring": 15750, "summer": 0, "autumn": 12500}}, "Черный пиджак-майка": {"net_qty": 6, "net_revenue": 58921, "avg_price": 9820, "seasonal": {"winter": 64234, "spring": -7471, "summer": -7817, "autumn": 9975}}, "Шарф": {"net_qty": 26, "net_revenue": 210403, "avg_price": 8092, "seasonal": {"winter": 170308, "spring": 30195, "summer": 9900, "autumn": 0}}, "Кофейная куртка \"Одиссея\"": {"net_qty": 15, "net_revenue": 279838, "avg_price": 18656, "seasonal": {"winter": 70711, "spring": 54975, "summer": 0, "autumn": 154152}}, "Черно-белая рубашка \"Амур\"": {"net_qty": 52, "net_revenue": 469510, "avg_price": 9029, "seasonal": {"winter": 29489, "spring": 25439, "summer": 114480, "autumn": 300102}}, "Черные джинсовые шорты \"На волне\"": {"net_qty": 19, "net_revenue": 154671, "avg_price": 8141, "seasonal": {"winter": 45190, "spring": 70281, "summer": 37800, "autumn": 1400}}, "Белая майка \"Перекресток\"": {"net_qty": 40, "net_revenue": 110745, "avg_price": 2769, "seasonal": {"winter": 0, "spring": 4970, "summer": 72048, "autumn": 33727}}, "Худи с принтом \"Самолеты\"": {"net_qty": 4, "net_revenue": 48100, "avg_price": 12025, "seasonal": {"winter": 0, "spring": 40700, "summer": 0, "autumn": 7400}}, "Брюки черные \"На выход\"": {"net_qty": 211, "net_revenue": 2542660, "avg_price": 12051, "seasonal": {"winter": 264123, "spring": 1508401, "summer": 368462, "autumn": 401674}}, "Коричневый жилет-галстук": {"net_qty": 29, "net_revenue": 316063, "avg_price": 10899, "seasonal": {"winter": 30525, "spring": 165869, "summer": 119669, "autumn": 0}}, "Белая рубашка \"Ножницы\"": {"net_qty": 10, "net_revenue": 110284, "avg_price": 11028, "seasonal": {"winter": 18800, "spring": 46583, "summer": 31926, "autumn": 12975}}, "Атласные коричневые брюки": {"net_qty": 11, "net_revenue": 96600, "avg_price": 8782, "seasonal": {"winter": 0, "spring": 66240, "summer": 23460, "autumn": 6900}}, "Черно-голубая рубашка \"Амур\"": {"net_qty": 4, "net_revenue": 44520, "avg_price": 11130, "seasonal": {"winter": 31800, "spring": 12720, "summer": 0, "autumn": 0}}, "Атласные синие брюки": {"net_qty": 83, "net_revenue": 589136, "avg_price": 7098, "seasonal": {"winter": 106494, "spring": 187252, "summer": 161990, "autumn": 133400}}, "Серая шелковая майка": {"net_qty": 1, "net_revenue": 2940, "avg_price": 2940, "seasonal": {"winter": 0, "spring": 2940, "summer": 0, "autumn": 0}}, "Атласные черные брюки": {"net_qty": 202, "net_revenue": 1656683, "avg_price": 8201, "seasonal": {"winter": 417969, "spring": 557051, "summer": 388711, "autumn": 292952}}, "Голубое пальто \"Петербургское\"": {"net_qty": 2, "net_revenue": 77769, "avg_price": 38884, "seasonal": {"winter": 0, "spring": 77769, "summer": 0, "autumn": 0}}, "Шелковая майка металлик": {"net_qty": 3, "net_revenue": 6370, "avg_price": 2123, "seasonal": {"winter": 0, "spring": 3920, "summer": 0, "autumn": 2450}}, "Белая рубашка \"Я вас слушаю\"": {"net_qty": 57, "net_revenue": 472974, "avg_price": 8298, "seasonal": {"winter": 0, "spring": 445677, "summer": 27297, "autumn": 0}}, "Футболка без рукавов серая": {"net_qty": 19, "net_revenue": 59400, "avg_price": 3126, "seasonal": {"winter": 0, "spring": 49680, "summer": 0, "autumn": 9720}}, "Серые брюки \"Регби\"": {"net_qty": 26, "net_revenue": 351039, "avg_price": 13502, "seasonal": {"winter": 81969, "spring": 118179, "summer": 48620, "autumn": 102271}}, "Оранжевая мотокуртка \"Черныш\"": {"net_qty": 2, "net_revenue": 29600, "avg_price": 14800, "seasonal": {"winter": 0, "spring": 29600, "summer": 0, "autumn": 0}}, "Кремовый лонгслив \"Искал такой\"": {"net_qty": 85, "net_revenue": 533160, "avg_price": 6272, "seasonal": {"winter": 0, "spring": 533160, "summer": 0, "autumn": 0}}, "Черный пиджак \"Тетрис\"": {"net_qty": 6, "net_revenue": 78800, "avg_price": 13133, "seasonal": {"winter": 50300, "spring": 14250, "summer": 0, "autumn": 14250}}, "Серый свитшот \"Каскад\"": {"net_qty": 8, "net_revenue": 45820, "avg_price": 5728, "seasonal": {"winter": 0, "spring": 15800, "summer": 11060, "autumn": 18960}}, "Черная рубашка \"Скетч\"": {"net_qty": 164, "net_revenue": 1648645, "avg_price": 10053, "seasonal": {"winter": 734184, "spring": 275579, "summer": 281716, "autumn": 357166}}, "Ремень с черной клешней краба": {"net_qty": 56, "net_revenue": 351446, "avg_price": 6276, "seasonal": {"winter": 71380, "spring": 101586, "summer": 161328, "autumn": 17152}}, "Серые брюки \"Галстук\"": {"net_qty": 55, "net_revenue": 316354, "avg_price": 5752, "seasonal": {"winter": 32141, "spring": 186362, "summer": 41638, "autumn": 56213}}, "Красный худи \"Скетч\"": {"net_qty": 59, "net_revenue": 662315, "avg_price": 11226, "seasonal": {"winter": 333319, "spring": 220455, "summer": 82941, "autumn": 25600}}, "Тренч «Дуэлянт»": {"net_qty": 46, "net_revenue": 1103741, "avg_price": 23994, "seasonal": {"winter": 281678, "spring": 447354, "summer": 343370, "autumn": 31339}}, "Кожаная куртка \"Амур\"": {"net_qty": 1, "net_revenue": 135000, "avg_price": 135000, "seasonal": {"winter": 135000, "spring": 0, "summer": 0, "autumn": 0}}, "Свитер \"Чернее черного\"": {"net_qty": 24, "net_revenue": 164920, "avg_price": 6872, "seasonal": {"winter": 62000, "spring": 0, "summer": 36600, "autumn": 66320}}, "Двойная майка с белой сеткой": {"net_qty": 36, "net_revenue": 175316, "avg_price": 4870, "seasonal": {"winter": 64451, "spring": 84606, "summer": 20004, "autumn": 6255}}, "Серая футболка \"Амур\"": {"net_qty": 1, "net_revenue": 15422, "avg_price": 15422, "seasonal": {"winter": 15422, "spring": 0, "summer": 0, "autumn": 0}}, "Молочный свитшот \"Море волнуется раз\"": {"net_qty": 31, "net_revenue": 253919, "avg_price": 8191, "seasonal": {"winter": 47433, "spring": 10850, "summer": 0, "autumn": 195636}}, "Ремень \"Молния\" серебряный": {"net_qty": 345, "net_revenue": 2031496, "avg_price": 5888, "seasonal": {"winter": 1010602, "spring": 424405, "summer": 272031, "autumn": 324458}}, "Пиджак коричневый \"На выход\"": {"net_qty": 32, "net_revenue": 915864, "avg_price": 28621, "seasonal": {"winter": 132457, "spring": 341240, "summer": 362667, "autumn": 79500}}, "Черные брюки \"Осьминог\"": {"net_qty": 29, "net_revenue": 126150, "avg_price": 4350, "seasonal": {"winter": 0, "spring": 126150, "summer": 0, "autumn": 0}}, "Брюки \"Скетч\"": {"net_qty": 50, "net_revenue": 484377, "avg_price": 9688, "seasonal": {"winter": 117002, "spring": 219634, "summer": 110925, "autumn": 36816}}, "Серый тренч \"Тринити\"": {"net_qty": 5, "net_revenue": 98020, "avg_price": 19604, "seasonal": {"winter": 0, "spring": 0, "summer": 37700, "autumn": 60320}}, "Черная рубашка \"Ножницы\"": {"net_qty": 18, "net_revenue": 238256, "avg_price": 13236, "seasonal": {"winter": 157305, "spring": 15976, "summer": 57055, "autumn": 7920}}, "Синяя куртка \"Меридиан\"": {"net_qty": 1, "net_revenue": 24820, "avg_price": 24820, "seasonal": {"winter": 0, "spring": 0, "summer": 0, "autumn": 24820}}, "Свитшот \"Регби\" черный": {"net_qty": 80, "net_revenue": 812843, "avg_price": 10161, "seasonal": {"winter": 165535, "spring": 190429, "summer": 295058, "autumn": 161821}}, "Джинсовая рубашка \"Позвоночник\" Бежевая": {"net_qty": 23, "net_revenue": 277548, "avg_price": 12067, "seasonal": {"winter": 179654, "spring": 81761, "summer": 16133, "autumn": 0}}, "Светло-серые брюки с накладными карманами": {"net_qty": 1, "net_revenue": 6920, "avg_price": 6920, "seasonal": {"winter": 0, "spring": 6920, "summer": 0, "autumn": 0}}, "Красная майка \"Перекресток\"": {"net_qty": 43, "net_revenue": 143227, "avg_price": 3331, "seasonal": {"winter": 14353, "spring": 15738, "summer": 79267, "autumn": 33869}}, "Бомбер-шарпей металлик": {"net_qty": 48, "net_revenue": 658699, "avg_price": 13723, "seasonal": {"winter": 120044, "spring": 353642, "summer": 96110, "autumn": 88903}}, "Черные шорты \"На вечер\"": {"net_qty": 60, "net_revenue": 336083, "avg_price": 5601, "seasonal": {"winter": 48510, "spring": 169137, "summer": 117936, "autumn": 500}}, "Футболка без рукавов коричневая": {"net_qty": 1, "net_revenue": 3240, "avg_price": 3240, "seasonal": {"winter": 0, "spring": 3240, "summer": 0, "autumn": 0}}, "Серая футболка \"Искал такую\"": {"net_qty": 5, "net_revenue": 14386, "avg_price": 2877, "seasonal": {"winter": 0, "spring": 14386, "summer": 0, "autumn": 0}}, "Черные брюки \"Галстук-бабочка\"": {"net_qty": 108, "net_revenue": 850603, "avg_price": 7876, "seasonal": {"winter": 206597, "spring": 407838, "summer": 217108, "autumn": 19060}}, "Белые джинсовые шорты \"Приличные\"": {"net_qty": 3, "net_revenue": 12460, "avg_price": 4153, "seasonal": {"winter": 7400, "spring": 5060, "summer": 0, "autumn": 0}}, "Свитшот \"Регби\" белый": {"net_qty": 1, "net_revenue": 8587, "avg_price": 8587, "seasonal": {"winter": 0, "spring": 0, "summer": 0, "autumn": 8587}}, "Рубашка бело-черная \"Орёл и Решка\"": {"net_qty": 118, "net_revenue": 755295, "avg_price": 6401, "seasonal": {"winter": 168830, "spring": 236904, "summer": 112600, "autumn": 236961}}, "Черный лонгслив \"Треск\"": {"net_qty": 96, "net_revenue": 712760, "avg_price": 7425, "seasonal": {"winter": 382544, "spring": 130559, "summer": 4027, "autumn": 195630}}, "Бомбер-шарпей черный": {"net_qty": 83, "net_revenue": 1326453, "avg_price": 15981, "seasonal": {"winter": 470773, "spring": 488299, "summer": 81498, "autumn": 285883}}, "Черная рубашка \"В точку!\"": {"net_qty": 4, "net_revenue": 18883, "avg_price": 4721, "seasonal": {"winter": 13123, "spring": 5760, "summer": 0, "autumn": 0}}, "Комплект черных боксеров \"Боксёр\" (3 шт)": {"net_qty": 29, "net_revenue": 218494, "avg_price": 7534, "seasonal": {"winter": 28874, "spring": 62772, "summer": 99217, "autumn": 27631}}};
+
+const CATEGORIES = {
+  "Верхняя одежда": ["бомбер","куртка","тренч","пальто","ветровка","олимпийка","комбинезон","фрак","меховой пиджак"],
+  "Костюмы": ["пиджак","жилет-галстук","корсетный жилет"],
+  "Брюки": ["брюки","джинсы","спортивные брюки"],
+  "Рубашки": ["рубашка"],
+  "Свитера": ["свитер"],
+  "Худи и свитшоты": ["худи","свитшот"],
+  "Шорты": ["шорты"],
+  "Майки": ["майка","топ","лонгслив","кроп кольчуга","манишка кольчуга","майка кольчуга"],
+  "Футболки": ["футболка"],
+  "Сумки": ["сумка","клатч"],
+  "Аксессуары": ["ремень","галстук","шарф","шапка","носки","воротник","меховой ворот"],
+  "Украшения": ["браслет","кольцо","подвеска","серьга","кафф","цепь","цепочка","сет из"],
+  "Нижнее белье": ["боксер","брифы","комплект"],
+  "Очки": ["очки"],
+  "Прочее": []
+};
+const CAT_ORDER = ["Верхняя одежда","Костюмы","Брюки","Рубашки","Свитера","Худи и свитшоты","Шорты","Майки","Футболки","Сумки","Аксессуары","Украшения","Нижнее белье","Очки","Прочее"];
+const SEASON_DAYS = { winter: 90, spring: 92, summer: 92, autumn: 91 };
+const SEASON_LABELS = { winter: "Зима", spring: "Весна", summer: "Лето", autumn: "Осень" };
+
+let stockData = {}; // base -> {date -> qty}
+let allDates = [];
+let hiddenItems = new Set();
+let currentCat = "Верхняя одежда";
+let computedData = {}; // base -> all metrics
+
+function getCategory(name) {
+  const nl = name.toLowerCase();
+  if (nl.includes("sample")) return null;
+  if (nl.includes("сертификат") || nl.includes("кошелек")) return "Прочее";
+  for (const [cat, kws] of Object.entries(CATEGORIES)) {
+    if (cat === "Прочее") continue;
+    if (kws.some(k => nl.includes(k))) return cat;
+  }
+  return "Прочее";
+}
+function stripSize(n) { return n.replace(/\s*\([^)]*\)\s*$/, "").trim() }
+function getSize(n) { const m = n.match(/\(([^)]+)\)\s*$/); return m ? m[1] : null }
+function getSeason(d) {
+  const m = new Date(d).getMonth() + 1;
+  if (m===12||m<=2) return "winter";
+  if (m<=5) return "spring";
+  if (m<=8) return "summer";
+  return "autumn";
+}
+function fmtNum(n) {
+  if (n === null || n === undefined || isNaN(n)) return "—";
+  return Math.round(n).toLocaleString("ru-RU");
+}
+
+async function loadHidden() {
+  try { const r = await fetch("/api/hidden"); hiddenItems = new Set(await r.json()); } catch(e) {}
+}
+
+async function loadStockData() {
+  const datesRes = await fetch("/api/dates");
+  const datesJson = await datesRes.json();
+  allDates = datesJson.map(d => d.date).sort();
+  if (!allDates.length) return;
+
+  // Check cache
+  const cacheKey = "cc_turnover_v1";
+  const cacheDatesKey = "cc_turnover_dates_v1";
+  const currentDatesStr = JSON.stringify(allDates);
+  try {
+    const cd = localStorage.getItem(cacheDatesKey);
+    if (cd === currentDatesStr) {
+      const cached = JSON.parse(localStorage.getItem(cacheKey));
+      if (cached) { stockData = cached; return; }
+    }
+  } catch(e) {}
+
+  // Load
+  stockData = {};
+  for (let i = 0; i < allDates.length; i++) {
+    const date = allDates[i];
+    let page = 1, hasMore = true;
+    while (hasMore) {
+      const res = await fetch(`/api/stocks?date=${date}&page=${page}&per_page=200`);
+      const data = await res.json();
+      for (const item of data.items) {
+        const base = stripSize(item.sku_name);
+        if (!stockData[base]) stockData[base] = {};
+        stockData[base][date] = (stockData[base][date] || 0) + item.stock_qty;
+      }
+      if (page >= data.pages) hasMore = false;
+      page++;
+    }
+    if (i % 10 === 0) await new Promise(r => setTimeout(r, 0));
+  }
+  try {
+    localStorage.setItem(cacheKey, JSON.stringify(stockData));
+    localStorage.setItem(cacheDatesKey, currentDatesStr);
+  } catch(e) {}
+}
+
+function computeMetrics() {
+  const last365 = allDates.filter(d => new Date(d) >= new Date(Date.now() - 365*24*3600*1000));
+  const lastDate = allDates[allDates.length - 1];
+
+  for (const base of Object.keys(stockData)) {
+    const dateMap = stockData[base] || {};
+    const sales = SALES_DATA[base] || { net_qty:0, net_revenue:0, avg_price:0, seasonal:{} };
+
+    // Days in stock (last 365)
+    let daysInStock = 0;
+    let prevStock = 0;
+    for (const d of last365) {
+      const s = dateMap[d] !== undefined ? dateMap[d] : prevStock;
+      if (s > 0) daysInStock++;
+      prevStock = s;
+    }
+
+    // Turnover = net revenue / days in stock
+    const turnover = daysInStock > 0 ? sales.net_revenue / daysInStock : 0;
+
+    // Seasonal turnover
+    const seasonal = {};
+    for (const s of ["winter","spring","summer","autumn"]) {
+      const seasonDates = last365.filter(d => getSeason(d) === s);
+      let sInStock = 0; let prev = 0;
+      for (const d of seasonDates) {
+        const qty = dateMap[d] !== undefined ? dateMap[d] : prev;
+        if (qty > 0) sInStock++;
+        prev = qty;
+      }
+      seasonal[s] = sInStock > 0 ? (sales.seasonal[s] || 0) / sInStock : 0;
+    }
+
+    // Current stock
+    let currentStock = 0;
+    for (let i = allDates.length - 1; i >= 0; i--) {
+      if (dateMap[allDates[i]] !== undefined) { currentStock = dateMap[allDates[i]]; break; }
+    }
+
+    // Days of supply = current stock / (turnover / avg_price)
+    const dailySalesQty = daysInStock > 0 ? sales.net_qty / daysInStock : 0;
+    const supplyDays = dailySalesQty > 0 ? Math.round(currentStock / dailySalesQty) : null;
+
+    // Zatovarivaniye % (90 days = 100%)
+    const zatPct = supplyDays !== null ? Math.round((supplyDays / 90) * 100) : null;
+
+    // Deficit
+    const neededQty = Math.round(dailySalesQty * 90);
+    const deficitQty = Math.max(0, neededQty - currentStock);
+    const deficitPct = neededQty > 0 ? Math.round((deficitQty / neededQty) * 100) : 0;
+
+    // Seasonal orders (3 months at seasonal rate)
+    const orders = {};
+    for (const s of ["winter","spring","summer","autumn"]) {
+      const sInStock = last365.filter(d => getSeason(d) === s).filter(d => {
+        let prev = 0;
+        for (const dd of allDates) { if (dd >= d) break; if (dateMap[dd]!==undefined) prev=dateMap[dd]; }
+        return (dateMap[d] !== undefined ? dateMap[d] : prev) > 0;
+      }).length;
+      const sDailySales = sInStock > 0 ? (sales.net_qty * ((sales.seasonal[s]||0) / (sales.net_revenue||1))) / sInStock * SEASON_DAYS[s] : 0;
+      orders[s] = Math.round(Math.max(0, sDailySales));
+    }
+
+    computedData[base] = { daysInStock, turnover, seasonal, currentStock, supplyDays, zatPct, deficitQty, deficitPct, orders, avgPrice: sales.avg_price, netRevenue: sales.net_revenue };
+  }
+}
+
+function getRowClass(turnover) {
+  if (turnover >= 5000) return "row-green2";
+  if (turnover >= 2000) return "row-green1";
+  if (turnover >= 1000) return "row-orange";
+  if (turnover > 0) return "row-red";
+  return "row-gray";
+}
+
+function zatColor(pct) {
+  if (pct === null) return ["rgba(26,42,58,0.08)", "—", "#1a2a3a"];
+  if (pct <= 30) return ["rgba(239,68,68,0.4)", pct+"%", "#7f1d1d"];
+  if (pct <= 60) return ["rgba(34,197,94,0.4)", pct+"%", "#14532d"];
+  if (pct <= 100) return ["rgba(134,239,172,0.5)", pct+"%", "#14532d"];
+  if (pct <= 120) return ["rgba(34,197,94,0.6)", pct+"%", "#14532d"];
+  if (pct <= 150) return ["rgba(251,146,60,0.5)", pct+"%", "#7c2d12"];
+  return ["rgba(239,68,68,0.6)", pct+"%", "#7f1d1d"];
+}
+
+function defColor(pct) {
+  if (pct <= 30) return "rgba(34,197,94,0.3)";
+  if (pct <= 70) return "rgba(251,146,60,0.4)";
+  return "rgba(239,68,68,0.4)";
+}
+
+function buildCatTabs() {
+  const counts = {};
+  for (const [base, d] of Object.entries(computedData)) {
+    if (hiddenItems.has(base)) continue;
+    const cat = getCategory(base);
+    if (!cat) continue;
+    counts[cat] = (counts[cat]||0) + 1;
+  }
+  const bar = document.getElementById("cat-bar");
+  bar.innerHTML = CAT_ORDER.filter(c => counts[c] > 0).map(c =>
+    `<button class="cat-btn ${c===currentCat?"active":""}" onclick="selectCat('${c}')">${c}<span class="cnt">${counts[c]}</span></button>`
+  ).join("");
+}
+
+function selectCat(cat) {
+  currentCat = cat;
+  document.querySelectorAll(".cat-btn").forEach(b => b.classList.toggle("active", b.textContent.trim().startsWith(cat)));
+  renderTable();
+}
+
+function renderTable() {
+  const tbody = document.getElementById("tbody");
+  tbody.innerHTML = "";
+
+  // Get all bases for current category, sorted by turnover desc
+  const items = Object.entries(computedData)
+    .filter(([base]) => getCategory(base) === currentCat && !hiddenItems.has(base))
+    .sort((a, b) => (b[1].turnover||0) - (a[1].turnover||0));
+
+  if (!items.length) { tbody.innerHTML = `<tr><td colspan="16" class="empty-state">Нет данных</td></tr>`; return; }
+
+  // Separate items with and without sales
+  const withSales = items.filter(([,d]) => d.netRevenue > 0);
+  const noSales = items.filter(([,d]) => d.netRevenue === 0);
+
+  for (const group of [withSales, noSales]) {
+    for (const [base, d] of group) {
+      const cls = d.netRevenue === 0 ? "row-gray" : getRowClass(d.turnover);
+      const [zatBg, zatLabel, zatText] = zatColor(d.zatPct);
+      
+      // Main row
+      const tr = document.createElement("tr");
+      tr.className = `product-row ${cls}`;
+      tr.dataset.base = base;
+      
+      const supplyStr = d.supplyDays !== null ? d.supplyDays+" дн" : "—";
+      const defStr = d.deficitPct > 0 ? `${d.deficitQty} шт` : "0";
+
+      tr.innerHTML = `
+        <td><span class="expand-icon">▶</span><span class="product-name">${base}</span></td>
+        <td class="num">${d.daysInStock}</td>
+        <td class="num">${fmtNum(d.avgPrice)} ₽</td>
+        <td class="num num-big">${fmtNum(d.turnover)}</td>
+        <td class="num">${fmtNum(d.seasonal.winter)}</td>
+        <td class="num">${fmtNum(d.seasonal.spring)}</td>
+        <td class="num">${fmtNum(d.seasonal.summer)}</td>
+        <td class="num">${fmtNum(d.seasonal.autumn)}</td>
+        <td class="num num-big">${d.currentStock}</td>
+        <td class="num">${supplyStr}</td>
+        <td>
+          <div class="stock-bar-wrap">
+            <div class="stock-bar-fill" style="width:${Math.min(d.zatPct||0,100)}%;background:${zatBg.replace("0.4","0.7")}"></div>
+            <div class="stock-bar-text" style="color:${zatText}">${zatLabel}</div>
+          </div>
+        </td>
+        <td>
+          <div style="display:flex;align-items:center;justify-content:center;gap:4px">
+            <div style="width:40px;height:16px;border-radius:3px;background:${defColor(d.deficitPct)};display:inline-block"></div>
+            <span class="num" style="font-size:11px">${defStr}</span>
+          </div>
+        </td>
+        <td><span class="order-cell">${d.orders.spring||0}</span></td>
+        <td><span class="order-cell">${d.orders.summer||0}</span></td>
+        <td><span class="order-cell">${d.orders.autumn||0}</span></td>
+        <td><span class="order-cell">${d.orders.winter||0}</span></td>
+      `;
+
+      tbody.appendChild(tr);
+
+      // Detail row (hidden initially)
+      const detailTr = document.createElement("tr");
+      detailTr.className = "detail-row";
+      detailTr.style.display = "none";
+      const detailTd = document.createElement("td");
+      detailTd.colSpan = 16;
+
+      const selloutDate = d.supplyDays !== null ? 
+        new Date(Date.now() + d.supplyDays * 86400000).toLocaleDateString("ru-RU", {day:"numeric",month:"long",year:"numeric"}) : "—";
+
+      detailTd.innerHTML = `
+        <div class="detail-panel" id="detail-${base.replace(/[^a-zа-я0-9]/gi,'')}">
+          <div class="chart-container">
+            <div class="chart-title">Динамика оборачиваемости по сезонам (₽/день)</div>
+            <canvas class="detail-chart" id="chart-${base.replace(/[^a-zа-я0-9]/gi,'')}"></canvas>
+          </div>
+          <div class="detail-side">
+            <div class="detail-card">
+              <div class="detail-card-title">Затоваривание</div>
+              <div class="detail-card-value" style="color:${zatText}">${d.zatPct !== null ? d.zatPct+"%" : "—"}</div>
+              <div class="detail-card-sub">${selloutDate}</div>
+            </div>
+            <div class="detail-card">
+              <div class="detail-card-title">Недостаток на 90 дней</div>
+              <div class="detail-card-value">${d.deficitQty} шт</div>
+              <div class="detail-card-sub">${d.deficitPct}% от нормы</div>
+            </div>
+            <div class="detail-card">
+              <div class="detail-card-title">Заказ по сезонам (3 мес)</div>
+              <div class="order-grid">
+                <div class="order-item"><div class="order-item-season">Весна</div><div class="order-item-val">${d.orders.spring}</div></div>
+                <div class="order-item"><div class="order-item-season">Лето</div><div class="order-item-val">${d.orders.summer}</div></div>
+                <div class="order-item"><div class="order-item-season">Осень</div><div class="order-item-val">${d.orders.autumn}</div></div>
+                <div class="order-item"><div class="order-item-season">Зима</div><div class="order-item-val">${d.orders.winter}</div></div>
+              </div>
+            </div>
+          </div>
+        </div>`;
+      detailTr.appendChild(detailTd);
+      tbody.appendChild(detailTr);
+
+      // Toggle
+      tr.querySelector("td:first-child").addEventListener("click", () => {
+        const isOpen = detailTr.style.display !== "none";
+        detailTr.style.display = isOpen ? "none" : "";
+        const panel = detailTd.querySelector(".detail-panel");
+        const icon = tr.querySelector(".expand-icon");
+        if (!isOpen) {
+          panel.classList.add("open");
+          icon.classList.add("open");
+          drawDetailChart(base, detailTd.querySelector("canvas"));
+        } else {
+          panel.classList.remove("open");
+          icon.classList.remove("open");
+        }
+      });
+    }
+  }
+}
+
+function drawDetailChart(base, canvas) {
+  if (!canvas) return;
+  const W = canvas.offsetWidth || 600;
+  const H = 160;
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, W, H);
+
+  // Background zones
+  const zones = [
+    { min: 0, max: 1000, color: "rgba(239,68,68,0.15)" },
+    { min: 1000, max: 2000, color: "rgba(251,146,60,0.15)" },
+    { min: 2000, max: 5000, color: "rgba(134,239,172,0.2)" },
+    { min: 5000, max: Infinity, color: "rgba(34,197,94,0.2)" },
+  ];
+
+  // Calculate daily turnover
+  const dateMap = stockData[base] || {};
+  const salesInfo = SALES_DATA[base];
+  if (!salesInfo || !allDates.length) return;
+
+  // Build daily revenue from seasonal data (approximate)
+  // Use 30-day rolling turnover
+  const windowSize = 30;
+  const dailyTurnover = [];
+
+  for (let i = 0; i < allDates.length; i++) {
+    const windowDates = allDates.slice(Math.max(0, i - windowSize), i + 1);
+    let inStock = 0; let prev = 0;
+    for (const d of windowDates) {
+      const q = dateMap[d] !== undefined ? dateMap[d] : prev;
+      if (q > 0) inStock++;
+      prev = q;
+    }
+    const season = getSeason(allDates[i]);
+    const seasonDailyRev = inStock > 0 ? (salesInfo.seasonal[season] || 0) / Math.max(allDates.filter(d => getSeason(d)===season && d <= allDates[i]).filter(d => {
+      let p2=0; for(const dd of allDates){if(dd>d)break;if(dateMap[dd]!==undefined)p2=dateMap[dd];} return p2>0;
+    }).length || 1) : 0;
+    dailyTurnover.push(Math.max(0, seasonDailyRev));
+  }
+
+  if (!dailyTurnover.length) return;
+  const maxVal = Math.max(...dailyTurnover, 5001);
+  const logMax = Math.log(maxVal + 1);
+  const pad = 10;
+
+  function toY(val) {
+    return H - pad - (Math.log(val + 1) / logMax) * (H - pad * 2);
+  }
+
+  // Draw zone backgrounds
+  for (const z of zones) {
+    const y1 = z.max === Infinity ? pad : toY(z.max);
+    const y2 = toY(z.min);
+    ctx.fillStyle = z.color;
+    ctx.fillRect(0, y1, W, y2 - y1);
+  }
+
+  // Season dividers
+  const seasons = ["spring", "summer", "autumn", "winter"];
+  let prevSeason = null;
+  for (let i = 0; i < allDates.length; i++) {
+    const s = getSeason(allDates[i]);
+    if (s !== prevSeason && prevSeason !== null) {
+      const x = (i / (allDates.length - 1)) * W;
+      ctx.setLineDash([4, 4]);
+      ctx.strokeStyle = "rgba(26,42,58,0.2)";
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+      ctx.setLineDash([]);
+      // Label
+      ctx.fillStyle = "rgba(26,42,58,0.35)";
+      ctx.font = "10px Inter";
+      ctx.fillText(SEASON_LABELS[prevSeason], x - 40, H - 2);
+    }
+    prevSeason = s;
+  }
+
+  // Line
+  ctx.beginPath();
+  ctx.strokeStyle = "rgba(26,42,58,0.8)";
+  ctx.lineWidth = 1.5; ctx.lineJoin = "round";
+  for (let i = 0; i < dailyTurnover.length; i++) {
+    const x = (i / (dailyTurnover.length - 1)) * W;
+    const y = toY(dailyTurnover[i]);
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+}
+
+// CSV upload
+document.getElementById("sales-input").addEventListener("change", async (e) => {
+  const files = Array.from(e.target.files);
+  const status = document.getElementById("upload-status");
+  status.textContent = "Загружаю...";
+  let ok = 0;
+  for (const file of files) {
+    const fd = new FormData(); fd.append("file", file);
+    try {
+      const res = await fetch("/api/upload-sales", { method: "POST", body: fd });
+      if (res.ok) {
+        const d = await res.json();
+        status.textContent = `✓ ${file.name}: ${d.inserted} записей за ${d.date_from} — ${d.date_to}`;
+        ok++;
+        // Clear cache
+        try { localStorage.removeItem("cc_turnover_v1"); localStorage.removeItem("cc_turnover_dates_v1"); } catch(e) {}
+      }
+    } catch(e) { status.textContent = "Ошибка: " + e.message; }
+  }
+  if (ok > 0) { await init(); }
+});
+
+async function init() {
+  document.getElementById("tbody").innerHTML = `<tr><td colspan="16" class="loading-state">Загружаю данные остатков...</td></tr>`;
+  await loadHidden();
+  await loadStockData();
+  document.getElementById("tbody").innerHTML = `<tr><td colspan="16" class="loading-state">Считаю метрики...</td></tr>`;
+  computeMetrics();
+  buildCatTabs();
+  renderTable();
+}
+
+init();
+</script>
+</body>
+</html>

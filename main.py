@@ -28,6 +28,14 @@ def init_db():
     conn.execute("""CREATE TABLE IF NOT EXISTS hidden_items (
         sku_base TEXT PRIMARY KEY,
         hidden_at TEXT NOT NULL)""")
+    conn.execute("""CREATE TABLE IF NOT EXISTS sales_data (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        date TEXT NOT NULL, sku_name TEXT NOT NULL,
+        qty REAL NOT NULL DEFAULT 0, revenue REAL NOT NULL DEFAULT 0,
+        doc_type TEXT DEFAULT 'sale',
+        UNIQUE(date, sku_name, doc_type))""")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_sales_date ON sales_data(date)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_sales_sku ON sales_data(sku_name)")
     conn.commit(); conn.close()
 
 init_db()
@@ -154,6 +162,61 @@ def get_hidden():
     rows = conn.execute("SELECT sku_base FROM hidden_items ORDER BY hidden_at DESC").fetchall()
     conn.close()
     return [r["sku_base"] for r in rows]
+
+@app.post("/api/upload-sales")
+async def upload_sales(file: UploadFile = File(...)):
+    import csv, io
+    if not file.filename.lower().endswith(".csv"):
+        raise HTTPException(400, "Только CSV файлы")
+    content_bytes = await file.read()
+    try:
+        text = content_bytes.decode("utf-8-sig")
+    except:
+        text = content_bytes.decode("cp1251")
+    
+    reader = csv.DictReader(io.StringIO(text))
+    rows = list(reader)
+    
+    if not rows:
+        raise HTTPException(400, "Файл пустой")
+    
+    # Detect doc type from filename or content
+    is_return = "возврат" in file.filename.lower() or "возврат" in (rows[0].get("Документ","")).lower()
+    doc_type = "return" if is_return else "sale"
+    
+    import pandas as pd
+    df = pd.DataFrame(rows)
+    
+    # Filter out rows without article (deliveries etc)
+    if "Артикул" in df.columns:
+        df = df[df["Артикул"].notna() & (df["Артикул"].astype(str).str.strip() != "")]
+    
+    df["Дата"] = pd.to_datetime(df["Дата документа"], dayfirst=True).dt.date
+    df["Количество"] = pd.to_numeric(df["Количество"], errors="coerce").fillna(0)
+    df["Сумма"] = pd.to_numeric(df["Сумма"], errors="coerce").fillna(0)
+    
+    conn = get_db()
+    inserted = 0
+    for _, row in df.iterrows():
+        try:
+            before = conn.total_changes
+            conn.execute(
+                "INSERT OR REPLACE INTO sales_data (date, sku_name, qty, revenue, doc_type) VALUES (?,?,?,?,?)",
+                (str(row["Дата"]), str(row["Наименование"]).strip(), float(row["Количество"]), float(row["Сумма"]), doc_type)
+            )
+            if conn.total_changes > before: inserted += 1
+        except: pass
+    conn.commit()
+    date_from = str(df["Дата"].min())
+    date_to = str(df["Дата"].max())
+    conn.close()
+    return {"inserted": inserted, "doc_type": doc_type, "date_from": date_from, "date_to": date_to}
+
+@app.get("/turnover")
+def serve_turnover():
+    if os.path.exists("turnover.html"):
+        return FileResponse("turnover.html", media_type="text/html")
+    return FileResponse("index.html", media_type="text/html")
 
 @app.get("/analytics")
 def serve_analytics():
