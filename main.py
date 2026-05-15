@@ -1,7 +1,7 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
-import sqlite3, os, tempfile
+import sqlite3, os, tempfile, re as _re
 from datetime import datetime
 from typing import Optional
 
@@ -16,34 +16,7 @@ def get_db():
     conn.row_factory = sqlite3.Row
     return conn
 
-def init_db()
-
-import re as _re
-def _strip_size(n): return _re.sub(r'[\s]*\([^)]*\)[\s]*$', '', str(n)).strip()
-
-_analytics_cache = None
-_analytics_cache_key = None
-
-def get_analytics_cache_key(conn):
-    row = conn.execute("SELECT COUNT(*) as c, MAX(date) as d FROM stock_snapshots").fetchone()
-    return f"{row['c']}_{row['d']}"
-
-def build_analytics_data(conn):
-    import pandas as pd
-    # Get all dates
-    dates = [r[0] for r in conn.execute("SELECT DISTINCT date FROM stock_snapshots ORDER BY date").fetchall()]
-    if not dates:
-        return {"dates": [], "stock": {}}
-    # Get all stock data
-    rows = conn.execute("SELECT date, sku_name, stock_qty FROM stock_snapshots").fetchall()
-    # Build {base: {date: qty}}
-    stock = {}
-    for r in rows:
-        base = _strip_size(r["sku_name"])
-        if base not in stock:
-            stock[base] = {}
-        stock[base][r["date"]] = stock[base].get(r["date"], 0) + r["stock_qty"]
-    return {"dates": dates, "stock": stock}:
+def init_db():
     conn = get_db()
     conn.execute("""CREATE TABLE IF NOT EXISTS stock_snapshots (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -67,8 +40,8 @@ def build_analytics_data(conn):
 
 init_db()
 
-import re as _re
-def _strip_size(n): return _re.sub(r'[\s]*\([^)]*\)[\s]*$', '', str(n)).strip()
+def _strip_size(n):
+    return _re.sub(r'[\s]*\([^)]*\)[\s]*$', '', str(n)).strip()
 
 _analytics_cache = None
 _analytics_cache_key = None
@@ -79,13 +52,10 @@ def get_analytics_cache_key(conn):
 
 def build_analytics_data(conn):
     import pandas as pd
-    # Get all dates
     dates = [r[0] for r in conn.execute("SELECT DISTINCT date FROM stock_snapshots ORDER BY date").fetchall()]
     if not dates:
         return {"dates": [], "stock": {}}
-    # Get all stock data
     rows = conn.execute("SELECT date, sku_name, stock_qty FROM stock_snapshots").fetchall()
-    # Build {base: {date: qty}}
     stock = {}
     for r in rows:
         base = _strip_size(r["sku_name"])
@@ -230,28 +200,26 @@ async def upload_sales(file: UploadFile = File(...)):
         text = content_bytes.decode("utf-8-sig")
     except:
         text = content_bytes.decode("cp1251")
-    
+
     reader = csv.DictReader(io.StringIO(text))
     rows = list(reader)
-    
+
     if not rows:
         raise HTTPException(400, "Файл пустой")
-    
-    # Detect doc type from filename or content
+
     is_return = "возврат" in file.filename.lower() or "возврат" in (rows[0].get("Документ","")).lower()
     doc_type = "return" if is_return else "sale"
-    
+
     import pandas as pd
     df = pd.DataFrame(rows)
-    
-    # Filter out rows without article (deliveries etc)
+
     if "Артикул" in df.columns:
         df = df[df["Артикул"].notna() & (df["Артикул"].astype(str).str.strip() != "")]
-    
+
     df["Дата"] = pd.to_datetime(df["Дата документа"], dayfirst=True).dt.date
     df["Количество"] = pd.to_numeric(df["Количество"], errors="coerce").fillna(0)
     df["Сумма"] = pd.to_numeric(df["Сумма"], errors="coerce").fillna(0)
-    
+
     conn = get_db()
     inserted = 0
     for _, row in df.iterrows():
