@@ -212,6 +212,12 @@ async def upload_sales(file: UploadFile = File(...)):
     conn.close()
     return {"inserted": inserted, "doc_type": doc_type, "date_from": date_from, "date_to": date_to}
 
+@app.get("/order")
+def serve_order():
+    if os.path.exists("order.html"):
+        return FileResponse("order.html", media_type="text/html")
+    return FileResponse("index.html", media_type="text/html")
+
 @app.get("/turnover")
 def serve_turnover():
     if os.path.exists("turnover.html"):
