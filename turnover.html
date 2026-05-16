@@ -68,7 +68,7 @@
       border: 1px solid rgba(255,255,255,0.35); border-radius: 12px;
       overflow: hidden; overflow-x: auto;
     }
-    table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 1200px }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 1200px; table-layout: fixed }
     thead th {
       background: rgba(26,42,58,0.08); padding: 10px 10px; text-align: center;
       font-size: 10px; font-weight: 600; color: rgba(26,42,58,0.5);
@@ -152,6 +152,24 @@
   </div>
   <div class="table-outer">
     <table id="mt">
+      <colgroup>
+        <col style="width:200px"><!-- Название -->
+        <col style="width:55px"> <!-- Дней в стоке -->
+        <col style="width:75px"> <!-- Ср цена -->
+        <col style="width:65px"> <!-- Оборач -->
+        <col style="width:70px"> <!-- Зима -->
+        <col style="width:70px"> <!-- Весна -->
+        <col style="width:70px"> <!-- Лето -->
+        <col style="width:70px"> <!-- Осень -->
+        <col style="width:55px"> <!-- Остаток -->
+        <col style="width:55px"> <!-- Запас дней -->
+        <col style="width:72px"> <!-- Затоваривание -->
+        <col style="width:60px"> <!-- Недостаток -->
+        <col style="width:50px"> <!-- Заказ Весна -->
+        <col style="width:50px"> <!-- Заказ Лето -->
+        <col style="width:50px"> <!-- Заказ Осень -->
+        <col style="width:50px"> <!-- Заказ Зима -->
+      </colgroup>
       <thead>
         <tr>
           <th rowspan="2" style="vertical-align:bottom">Название</th>
@@ -416,14 +434,10 @@ function drawChart(base,canvas,chartData) {
   ctx.clearRect(0,0,W,H);
 
   const vals=chartData;
-  // Linear scale based on actual max
-  const maxV=Math.max(...vals.filter(v=>v>0),5000);
+  const maxV=Math.max(...vals,5001);
+  const logMax=Math.log(maxV+1);
   const pad=12;
-  function toY(v){return H-pad-Math.max(0,v)/maxV*(H-pad*2);}
-
-  // Determine in-stock periods for gap logic
-  const dm=stockData[base]||{};
-  const inStock=CHART_DATES.map(d=>(dm[d]!==undefined?dm[d]:0)>0);
+  function toY(v){return H-pad-(Math.log(Math.max(v,0)+1)/logMax)*(H-pad*2);}
 
   // Colored zones
   const zones=[
@@ -468,34 +482,24 @@ function drawChart(base,canvas,chartData) {
   grad.addColorStop(0,"rgba(26,42,58,0.2)");
   grad.addColorStop(1,"rgba(26,42,58,0)");
 
-  const n=vals.length;
-  function xOf(i){return (i/(n-1))*W;}
-
-  // Fill — break when out of stock
-  let inSeg=false;
   ctx.beginPath();
-  for(let i=0;i<n;i++){
-    const hasStock=inStock[i];
-    const x=xOf(i); const y=toY(Math.max(0,vals[i]));
-    if(!hasStock){
-      if(inSeg){ctx.lineTo(x,H);ctx.closePath();ctx.fillStyle=grad;ctx.fill();inSeg=false;ctx.beginPath();}
-    } else {
-      if(!inSeg){ctx.moveTo(x,H);ctx.lineTo(x,y);inSeg=true;}
-      else{ctx.lineTo(x,y);}
-    }
+  for(let i=0;i<vals.length;i++){
+    const x=(i/(vals.length-1))*W;
+    const y=toY(vals[i]);
+    if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
   }
-  if(inSeg){ctx.lineTo(xOf(n-1),H);ctx.closePath();ctx.fillStyle=grad;ctx.fill();}
+  // Fill
+  ctx.lineTo(W,H);ctx.lineTo(0,H);ctx.closePath();
+  ctx.fillStyle=grad; ctx.fill();
 
-  // Line — break when out of stock
+  // Line
   ctx.beginPath();
   ctx.strokeStyle="rgba(26,42,58,0.75)";
   ctx.lineWidth=1.5; ctx.lineJoin="round";
-  let started=false;
-  for(let i=0;i<n;i++){
-    const hasStock=inStock[i];
-    const x=xOf(i); const y=toY(Math.max(0,vals[i]));
-    if(!hasStock){started=false;}
-    else{if(!started){ctx.moveTo(x,y);started=true;}else{ctx.lineTo(x,y);}}
+  for(let i=0;i<vals.length;i++){
+    const x=(i/(vals.length-1))*W;
+    const y=toY(vals[i]);
+    if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
   }
   ctx.stroke();
 }
