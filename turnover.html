@@ -66,21 +66,27 @@
     .table-outer {
       background: rgba(255,255,255,0.2); backdrop-filter: blur(16px);
       border: 1px solid rgba(255,255,255,0.35); border-radius: 12px;
-      overflow: auto;
-      max-height: calc(100vh - 190px);
+      overflow: hidden; overflow-x: auto;
     }
-    table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 1200px }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 1200px; table-layout: fixed }
+    thead th { width: auto }
+    thead th:nth-child(1) { width: 180px }
+    thead th:nth-child(2) { width: 60px }
+    thead th:nth-child(3) { width: 75px }
+    thead th:nth-child(4) { width: 70px }
+    thead th:nth-child(5), thead th:nth-child(6),
+    thead th:nth-child(7), thead th:nth-child(8) { width: 70px }
     thead th {
       background: rgba(26,42,58,0.08); padding: 10px 10px; text-align: center;
       font-size: 10px; font-weight: 600; color: rgba(26,42,58,0.5);
       letter-spacing: 0.06em; text-transform: uppercase;
-      border-bottom: 1px solid rgba(255,255,255,0.3); white-space: nowrap; position: sticky; top: 0;
+      border-bottom: 1px solid rgba(255,255,255,0.3); white-space: nowrap; position: sticky; top: 56px;
     }
     thead th:first-child { text-align: left; padding-left: 14px; min-width: 220px }
     .subhead th {
       background: rgba(26,42,58,0.04); padding: 5px 10px;
       font-size: 10px; color: rgba(26,42,58,0.35); font-weight: 400;
-      border-bottom: 1px solid rgba(255,255,255,0.25); position: sticky; top: 37px;
+      border-bottom: 1px solid rgba(255,255,255,0.25); position: sticky; top: 93px;
     }
     tbody tr.pr td {
       padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,0.12);
@@ -159,7 +165,7 @@
           <th rowspan="2">Дней<br>в стоке</th>
           <th rowspan="2">Ср. цена<br>продажи</th>
           <th rowspan="2">Оборач.<br>за год</th>
-          <th>Зима</th><th>Весна</th><th>Лето</th><th>Осень</th>
+          <th style="min-width:70px">Зима</th><th style="min-width:70px">Весна</th><th style="min-width:70px">Лето</th><th style="min-width:70px">Осень</th>
           <th rowspan="2">Остаток<br>шт</th>
           <th rowspan="2">Запас<br>дней</th>
           <th rowspan="2">Затовари-<br>вание</th>
@@ -167,11 +173,11 @@
           <th colspan="4">Заказ (3 мес)</th>
         </tr>
         <tr class="subhead">
-          <th>₽/день</th><th>₽/день</th><th>₽/день</th><th>₽/день</th>
-          <th style="color:#4ade80">Весна</th>
-          <th style="color:#fb923c">Лето</th>
-          <th style="color:#a78bfa">Осень</th>
-          <th style="color:#60a5fa">Зима</th>
+          <th style="min-width:70px">₽/день</th><th style="min-width:70px">₽/день</th><th style="min-width:70px">₽/день</th><th style="min-width:70px">₽/день</th>
+          <th style="color:#4ade80;min-width:50px">Весна</th>
+          <th style="color:#fb923c;min-width:50px">Лето</th>
+          <th style="color:#a78bfa;min-width:50px">Осень</th>
+          <th style="color:#60a5fa;min-width:50px">Зима</th>
         </tr>
       </thead>
       <tbody id="tb"><tr><td colspan="16" class="loading">Загружаю данные...</td></tr></tbody>
