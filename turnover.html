@@ -66,27 +66,20 @@
     .table-outer {
       background: rgba(255,255,255,0.2); backdrop-filter: blur(16px);
       border: 1px solid rgba(255,255,255,0.35); border-radius: 12px;
-      overflow: hidden; overflow-x: auto;
+      overflow: auto; max-height: calc(100vh - 170px);
     }
-    table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 1200px; table-layout: fixed }
-    thead th { width: auto }
-    thead th:nth-child(1) { width: 180px }
-    thead th:nth-child(2) { width: 60px }
-    thead th:nth-child(3) { width: 75px }
-    thead th:nth-child(4) { width: 70px }
-    thead th:nth-child(5), thead th:nth-child(6),
-    thead th:nth-child(7), thead th:nth-child(8) { width: 70px }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 1200px }
     thead th {
       background: rgba(26,42,58,0.08); padding: 10px 10px; text-align: center;
       font-size: 10px; font-weight: 600; color: rgba(26,42,58,0.5);
       letter-spacing: 0.06em; text-transform: uppercase;
-      border-bottom: 1px solid rgba(255,255,255,0.3); white-space: nowrap; position: sticky; top: 56px;
+      border-bottom: 1px solid rgba(255,255,255,0.3); white-space: nowrap; position: sticky; top: 0; z-index: 10;
     }
     thead th:first-child { text-align: left; padding-left: 14px; min-width: 220px }
     .subhead th {
       background: rgba(26,42,58,0.04); padding: 5px 10px;
       font-size: 10px; color: rgba(26,42,58,0.35); font-weight: 400;
-      border-bottom: 1px solid rgba(255,255,255,0.25); position: sticky; top: 93px;
+      border-bottom: 1px solid rgba(255,255,255,0.25); position: sticky; top: 37px; z-index: 10;
     }
     tbody tr.pr td {
       padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,0.12);
@@ -165,7 +158,7 @@
           <th rowspan="2">Дней<br>в стоке</th>
           <th rowspan="2">Ср. цена<br>продажи</th>
           <th rowspan="2">Оборач.<br>за год</th>
-          <th style="min-width:70px">Зима</th><th style="min-width:70px">Весна</th><th style="min-width:70px">Лето</th><th style="min-width:70px">Осень</th>
+          <th>Зима</th><th>Весна</th><th>Лето</th><th>Осень</th>
           <th rowspan="2">Остаток<br>шт</th>
           <th rowspan="2">Запас<br>дней</th>
           <th rowspan="2">Затовари-<br>вание</th>
@@ -173,11 +166,11 @@
           <th colspan="4">Заказ (3 мес)</th>
         </tr>
         <tr class="subhead">
-          <th style="min-width:70px">₽/день</th><th style="min-width:70px">₽/день</th><th style="min-width:70px">₽/день</th><th style="min-width:70px">₽/день</th>
-          <th style="color:#4ade80;min-width:50px">Весна</th>
-          <th style="color:#fb923c;min-width:50px">Лето</th>
-          <th style="color:#a78bfa;min-width:50px">Осень</th>
-          <th style="color:#60a5fa;min-width:50px">Зима</th>
+          <th>₽/день</th><th>₽/день</th><th>₽/день</th><th>₽/день</th>
+          <th style="color:#4ade80">Весна</th>
+          <th style="color:#fb923c">Лето</th>
+          <th style="color:#a78bfa">Осень</th>
+          <th style="color:#60a5fa">Зима</th>
         </tr>
       </thead>
       <tbody id="tb"><tr><td colspan="16" class="loading">Загружаю данные...</td></tr></tbody>
@@ -471,24 +464,32 @@ function drawChart(base,canvas,chartData) {
   grad.addColorStop(0,"rgba(26,42,58,0.2)");
   grad.addColorStop(1,"rgba(26,42,58,0)");
 
-  ctx.beginPath();
-  for(let i=0;i<vals.length;i++){
-    const x=(i/(vals.length-1))*W;
-    const y=toY(vals[i]);
-    if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
-  }
-  // Fill
-  ctx.lineTo(W,H);ctx.lineTo(0,H);ctx.closePath();
-  ctx.fillStyle=grad; ctx.fill();
+  const n=vals.length;
+  function xOf(i){return (i/(n-1))*W;}
 
-  // Line
+  // Fill area - with gaps on zero segments
+  let inSeg=false;
+  ctx.beginPath();
+  for(let i=0;i<n;i++){
+    const v=vals[i]; const x=xOf(i); const y=toY(Math.max(0,v));
+    if(v<=0){
+      if(inSeg){ctx.lineTo(x,H);ctx.closePath();ctx.fillStyle=grad;ctx.fill();inSeg=false;ctx.beginPath();}
+    } else {
+      if(!inSeg){ctx.moveTo(x,H);ctx.lineTo(x,y);inSeg=true;}
+      else{ctx.lineTo(x,y);}
+    }
+  }
+  if(inSeg){ctx.lineTo(xOf(n-1),H);ctx.closePath();ctx.fillStyle=grad;ctx.fill();}
+
+  // Line - with gaps on zero segments
   ctx.beginPath();
   ctx.strokeStyle="rgba(26,42,58,0.75)";
   ctx.lineWidth=1.5; ctx.lineJoin="round";
-  for(let i=0;i<vals.length;i++){
-    const x=(i/(vals.length-1))*W;
-    const y=toY(vals[i]);
-    if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
+  let started=false;
+  for(let i=0;i<n;i++){
+    const v=vals[i]; const x=xOf(i); const y=toY(Math.max(0,v));
+    if(v<=0){started=false;}
+    else{if(!started){ctx.moveTo(x,y);started=true;}else{ctx.lineTo(x,y);}}
   }
   ctx.stroke();
 }
