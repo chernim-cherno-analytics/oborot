@@ -505,9 +505,9 @@ function render(){
         <input class="cost-input" type="number" min="0" placeholder="0" value="${costVal}"
           data-base="${base}" onchange="setCost(this)" onblur="setCost(this)"/>
       </td>
-      <td class="nb" id="order-cost-${CSS.escape(base)}">${orderCostStr}</td>
+      <td class="nb order-cost-cell">${orderCostStr}</td>
       <td>
-        <button class="btn-exclude" onclick="exclude('${base.replace(/'/g,"\'")}')">Исключить</button>
+        <button class="btn-exclude btn-excl-row">Исключить</button>
       </td>`;
     return tr;
   }
@@ -562,7 +562,7 @@ function setCost(inp){
   // Update order cost cell
   const order=computeOrder(base);
   if(order){
-    const cell=document.getElementById("order-cost-"+CSS.escape(base));
+    const cell=inp.closest("tr").querySelector(".order-cost-cell");
     if(cell) cell.textContent=order.orderCost>0?fmtM(order.orderCost)+" ₽":"—";
     // Recompute totals
     const active=[];
@@ -622,6 +622,14 @@ async function loadStock(){
   }
   try{localStorage.setItem(ck,JSON.stringify(stockData));localStorage.setItem(dk,cds);}catch(e){}
 }
+
+document.body.addEventListener("click",function(e){
+  const btn=e.target.closest(".btn-excl-row");
+  if(!btn)return;
+  const tr=btn.closest("tr[data-base]");
+  if(!tr)return;
+  exclude(tr.dataset.base);
+});
 
 async function init(){
   loadCosts(); loadExcluded(); initModal();
