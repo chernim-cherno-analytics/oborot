@@ -47,26 +47,47 @@
     }
     .modal-overlay.hidden { display: none }
     .modal {
-      background: rgba(255,255,255,0.85); backdrop-filter: blur(24px);
+      background: rgba(255,255,255,0.88); backdrop-filter: blur(24px);
       border: 1px solid rgba(255,255,255,0.6); border-radius: 20px;
-      padding: 40px; width: 420px; text-align: center;
+      padding: 36px; width: 460px;
       box-shadow: 0 24px 80px rgba(0,0,0,0.15);
     }
-    .modal h2 { font-size: 22px; font-weight: 600; color: #1a2a3a; margin-bottom: 8px }
-    .modal p { font-size: 13px; color: rgba(26,42,58,0.55); margin-bottom: 28px; line-height: 1.5 }
-    .modal input[type=date] {
-      width: 100%; padding: 12px 18px; border-radius: 12px;
-      border: 1.5px solid rgba(26,42,58,0.2); background: rgba(255,255,255,0.6);
-      font-family: "Inter", sans-serif; font-size: 16px; font-weight: 500; color: #1a2a3a;
-      outline: none; margin-bottom: 20px; transition: border-color .2s;
+    .modal h2 { font-size: 20px; font-weight: 600; color: #1a2a3a; margin-bottom: 20px; text-align:center }
+    /* Tabs */
+    .modal-tabs { display: flex; gap: 0; margin-bottom: 24px; border-radius: 10px; overflow: hidden; border: 1px solid rgba(26,42,58,0.12) }
+    .modal-tab {
+      flex: 1; padding: 10px; text-align: center; font-size: 12px; font-weight: 600;
+      color: rgba(26,42,58,0.5); cursor: pointer; background: rgba(255,255,255,0.4);
+      transition: all .15s; letter-spacing:.03em;
     }
-    .modal input[type=date]:focus { border-color: #1a2a3a }
+    .modal-tab:first-child { border-right: 1px solid rgba(26,42,58,0.1) }
+    .modal-tab.active { background: #1a2a3a; color: white }
+    .modal-tab:hover:not(.active) { background: rgba(255,255,255,0.7) }
+    /* Panels */
+    .modal-panel { display: none }
+    .modal-panel.active { display: block }
+    .modal-label { font-size: 11px; font-weight: 600; color: rgba(26,42,58,0.4);
+      text-transform: uppercase; letter-spacing:.06em; margin-bottom: 6px }
+    .modal input[type=date], .modal input[type=text] {
+      width: 100%; padding: 11px 14px; border-radius: 10px;
+      border: 1.5px solid rgba(26,42,58,0.15); background: rgba(255,255,255,0.6);
+      font-family: "Inter", sans-serif; font-size: 14px; font-weight: 500; color: #1a2a3a;
+      outline: none; margin-bottom: 14px; transition: border-color .2s;
+    }
+    .modal input:focus { border-color: #1a2a3a }
+    .modal select {
+      width: 100%; padding: 11px 14px; border-radius: 10px;
+      border: 1.5px solid rgba(26,42,58,0.15); background: rgba(255,255,255,0.6);
+      font-family: "Inter", sans-serif; font-size: 14px; color: #1a2a3a;
+      outline: none; margin-bottom: 14px; cursor: pointer;
+    }
     .modal-btn {
-      width: 100%; padding: 14px; border-radius: 12px; border: none;
+      width: 100%; padding: 13px; border-radius: 10px; border: none;
       background: #1a2a3a; color: white; font-family: "Inter", sans-serif;
-      font-size: 15px; font-weight: 600; cursor: pointer; transition: opacity .2s;
+      font-size: 14px; font-weight: 600; cursor: pointer; transition: opacity .2s;
     }
     .modal-btn:hover { opacity: 0.85 }
+    .modal-hint { font-size: 11px; color: rgba(26,42,58,0.4); text-align:center; margin-top:10px }
 
     /* SUMMARY BAR */
     .summary-bar {
@@ -211,10 +232,33 @@
 <!-- Date modal -->
 <div class="modal-overlay" id="modal">
   <div class="modal">
-    <h2>Дата прихода заказа</h2>
-    <p>Укажите когда ожидается поступление заказа — рассчитаем остатки на этот день и необходимое количество</p>
-    <input type="date" id="modal-date"/>
-    <button class="modal-btn" onclick="confirmDate()">Рассчитать заказ →</button>
+    <h2>Планирование заказа</h2>
+    <div class="modal-tabs">
+      <div class="modal-tab active" onclick="switchModalTab('new')">Новый проект</div>
+      <div class="modal-tab" onclick="switchModalTab('existing')">Открыть проект</div>
+    </div>
+
+    <!-- New project panel -->
+    <div class="modal-panel active" id="panel-new">
+      <div class="modal-label">Название проекта</div>
+      <input type="text" id="modal-proj-name" placeholder="напр. Осень 2026"/>
+      <div class="modal-label">Дата прихода заказа</div>
+      <input type="date" id="modal-date"/>
+      <button class="modal-btn" id="modal-confirm-btn" onclick="confirmNewProject()">Создать проект →</button>
+      <div class="modal-hint" id="modal-loading-hint">⏳ Загружаю данные с сервера...</div>
+    </div>
+
+    <!-- Existing project panel -->
+    <div class="modal-panel" id="panel-existing">
+      <div class="modal-label">Выберите проект</div>
+      <select id="modal-proj-select">
+        <option value="">— выберите проект —</option>
+      </select>
+      <button class="modal-btn" onclick="confirmExistingProject()">Открыть →</button>
+      <div class="modal-hint" style="margin-top:12px">
+        <span style="color:rgba(239,68,68,0.7);cursor:pointer" onclick="deleteSelectedProject()">Удалить выбранный проект</span>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -359,22 +403,10 @@ function showProjModal(){
 function hideProjModal(){
   document.getElementById("proj-modal").classList.add("hidden");
 }
-function createProject(){
-  const name=document.getElementById("proj-name").value.trim();
-  const date=document.getElementById("proj-date").value;
-  if(!name||!date){alert("Укажи название и дату");return;}
-  const id="proj_"+Date.now();
-  const projects=getProjects();
-  const proj={id,name,date,created:new Date().toISOString(),
-    data:{costs:{...costs},adjustments:{...adjustments},excluded:[...excludedItems]}};
-  projects.push(proj);
-  saveProjects(projects);
-  hideProjModal();
-  refreshProjectSelect();
-  loadProject(id);
-}
+// createProject moved to confirmNewProject
 function refreshProjectSelect(){
   const sel=document.getElementById("project-select");
+  if(!sel)return;
   const projects=getProjects();
   sel.innerHTML=`<option value="">— без проекта —</option>`;
   projects.forEach(p=>{
@@ -405,7 +437,7 @@ function saveProjectData(){
   const projects=getProjects();
   const idx=projects.findIndex(p=>p.id===currentProject.id);
   if(idx<0)return;
-  projects[idx].data={costs:{...costs},adjustments:{...adjustments},excluded:[...excludedItems]};
+  projects[idx].data={costs:{...costs},adjustments:{...adjustments},excluded:[...excludedItems],addedToOrder:[...addedToOrder]};
   saveProjects(projects);
 }
 let costs={}; // base → cost per unit
@@ -428,24 +460,88 @@ function saveExcluded(){
 function initModal(){
   const d=new Date(Date.now()+14*24*3600*1000);
   document.getElementById("modal-date").value=d.toISOString().split("T")[0];
+  refreshModalProjectSelect();
 }
-function confirmDate(){
-  const v=document.getElementById("modal-date").value;
-  if(!v)return;
-  arrivalDate=v;
+function switchModalTab(tab){
+  document.querySelectorAll(".modal-tab").forEach((t,i)=>{
+    t.classList.toggle("active",(i===0&&tab==="new")||(i===1&&tab==="existing"));
+  });
+  document.getElementById("panel-new").classList.toggle("active",tab==="new");
+  document.getElementById("panel-existing").classList.toggle("active",tab==="existing");
+}
+function refreshModalProjectSelect(){
+  const sel=document.getElementById("modal-proj-select");
+  if(!sel)return;
+  const projects=getProjects();
+  sel.innerHTML=`<option value="">— выберите проект —</option>`;
+  projects.forEach(p=>{
+    const opt=document.createElement("option");
+    opt.value=p.id;
+    opt.textContent=p.name+" · "+new Date(p.date).toLocaleDateString("ru-RU",{day:"numeric",month:"short",year:"numeric"});
+    sel.appendChild(opt);
+  });
+  if(projects.length>0) switchModalTab("existing");
+}
+function confirmNewProject(){
+  const name=document.getElementById("modal-proj-name").value.trim();
+  const date=document.getElementById("modal-date").value;
+  if(!date){alert("Укажи дату прихода");return;}
+  if(name){
+    const id="proj_"+Date.now();
+    const projects=getProjects();
+    const proj={id,name,date,created:new Date().toISOString(),
+      data:{costs:{},adjustments:{},excluded:[],addedToOrder:[]}};
+    projects.push(proj);
+    saveProjects(projects);
+    currentProject=proj;
+    document.getElementById("proj-info").style.display="inline";
+    document.getElementById("proj-info").textContent="Проект: "+name;
+  }
+  openWithDate(date);
+}
+function confirmExistingProject(){
+  const id=document.getElementById("modal-proj-select").value;
+  if(!id){alert("Выбери проект");return;}
+  const projects=getProjects();
+  const proj=projects.find(p=>p.id===id);
+  if(!proj)return;
+  currentProject=proj;
+  costs=proj.data.costs||{};
+  adjustments=proj.data.adjustments||{};
+  excludedItems=new Set(proj.data.excluded||[]);
+  addedToOrder=new Set(proj.data.addedToOrder||[]);
+  document.getElementById("proj-info").style.display="inline";
+  document.getElementById("proj-info").textContent="Проект: "+proj.name;
+  openWithDate(proj.date);
+}
+function deleteSelectedProject(){
+  const id=document.getElementById("modal-proj-select").value;
+  if(!id)return;
+  const projects=getProjects();
+  const proj=projects.find(p=>p.id===id);
+  if(!proj||!confirm("Удалить проект «"+proj.name+"»?"))return;
+  saveProjects(projects.filter(p=>p.id!==id));
+  refreshModalProjectSelect();
+}
+function openWithDate(date){
+  arrivalDate=date;
   document.getElementById("modal").classList.add("hidden");
   document.getElementById("summary-bar").style.display="flex";
+  document.getElementById("project-bar").style.display="flex";
+  refreshProjectSelect();
   document.getElementById("controls-bar").style.display="flex";
   document.getElementById("main-area").style.display="block";
-  const d=new Date(v); const opts={day:"numeric",month:"long",year:"numeric"};
+  const d=new Date(date); const opts={day:"numeric",month:"long",year:"numeric"};
   document.getElementById("arrival-chip").textContent="📅 "+d.toLocaleDateString("ru-RU",opts);
   if(stockLoaded){render();}
-  else{document.getElementById("tb").innerHTML=`<tr><td colspan="10" class="loading-msg">⏳ Загружаю остатки с сервера, подождите...</td></tr>`;}
+  else{document.getElementById("tb").innerHTML=`<tr><td colspan="10" class="loading-msg">⏳ Загружаю остатки, подождите...</td></tr>`;}
 }
 function reopenModal(){
+  refreshModalProjectSelect();
   document.getElementById("modal").classList.remove("hidden");
   document.getElementById("modal-date").value=arrivalDate||"";
 }
+
 function setSeason(btn){
   document.querySelectorAll(".season-tab").forEach(b=>b.classList.remove("active"));
   btn.classList.add("active"); currentSeason=btn.dataset.season; render();
@@ -730,7 +826,7 @@ document.body.addEventListener("click",function(e){
 });
 
 async function init(){
-  loadCosts(); loadExcluded(); loadAdjustments(); initModal(); refreshProjectSelect();
+  loadCosts(); loadExcluded(); loadAdjustments(); initModal();
   try{
     await loadStock();
   }catch(e){
