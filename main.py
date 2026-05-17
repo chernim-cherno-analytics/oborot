@@ -10,10 +10,10 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], all
 
 # ─── Auth ─────────────────────────────────────────────────────────────────────
 USERS = {
-    "Даша":    "котики",
-    "Влад":    "песики",
-    "Жасмина": "цветочки",
-    "Коля":    "бабочки",
+    "Даша":    ["котики", "kotiki"],
+    "Влад":    ["песики", "pesiki"],
+    "Жасмина": ["цветочки", "cvetochki"],
+    "Коля":    ["бабочки", "babochki"],
 }
 SESSIONS: dict = {}  # token → username
 
@@ -42,7 +42,7 @@ def check_auth(request: Request) -> bool:
 async def login(data: dict, response: Response):
     name = data.get("name","").strip()
     pwd  = data.get("password","").strip()
-    if USERS.get(name) == pwd:
+    if name in USERS and pwd in USERS[name]:
         token = make_token()
         SESSIONS[token] = name
         response.set_cookie("cc_session", token, max_age=30*24*3600, httponly=True, samesite="lax")
