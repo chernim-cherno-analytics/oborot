@@ -416,7 +416,7 @@ function refreshProjectSelect(){
   });
 }
 function loadProject(id){
-  if(!id){currentProject=null;document.getElementById("proj-info").style.display="none";return;}
+  if(!id){currentProject=null;const pi0=document.getElementById("proj-info"); if(pi0) pi0.style.display="none";return;}
   const projects=getProjects();
   const proj=projects.find(p=>p.id===id);
   if(!proj)return;
@@ -428,8 +428,7 @@ function loadProject(id){
   // Set arrival date from project
   arrivalDate=proj.date;
   document.getElementById("arrival-chip").textContent="📅 "+new Date(proj.date).toLocaleDateString("ru-RU",{day:"numeric",month:"long",year:"numeric"});
-  document.getElementById("proj-info").style.display="inline";
-  document.getElementById("proj-info").textContent="Проект: "+proj.name;
+  const _pi=document.getElementById("proj-info"); if(_pi){_pi.style.display="inline";_pi.textContent="Проект: "+proj.name;}
   render();
 }
 function saveProjectData(){
@@ -494,8 +493,7 @@ function confirmNewProject(){
     projects.push(proj);
     saveProjects(projects);
     currentProject=proj;
-    document.getElementById("proj-info").style.display="inline";
-    document.getElementById("proj-info").textContent="Проект: "+name;
+    const _pi=document.getElementById("proj-info"); if(_pi){_pi.style.display="inline";_pi.textContent="Проект: "+name;}
   }
   openWithDate(date);
 }
@@ -510,8 +508,7 @@ function confirmExistingProject(){
   adjustments=proj.data.adjustments||{};
   excludedItems=new Set(proj.data.excluded||[]);
   addedToOrder=new Set(proj.data.addedToOrder||[]);
-  document.getElementById("proj-info").style.display="inline";
-  document.getElementById("proj-info").textContent="Проект: "+proj.name;
+  const _pi=document.getElementById("proj-info"); if(_pi){_pi.style.display="inline";_pi.textContent="Проект: "+proj.name;}
   openWithDate(proj.date);
 }
 function deleteSelectedProject(){
