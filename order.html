@@ -387,13 +387,10 @@ let adjustments={}; // base → ±qty adjustment
 let addedToOrder=new Set(); // bases added from "possible" section
 let currentProject=null; // {id, name, date, data:{costs,adjustments,excluded}}
 
-function loadAdjustments(){
-  try{ adjustments=JSON.parse(localStorage.getItem("cc_order_adj_v1")||"{}"); }catch(e){ adjustments={}; }
+async function loadAdjustments(){
+  try{ adjustments=await(await fetch("/api/adjustments")).json(); }catch(e){ adjustments={}; }
 }
-function saveAdjustments(){
-  try{ localStorage.setItem("cc_order_adj_v1", JSON.stringify(adjustments)); }catch(e){}
-  if(currentProject) saveProjectData();
-}
+function saveAdjustments(){ /* no-op: saved immediately in setAdj */ }
 function getFinalQty(base, calcQty){
   return Math.max(0, calcQty + (adjustments[base]||0));
 }
@@ -453,18 +450,14 @@ function saveProjectData(){
 let costs={}; // base → cost per unit
 
 // Load/save costs to localStorage
-function loadCosts(){
-  try{ costs=JSON.parse(localStorage.getItem("cc_order_costs_v1")||"{}"); }catch(e){ costs={}; }
+async function loadCosts(){
+  try{ costs=await(await fetch("/api/costs")).json(); }catch(e){ costs={}; }
 }
-function saveCosts(){
-  try{ localStorage.setItem("cc_order_costs_v1", JSON.stringify(costs)); }catch(e){}
+function saveCosts(){ /* no-op: saved immediately in setCost */ }
+async function loadExcluded(){
+  try{ excludedItems=new Set(await(await fetch("/api/excluded")).json()); }catch(e){ excludedItems=new Set(); }
 }
-function loadExcluded(){
-  try{ excludedItems=new Set(JSON.parse(localStorage.getItem("cc_order_excluded_v1")||"[]")); }catch(e){}
-}
-function saveExcluded(){
-  try{ localStorage.setItem("cc_order_excluded_v1", JSON.stringify([...excludedItems])); }catch(e){}
-}
+function saveExcluded(){ /* no-op: saved immediately in exclude() */ }
 
 // ─── Modal logic ─────────────────────────────────────────────────────────────
 function initModal(){
@@ -732,7 +725,8 @@ function setAdj(inp){
   const base=inp.dataset.base;
   const val=parseInt(inp.value)||0;
   if(val===0) delete adjustments[base]; else adjustments[base]=val;
-  saveAdjustments();
+  fetch("/api/adjustments",{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({sku_base:base,qty_adj:val})}).catch(()=>{});
   // Update final qty cell and order cost cell in same row
   const order=computeOrder(base);
   if(order){
@@ -763,7 +757,8 @@ function setCost(inp){
   const base=inp.dataset.base;
   const val=parseFloat(inp.value)||0;
   costs[base]=val;
-  saveCosts();
+  fetch("/api/costs",{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({sku_base:base,cost:val})}).catch(()=>{});
   // Update order cost cell
   const order=computeOrder(base);
   if(order){
@@ -782,7 +777,10 @@ function setCost(inp){
 }
 
 function exclude(base){
-  excludedItems.add(base); saveExcluded(); render();
+  excludedItems.add(base);
+  fetch("/api/excluded",{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({sku_base:base})}).catch(()=>{});
+  render();
 }
 
 function exportCSV(){
@@ -802,22 +800,57 @@ function exportCSV(){
 
 // ─── Load stock data ──────────────────────────────────────────────────────────
 async function loadStock(){
-  const tb=document.getElementById("tb");
-  if(tb) tb.innerHTML=`<tr><td colspan="12" class="loading-msg">⏳ Загружаю данные...</td></tr>`;
-  const r=await(await fetch("/api/stocks/all")).json();
-  allDates=r.dates;
-  stockData=r.stock;
+  const dj=await(await fetch("/api/dates")).json();
+  allDates=dj.map(d=>d.date).sort();
+  if(!allDates.length)return;
+  const ck="cc_ord_stock_v2",dk="cc_ord_dates_v2",cds=JSON.stringify(allDates);
+  try{
+    if(localStorage.getItem(dk)===cds){
+      const c=JSON.parse(localStorage.getItem(ck));if(c){stockData=c;return;}
+    }
+  }catch(e){}
+  stockData={};
+  const totalDates=allDates.length;
+  for(let i=0;i<totalDates;i++){
+    const date=allDates[i];let page=1,more=true;
+    while(more){
+      const r=await(await fetch(`/api/stocks?date=${date}&page=${page}&per_page=200`)).json();
+      for(const it of r.items){
+        const b=stripSize(it.sku_name);
+        if(!stockData[b])stockData[b]={};
+        stockData[b][date]=(stockData[b][date]||0)+it.stock_qty;
+      }
+      if(page>=r.pages)more=false;page++;
+    }
+    // Update progress in table if visible
+    if(i%5===0){
+      const pct=Math.round(i/totalDates*100);
+      const tb=document.getElementById("tb");
+      if(tb) tb.innerHTML=`<tr><td colspan="12" class="loading-msg">⏳ Загружаю данные: ${pct}% (${i}/${totalDates} дат)...</td></tr>`;
+      await new Promise(r=>setTimeout(r,0));
+    }
+  }
+  try{localStorage.setItem(ck,JSON.stringify(stockData));localStorage.setItem(dk,cds);}catch(e){}
 }
 
 document.body.addEventListener("click",function(e){
   const excl=e.target.closest(".btn-excl-row");
   if(excl){ const tr=excl.closest("tr[data-base]"); if(tr) exclude(tr.dataset.base); return; }
   const add=e.target.closest(".btn-add-row");
-  if(add){ const tr=add.closest("tr[data-base]"); if(tr){ addedToOrder.add(tr.dataset.base); render(); } return; }
+  if(add){ const tr=add.closest("tr[data-base]"); if(tr){
+    const base=tr.dataset.base; addedToOrder.add(base);
+    fetch("/api/order-added",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({sku_base:base})}).catch(()=>{});
+    render(); } return; }
 });
 
+async function loadAddedToOrder(){
+  try{ addedToOrder=new Set(await(await fetch("/api/order-added")).json()); }catch(e){ addedToOrder=new Set(); }
+}
+
 async function init(){
-  loadCosts(); loadExcluded(); loadAdjustments(); initModal();
+  initModal();
+  await Promise.all([loadCosts(), loadExcluded(), loadAdjustments(), loadAddedToOrder()]);
   try{
     await loadStock();
   }catch(e){

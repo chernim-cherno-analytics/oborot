@@ -36,6 +36,20 @@ def init_db():
         UNIQUE(date, sku_name, doc_type))""")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_sales_date ON sales_data(date)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_sales_sku ON sales_data(sku_name)")
+    conn.execute("""CREATE TABLE IF NOT EXISTS costs (
+        sku_base TEXT PRIMARY KEY,
+        cost REAL NOT NULL DEFAULT 0,
+        updated_at TEXT NOT NULL)""")
+    conn.execute("""CREATE TABLE IF NOT EXISTS order_adjustments (
+        sku_base TEXT PRIMARY KEY,
+        qty_adj INTEGER NOT NULL DEFAULT 0,
+        updated_at TEXT NOT NULL)""")
+    conn.execute("""CREATE TABLE IF NOT EXISTS order_excluded (
+        sku_base TEXT PRIMARY KEY,
+        excluded_at TEXT NOT NULL)""")
+    conn.execute("""CREATE TABLE IF NOT EXISTS order_added (
+        sku_base TEXT PRIMARY KEY,
+        added_at TEXT NOT NULL)""")
     conn.commit(); conn.close()
 
 init_db()
@@ -158,25 +172,6 @@ def get_stocks(date: Optional[str]=None, search: Optional[str]=None, page: int=1
     return {"date": date, "items": [{"sku_name": r["sku_name"], "stock_qty": r["stock_qty"]} for r in rows],
             "total": total, "pages": -(-total//per_page)}
 
-@app.get("/api/stocks/all")
-def get_all_stocks():
-    conn = get_db()
-    rows = conn.execute(
-        "SELECT date, sku_name, stock_qty FROM stock_snapshots ORDER BY date, sku_name"
-    ).fetchall()
-    conn.close()
-    # Группируем по base-имени (без размера) как делает фронт
-    stock = {}
-    dates_set = set()
-    for r in rows:
-        base = _strip_size(r["sku_name"])
-        date = r["date"]
-        dates_set.add(date)
-        if base not in stock:
-            stock[base] = {}
-        stock[base][date] = stock[base].get(date, 0) + r["stock_qty"]
-    return {"dates": sorted(dates_set), "stock": stock}
-
 @app.get("/api/stats")
 def get_stats():
     conn = get_db()
@@ -255,6 +250,88 @@ async def upload_sales(file: UploadFile = File(...)):
     date_to = str(df["Дата"].max())
     conn.close()
     return {"inserted": inserted, "doc_type": doc_type, "date_from": date_from, "date_to": date_to}
+
+# ─── Costs ────────────────────────────────────────────────────────────────────
+@app.get("/api/costs")
+def get_costs():
+    conn = get_db()
+    rows = conn.execute("SELECT sku_base, cost FROM costs").fetchall()
+    conn.close()
+    return {r["sku_base"]: r["cost"] for r in rows}
+
+@app.post("/api/costs")
+async def set_cost(data: dict):
+    conn = get_db()
+    conn.execute("INSERT OR REPLACE INTO costs (sku_base, cost, updated_at) VALUES (?,?,?)",
+                 (data["sku_base"], float(data.get("cost", 0)), datetime.now().isoformat()))
+    conn.commit(); conn.close()
+    return {"ok": True}
+
+# ─── Adjustments ──────────────────────────────────────────────────────────────
+@app.get("/api/adjustments")
+def get_adjustments():
+    conn = get_db()
+    rows = conn.execute("SELECT sku_base, qty_adj FROM order_adjustments").fetchall()
+    conn.close()
+    return {r["sku_base"]: r["qty_adj"] for r in rows}
+
+@app.post("/api/adjustments")
+async def set_adjustment(data: dict):
+    conn = get_db()
+    val = int(data.get("qty_adj", 0))
+    if val == 0:
+        conn.execute("DELETE FROM order_adjustments WHERE sku_base=?", (data["sku_base"],))
+    else:
+        conn.execute("INSERT OR REPLACE INTO order_adjustments (sku_base, qty_adj, updated_at) VALUES (?,?,?)",
+                     (data["sku_base"], val, datetime.now().isoformat()))
+    conn.commit(); conn.close()
+    return {"ok": True}
+
+# ─── Excluded ─────────────────────────────────────────────────────────────────
+@app.get("/api/excluded")
+def get_excluded():
+    conn = get_db()
+    rows = conn.execute("SELECT sku_base FROM order_excluded").fetchall()
+    conn.close()
+    return [r["sku_base"] for r in rows]
+
+@app.post("/api/excluded")
+async def add_excluded(data: dict):
+    conn = get_db()
+    conn.execute("INSERT OR IGNORE INTO order_excluded (sku_base, excluded_at) VALUES (?,?)",
+                 (data["sku_base"], datetime.now().isoformat()))
+    conn.commit(); conn.close()
+    return {"ok": True}
+
+@app.delete("/api/excluded/{sku_base}")
+def remove_excluded(sku_base: str):
+    conn = get_db()
+    conn.execute("DELETE FROM order_excluded WHERE sku_base=?", (sku_base,))
+    conn.commit(); conn.close()
+    return {"ok": True}
+
+# ─── Added to order ───────────────────────────────────────────────────────────
+@app.get("/api/order-added")
+def get_order_added():
+    conn = get_db()
+    rows = conn.execute("SELECT sku_base FROM order_added").fetchall()
+    conn.close()
+    return [r["sku_base"] for r in rows]
+
+@app.post("/api/order-added")
+async def add_order_added(data: dict):
+    conn = get_db()
+    conn.execute("INSERT OR IGNORE INTO order_added (sku_base, added_at) VALUES (?,?)",
+                 (data["sku_base"], datetime.now().isoformat()))
+    conn.commit(); conn.close()
+    return {"ok": True}
+
+@app.delete("/api/order-added/{sku_base}")
+def remove_order_added(sku_base: str):
+    conn = get_db()
+    conn.execute("DELETE FROM order_added WHERE sku_base=?", (sku_base,))
+    conn.commit(); conn.close()
+    return {"ok": True}
 
 @app.get("/order")
 def serve_order():
