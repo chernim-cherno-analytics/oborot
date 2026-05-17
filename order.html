@@ -286,6 +286,15 @@
   </div>
 </div>
 
+<!-- Project bar -->
+<div class="project-bar" id="project-bar" style="display:none">
+  <span class="project-label">Проект:</span>
+  <select class="project-select" id="project-select" onchange="loadProject(this.value)">
+    <option value="">— без проекта —</option>
+  </select>
+  <span class="project-chip" id="proj-info" style="display:none"></span>
+</div>
+
 <!-- Season controls -->
 <div class="controls-bar" id="controls-bar" style="display:none">
   <span style="font-size:11px;color:rgba(26,42,58,0.45);font-weight:600;margin-right:4px">СЕЗОН:</span>
@@ -398,10 +407,10 @@ function showProjModal(){
   const d=new Date(Date.now()+14*24*3600*1000);
   document.getElementById("proj-date").value=d.toISOString().split("T")[0];
   document.getElementById("proj-name").value="";
-  document.getElementById("proj-modal").classList.remove("hidden");
+  const _pm=document.getElementById("proj-modal"); if(_pm) _pm.classList.remove("hidden");
 }
 function hideProjModal(){
-  document.getElementById("proj-modal").classList.add("hidden");
+  const _pm2=document.getElementById("proj-modal"); if(_pm2) _pm2.classList.add("hidden");
 }
 // createProject moved to confirmNewProject
 function refreshProjectSelect(){
@@ -524,7 +533,7 @@ function openWithDate(date){
   arrivalDate=date;
   document.getElementById("modal").classList.add("hidden");
   document.getElementById("summary-bar").style.display="flex";
-  document.getElementById("project-bar").style.display="flex";
+  const _pb=document.getElementById("project-bar"); if(_pb) _pb.style.display="flex";
   refreshProjectSelect();
   document.getElementById("controls-bar").style.display="flex";
   document.getElementById("main-area").style.display="block";
