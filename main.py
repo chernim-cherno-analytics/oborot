@@ -67,21 +67,21 @@ LOGIN_HTML = """<!DOCTYPE html>
 <html lang="ru"><head><meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>CernimCherno · Вход</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:"Inter",sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;
-background:linear-gradient(160deg,#c2dff2 0%,#9ec4dc 40%,#b0d0e8 70%,#8ab8d4 100%)}
+body{font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;
+background:linear-gradient(135deg,#1e6356 0%,#8ea3a6 25%,#47919d 50%,#59a395 75%,#9dafb4 100%)}
 .card{background:rgba(255,255,255,0.3);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,0.5);
 border-radius:16px;padding:40px;width:100%;max-width:360px}
 .logo{font-size:13px;font-weight:600;letter-spacing:0.2em;color:#1a2a3a;text-align:center;margin-bottom:32px}
 label{font-size:11px;font-weight:500;color:rgba(26,42,58,0.6);letter-spacing:0.05em;text-transform:uppercase;display:block;margin-bottom:6px}
 select,input{width:100%;padding:10px 14px;border:1px solid rgba(26,42,58,0.2);border-radius:8px;
-background:rgba(255,255,255,0.5);font-family:"Inter",sans-serif;font-size:13px;color:#1a2a3a;
+background:rgba(255,255,255,0.5);font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;font-size:13px;color:#1a2a3a;
 outline:none;margin-bottom:16px;transition:border .2s}
 select:focus,input:focus{border-color:rgba(26,42,58,0.4);background:rgba(255,255,255,0.7)}
 button{width:100%;padding:11px;background:#1a2a3a;color:white;border:none;border-radius:8px;
-font-family:"Inter",sans-serif;font-size:13px;font-weight:500;cursor:pointer;transition:opacity .2s}
+font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;font-size:13px;font-weight:500;cursor:pointer;transition:opacity .2s}
 button:hover{opacity:0.85}
 .err{color:#e53e3e;font-size:12px;text-align:center;margin-top:8px;min-height:18px}
 </style></head>

@@ -4,23 +4,19 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
   <title>CernimCherno · Остатки</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0 }
     body {
-      font-family: 'Inter', sans-serif;
+      font-family: Helvetica, 'Helvetica Neue', Arial, sans-serif;
       min-height: 100vh;
-      background: #b8d4e8;
+      background: linear-gradient(135deg, #1e6356 0%, #8ea3a6 25%, #47919d 50%, #59a395 75%, #9dafb4 100%);
       color: white;
     }
     body::before {
       content: '';
       position: fixed; inset: 0;
-      background:
-        radial-gradient(ellipse at 20% 20%, #c8dff0 0%, transparent 60%),
-        radial-gradient(ellipse at 80% 10%, #d4e8f5 0%, transparent 50%),
-        radial-gradient(ellipse at 50% 80%, #a8c8e0 0%, transparent 60%),
-        linear-gradient(160deg, #c2dff2 0%, #9ec4dc 40%, #b0d0e8 70%, #8ab8d4 100%);
+      background: linear-gradient(135deg, #1e6356 0%, #8ea3a6 25%, #47919d 50%, #59a395 75%, #9dafb4 100%);
       z-index: -2;
     }
     body::after {
@@ -84,7 +80,7 @@
       color: rgba(255,255,255,0.7); padding: 6px 12px;
       font-size: 11px; font-weight: 500; cursor: pointer; border-radius: 16px;
       display: flex; align-items: center; gap: 6px; transition: all .15s;
-      font-family: 'Inter', sans-serif;
+      font-family: Helvetica, 'Helvetica Neue', Arial, sans-serif;
     }
     .date-tab:hover { background: rgba(255,255,255,0.25); color: white }
     .date-tab.active { background: white; color: #6a9ab8; border-color: white }
@@ -97,7 +93,7 @@
       background: rgba(255,255,255,0.15); backdrop-filter: blur(12px);
       border: 1px solid rgba(255,255,255,0.3); color: white;
       padding: 8px 32px 8px 14px; font-size: 12px; border-radius: 20px;
-      outline: none; transition: all .2s; font-family: 'Inter', sans-serif;
+      outline: none; transition: all .2s; font-family: Helvetica, 'Helvetica Neue', Arial, sans-serif;
     }
     .search-input:focus { background: rgba(255,255,255,0.22); border-color: rgba(255,255,255,0.6) }
     .search-input::placeholder { color: rgba(255,255,255,0.5) }
@@ -139,7 +135,7 @@
       background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.25);
       color: rgba(255,255,255,0.8); padding: 6px 16px;
       font-size: 13px; cursor: pointer; border-radius: 16px;
-      font-family: 'Inter', sans-serif; transition: all .15s;
+      font-family: Helvetica, 'Helvetica Neue', Arial, sans-serif; transition: all .15s;
     }
     .pagination button:hover:not(:disabled) { background: white; color: #6a9ab8 }
     .pagination button:disabled { opacity: 0.3; cursor: default }

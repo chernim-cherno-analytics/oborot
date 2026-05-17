@@ -4,14 +4,14 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
   <title>CernimCherno · Аналитика</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0 }
 
     body {
-      font-family: 'Inter', sans-serif;
+      font-family: Helvetica, 'Helvetica Neue', Arial, sans-serif;
       min-height: 100vh;
-      background: #b8d4e8;
+      background: linear-gradient(135deg, #1e6356 0%, #8ea3a6 25%, #47919d 50%, #59a395 75%, #9dafb4 100%);
       color: white;
       overflow-x: hidden;
     }
@@ -21,11 +21,7 @@
       content: '';
       position: fixed;
       inset: 0;
-      background: 
-        radial-gradient(ellipse at 20% 20%, #c8dff0 0%, transparent 60%),
-        radial-gradient(ellipse at 80% 10%, #d4e8f5 0%, transparent 50%),
-        radial-gradient(ellipse at 50% 80%, #a8c8e0 0%, transparent 60%),
-        linear-gradient(160deg, #c2dff2 0%, #9ec4dc 40%, #b0d0e8 70%, #8ab8d4 100%);
+      background: linear-gradient(135deg, #1e6356 0%, #8ea3a6 25%, #47919d 50%, #59a395 75%, #9dafb4 100%);
       z-index: -2;
     }
 
@@ -164,7 +160,7 @@
       cursor: pointer; font-size: 10px; font-weight: 500;
       padding: 3px 10px; border-radius: 12px;
       opacity: 0; transition: all .15s; white-space: nowrap;
-      font-family: 'Inter', sans-serif;
+      font-family: Helvetica, 'Helvetica Neue', Arial, sans-serif;
     }
     .product-header:hover .hide-btn { opacity: 1 }
     .hide-btn:hover { background: rgba(255,80,80,0.25); border-color: rgba(255,100,100,0.5); color: white }
@@ -195,7 +191,7 @@
       float: right; background: rgba(255,255,255,0.2);
       border: 1px solid rgba(255,255,255,0.3);
       color: white; cursor: pointer; padding: 4px 12px;
-      border-radius: 12px; font-size: 12px; font-family: 'Inter', sans-serif;
+      border-radius: 12px; font-size: 12px; font-family: Helvetica, 'Helvetica Neue', Arial, sans-serif;
     }
 
     /* Sizes */
@@ -232,7 +228,7 @@
       background: white; border: none; color: #6a9ab8;
       cursor: pointer; font-size: 11px; font-weight: 600;
       padding: 4px 12px; border-radius: 12px;
-      font-family: 'Inter', sans-serif; transition: opacity .15s;
+      font-family: Helvetica, 'Helvetica Neue', Arial, sans-serif; transition: opacity .15s;
     }
     .restore-btn:hover { opacity: 0.8 }
 

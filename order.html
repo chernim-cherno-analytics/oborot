@@ -7,12 +7,10 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0 }
-    body { font-family: "Inter", sans-serif; min-height: 100vh; background: #b8d4e8; color: #1a2a3a }
+    body { font-family: Helvetica, 'Helvetica Neue', Arial, sans-serif; min-height: 100vh; background: linear-gradient(135deg, #1e6356 0%, #8ea3a6 25%, #47919d 50%, #59a395 75%, #9dafb4 100%); color: #1a2a3a }
     body::before {
       content: ""; position: fixed; inset: 0;
-      background: radial-gradient(ellipse at 20% 20%, #c8dff0 0%, transparent 60%),
-                  radial-gradient(ellipse at 80% 10%, #d4e8f5 0%, transparent 50%),
-                  linear-gradient(160deg, #c2dff2 0%, #9ec4dc 40%, #b0d0e8 70%, #8ab8d4 100%);
+      background: linear-gradient(135deg, #1e6356 0%, #8ea3a6 25%, #47919d 50%, #59a395 75%, #9dafb4 100%);
       z-index: -2;
     }
     body::after {
@@ -71,19 +69,19 @@
     .modal input[type=date], .modal input[type=text] {
       width: 100%; padding: 11px 14px; border-radius: 10px;
       border: 1.5px solid rgba(26,42,58,0.15); background: rgba(255,255,255,0.6);
-      font-family: "Inter", sans-serif; font-size: 14px; font-weight: 500; color: #1a2a3a;
+      font-family: Helvetica, 'Helvetica Neue', Arial, sans-serif; font-size: 14px; font-weight: 500; color: #1a2a3a;
       outline: none; margin-bottom: 14px; transition: border-color .2s;
     }
     .modal input:focus { border-color: #1a2a3a }
     .modal select {
       width: 100%; padding: 11px 14px; border-radius: 10px;
       border: 1.5px solid rgba(26,42,58,0.15); background: rgba(255,255,255,0.6);
-      font-family: "Inter", sans-serif; font-size: 14px; color: #1a2a3a;
+      font-family: Helvetica, 'Helvetica Neue', Arial, sans-serif; font-size: 14px; color: #1a2a3a;
       outline: none; margin-bottom: 14px; cursor: pointer;
     }
     .modal-btn {
       width: 100%; padding: 13px; border-radius: 10px; border: none;
-      background: #1a2a3a; color: white; font-family: "Inter", sans-serif;
+      background: #1a2a3a; color: white; font-family: Helvetica, 'Helvetica Neue', Arial, sans-serif;
       font-size: 14px; font-weight: 600; cursor: pointer; transition: opacity .2s;
     }
     .modal-btn:hover { opacity: 0.85 }
@@ -106,7 +104,7 @@
     .btn-outline {
       padding: 8px 16px; border-radius: 20px; border: 1.5px solid rgba(26,42,58,0.25);
       background: rgba(255,255,255,0.35); color: #1a2a3a; font-size: 12px;
-      font-weight: 500; cursor: pointer; font-family: "Inter", sans-serif; transition: all .2s;
+      font-weight: 500; cursor: pointer; font-family: Helvetica, 'Helvetica Neue', Arial, sans-serif; transition: all .2s;
     }
     .btn-outline:hover { background: rgba(255,255,255,0.6) }
     .arrival-chip {
@@ -191,7 +189,7 @@
     .cost-input {
       width: 80px; padding: 4px 6px; border-radius: 6px; text-align: right;
       border: 1.5px solid transparent; background: rgba(255,255,255,0.3);
-      font-family: "Inter", sans-serif; font-size: 12px; font-weight: 500; color: #1a2a3a;
+      font-family: Helvetica, 'Helvetica Neue', Arial, sans-serif; font-size: 12px; font-weight: 500; color: #1a2a3a;
       transition: border-color .2s; outline: none;
     }
     .cost-input:focus { border-color: rgba(26,42,58,0.3); background: rgba(255,255,255,0.6) }
@@ -200,7 +198,7 @@
     .btn-exclude {
       padding: 4px 8px; border-radius: 6px; border: 1px solid rgba(239,68,68,0.25);
       background: rgba(239,68,68,0.07); color: rgba(239,68,68,0.7);
-      font-size: 10px; font-weight: 600; cursor: pointer; font-family: "Inter", sans-serif;
+      font-size: 10px; font-weight: 600; cursor: pointer; font-family: Helvetica, 'Helvetica Neue', Arial, sans-serif;
       transition: all .15s; white-space: nowrap;
     }
     .btn-exclude:hover { background: rgba(239,68,68,0.15); border-color: rgba(239,68,68,0.4) }
