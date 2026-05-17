@@ -7,27 +7,11 @@
   
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0 }
-    body {
-      font-family: Helvetica, 'Helvetica Neue', Arial, sans-serif;
-      min-height: 100vh;
-      background: linear-gradient(135deg, #1e6356 0%, #8ea3a6 25%, #47919d 50%, #59a395 75%, #9dafb4 100%);
-      color: white;
-    }
-    body::before {
-      content: '';
-      position: fixed; inset: 0;
-      background: linear-gradient(135deg, #1e6356 0%, #8ea3a6 25%, #47919d 50%, #59a395 75%, #9dafb4 100%);
-      z-index: -2;
-    }
-    body::after {
-      content: '';
-      position: fixed; inset: 0;
-      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
-      background-size: 200px 200px;
-      opacity: 0.4; z-index: -1; pointer-events: none;
-    }
+    body { font-family: Helvetica, 'Helvetica Neue', Arial, sans-serif; min-height: 100vh; background: #272b08; color: white; }
+    
+    
     .header {
-      position: sticky; top: 0; z-index: 100;
+      position: sticky; top: 0; z-index: 100; position: relative;
       background: rgba(255,255,255,0.15);
       backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
       border-bottom: 1px solid rgba(255,255,255,0.25);
@@ -140,9 +124,50 @@
     .pagination button:hover:not(:disabled) { background: white; color: #6a9ab8 }
     .pagination button:disabled { opacity: 0.3; cursor: default }
     .pagination span { font-size: 12px; color: rgba(255,255,255,0.5) }
-  </style>
+  
+  /* ── Animated mesh blobs ── */
+  .gradient-bg { position: fixed; inset: 0; z-index: 0; overflow: hidden; background: #272b08; }
+  .gradient-bg::before, .gradient-bg::after, .b1, .b2, .b3 {
+    position: absolute; border-radius: 50%; filter: blur(90px); opacity: 0.9;
+  }
+  .gradient-bg::before { content: ''; width: 70vw; height: 70vw;
+    background: radial-gradient(circle, #60886a, transparent 70%);
+    top: -20%; left: -10%; animation: blob1 11s ease-in-out infinite alternate; }
+  .gradient-bg::after { content: ''; width: 60vw; height: 60vw;
+    background: radial-gradient(circle, #79a28e, transparent 70%);
+    bottom: -15%; right: -10%; animation: blob2 14s ease-in-out infinite alternate; }
+  .b1 { width: 55vw; height: 55vw; background: radial-gradient(circle, #466030, transparent 70%);
+    top: 30%; left: 30%; animation: blob3 9s ease-in-out infinite alternate; }
+  .b2 { width: 45vw; height: 45vw; background: radial-gradient(circle, #9ad5c8, transparent 70%);
+    top: -10%; right: 10%; animation: blob4 13s ease-in-out infinite alternate; }
+  .b3 { width: 50vw; height: 50vw; background: radial-gradient(circle, #1a2008, transparent 70%);
+    bottom: 10%; left: 20%; animation: blob5 16s ease-in-out infinite alternate; }
+  /* ── Vignette ── */
+  .vignette { position: fixed; inset: 0; z-index: 1; pointer-events: none;
+    background: radial-gradient(ellipse at center, transparent 40%, rgba(10,12,4,0.55) 100%); }
+  /* ── Film grain ── */
+  .grain { position: fixed; inset: 0; z-index: 2; pointer-events: none; }
+  .grain::before { content: ''; position: absolute; inset: -50%; width: 200%; height: 200%;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='grain'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23grain)'/%3E%3C/svg%3E");
+    background-size: 200px 200px; opacity: 0.12; mix-blend-mode: overlay;
+    animation: grain-shift 0.15s steps(1) infinite; }
+  @keyframes grain-shift {
+    0%{transform:translate(0,0)} 10%{transform:translate(-3%,-4%)} 20%{transform:translate(4%,2%)}
+    30%{transform:translate(-2%,5%)} 40%{transform:translate(5%,-3%)} 50%{transform:translate(-4%,4%)}
+    60%{transform:translate(3%,-2%)} 70%{transform:translate(-5%,3%)} 80%{transform:translate(2%,-5%)}
+    90%{transform:translate(-3%,2%)} 100%{transform:translate(4%,-4%)} }
+  @keyframes blob1 { 0%{transform:translate(0,0) scale(1)} 33%{transform:translate(8vw,5vh) scale(1.1)} 66%{transform:translate(-5vw,10vh) scale(0.95)} 100%{transform:translate(10vw,-8vh) scale(1.05)} }
+  @keyframes blob2 { 0%{transform:translate(0,0) scale(1)} 33%{transform:translate(-10vw,-6vh) scale(1.08)} 66%{transform:translate(6vw,-12vh) scale(1.12)} 100%{transform:translate(-8vw,5vh) scale(0.92)} }
+  @keyframes blob3 { 0%{transform:translate(0,0) scale(1)} 50%{transform:translate(-12vw,8vh) scale(1.15)} 100%{transform:translate(8vw,-10vh) scale(0.9)} }
+  @keyframes blob4 { 0%{transform:translate(0,0) scale(0.9)} 50%{transform:translate(10vw,12vh) scale(1.1)} 100%{transform:translate(-6vw,6vh) scale(1)} }
+  @keyframes blob5 { 0%{transform:translate(0,0) scale(1.1)} 50%{transform:translate(14vw,-8vh) scale(0.9)} 100%{transform:translate(-10vw,-12vh) scale(1.05)} }
+
+</style>
 </head>
 <body>
+<div class="gradient-bg"><div class="b1"></div><div class="b2"></div><div class="b3"></div></div>
+<div class="vignette"></div>
+<div class="grain"></div>
 <div class="header">
   <a class="logo" href="/">CERNIM CHERNO</a>
   <div class="hstats" id="hstats"></div>
@@ -153,7 +178,7 @@
     <a href="/order">Заказ</a>
   </nav>
 </div>
-<div class="main">
+<div class="main" style="position:relative;z-index:3;">
   <div class="upload-zone" id="dropzone">
     <input type="file" id="file-input" accept=".xls" multiple style="display:none">
     <div class="upload-icon" id="upload-icon">↑</div>

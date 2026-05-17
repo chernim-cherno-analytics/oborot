@@ -7,17 +7,9 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0 }
-    body { font-family: Helvetica, 'Helvetica Neue', Arial, sans-serif; min-height: 100vh; background: linear-gradient(135deg, #1e6356 0%, #8ea3a6 25%, #47919d 50%, #59a395 75%, #9dafb4 100%); color: #1a2a3a }
-    body::before {
-      content: ""; position: fixed; inset: 0;
-      background: linear-gradient(135deg, #1e6356 0%, #8ea3a6 25%, #47919d 50%, #59a395 75%, #9dafb4 100%);
-      z-index: -2;
-    }
-    body::after {
-      content: ""; position: fixed; inset: 0;
-      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
-      background-size: 200px 200px; opacity: 0.4; z-index: -1; pointer-events: none;
-    }
+    body { font-family: Helvetica, 'Helvetica Neue', Arial, sans-serif; min-height: 100vh; background: #272b08; color: white; }
+    
+    
 
     /* NAV */
     .header {
@@ -27,15 +19,15 @@
       padding: 0 28px; height: 56px;
       display: flex; align-items: center; justify-content: space-between;
     }
-    .logo { font-size: 14px; font-weight: 600; letter-spacing: 0.18em; color: #1a2a3a; text-decoration: none }
+    .logo { font-size: 14px; font-weight: 600; letter-spacing: 0.18em; color: white; text-decoration: none }
     .nav { display: flex; gap: 6px }
     .nav a {
-      font-size: 12px; font-weight: 500; color: rgba(26,42,58,0.6);
+      font-size: 12px; font-weight: 500; color: rgba(255,255,255,0.5);
       text-decoration: none; padding: 6px 14px; border-radius: 20px;
       border: 1px solid rgba(26,42,58,0.15); transition: all .2s;
     }
-    .nav a:hover { background: rgba(255,255,255,0.4); color: #1a2a3a }
-    .nav a.active { background: #1a2a3a; color: white; border-color: #1a2a3a }
+    .nav a:hover { background: rgba(255,255,255,0.4); color: white }
+    .nav a.active { background: #1a2a3a; color: white; border-color: white }
 
     /* DATE MODAL */
     .modal-overlay {
@@ -50,12 +42,12 @@
       padding: 36px; width: 460px;
       box-shadow: 0 24px 80px rgba(0,0,0,0.15);
     }
-    .modal h2 { font-size: 20px; font-weight: 600; color: #1a2a3a; margin-bottom: 20px; text-align:center }
+    .modal h2 { font-size: 20px; font-weight: 600; color: white; margin-bottom: 20px; text-align:center }
     /* Tabs */
     .modal-tabs { display: flex; gap: 0; margin-bottom: 24px; border-radius: 10px; overflow: hidden; border: 1px solid rgba(26,42,58,0.12) }
     .modal-tab {
       flex: 1; padding: 10px; text-align: center; font-size: 12px; font-weight: 600;
-      color: rgba(26,42,58,0.5); cursor: pointer; background: rgba(255,255,255,0.4);
+      color: rgba(255,255,255,0.5); cursor: pointer; background: rgba(255,255,255,0.4);
       transition: all .15s; letter-spacing:.03em;
     }
     .modal-tab:first-child { border-right: 1px solid rgba(26,42,58,0.1) }
@@ -69,14 +61,14 @@
     .modal input[type=date], .modal input[type=text] {
       width: 100%; padding: 11px 14px; border-radius: 10px;
       border: 1.5px solid rgba(26,42,58,0.15); background: rgba(255,255,255,0.6);
-      font-family: Helvetica, 'Helvetica Neue', Arial, sans-serif; font-size: 14px; font-weight: 500; color: #1a2a3a;
+      font-family: Helvetica, 'Helvetica Neue', Arial, sans-serif; font-size: 14px; font-weight: 500; color: white;
       outline: none; margin-bottom: 14px; transition: border-color .2s;
     }
-    .modal input:focus { border-color: #1a2a3a }
+    .modal input:focus { border-color: white }
     .modal select {
       width: 100%; padding: 11px 14px; border-radius: 10px;
       border: 1.5px solid rgba(26,42,58,0.15); background: rgba(255,255,255,0.6);
-      font-family: Helvetica, 'Helvetica Neue', Arial, sans-serif; font-size: 14px; color: #1a2a3a;
+      font-family: Helvetica, 'Helvetica Neue', Arial, sans-serif; font-size: 14px; color: white;
       outline: none; margin-bottom: 14px; cursor: pointer;
     }
     .modal-btn {
@@ -98,17 +90,17 @@
       border-radius: 10px; padding: 8px 16px; min-width: 130px; text-align: center;
     }
     .sum-label { font-size: 10px; font-weight: 600; color: rgba(26,42,58,0.45); text-transform: uppercase; letter-spacing: .07em }
-    .sum-value { font-size: 18px; font-weight: 700; color: #1a2a3a; margin-top: 2px }
+    .sum-value { font-size: 18px; font-weight: 700; color: white; margin-top: 2px }
     .sum-value.green { color: #166534 }
     .sum-actions { margin-left: auto; display: flex; gap: 8px; align-items: center }
     .btn-outline {
       padding: 8px 16px; border-radius: 20px; border: 1.5px solid rgba(26,42,58,0.25);
-      background: rgba(255,255,255,0.35); color: #1a2a3a; font-size: 12px;
+      background: rgba(255,255,255,0.35); color: white; font-size: 12px;
       font-weight: 500; cursor: pointer; font-family: Helvetica, 'Helvetica Neue', Arial, sans-serif; transition: all .2s;
     }
     .btn-outline:hover { background: rgba(255,255,255,0.6) }
     .arrival-chip {
-      font-size: 12px; color: rgba(26,42,58,0.5); font-weight: 500;
+      font-size: 12px; color: rgba(255,255,255,0.5); font-weight: 500;
       padding: 6px 12px; border-radius: 20px; background: rgba(26,42,58,0.06);
       cursor: pointer; border: 1px solid rgba(26,42,58,0.1); transition: all .2s;
     }
@@ -124,10 +116,10 @@
     .season-tab {
       font-size: 12px; font-weight: 500; padding: 5px 12px; border-radius: 20px;
       border: 1px solid rgba(26,42,58,0.15); background: rgba(255,255,255,0.3);
-      color: rgba(26,42,58,0.6); cursor: pointer; transition: all .15s;
+      color: rgba(255,255,255,0.5); cursor: pointer; transition: all .15s;
     }
-    .season-tab:hover { background: rgba(255,255,255,0.5); color: #1a2a3a }
-    .season-tab.active { background: #1a2a3a; color: white; border-color: #1a2a3a }
+    .season-tab:hover { background: rgba(255,255,255,0.5); color: white }
+    .season-tab.active { background: #1a2a3a; color: white; border-color: white }
 
     /* MAIN TABLE */
     .main { padding: 20px 28px }
@@ -151,7 +143,7 @@
     colgroup col:nth-child(12) { width: 80px }
     thead th {
       background: rgba(26,42,58,0.08); padding: 10px 10px; text-align: center;
-      font-size: 10px; font-weight: 600; color: rgba(26,42,58,0.5);
+      font-size: 10px; font-weight: 600; color: rgba(255,255,255,0.5);
       letter-spacing: 0.06em; text-transform: uppercase;
       border-bottom: 1px solid rgba(255,255,255,0.3); white-space: nowrap;
       position: sticky; top: 0; z-index: 10;
@@ -176,20 +168,20 @@
     .rr:hover  td { background: rgba(239,68,68,0.18) !important }
 
     .rank { font-size: 11px; color: rgba(26,42,58,0.3) }
-    .pname { font-weight: 500; font-size: 12px; color: #1a2a3a; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+    .pname { font-weight: 500; font-size: 12px; color: white; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
     .cat-badge {
       font-size: 10px; padding: 1px 6px; border-radius: 8px;
       background: rgba(26,42,58,0.07); color: rgba(26,42,58,0.45); font-weight: 500;
     }
     .nb { font-variant-numeric: tabular-nums }
-    .order-qty-big { font-weight: 800; font-size: 15px; color: #1a2a3a }
+    .order-qty-big { font-weight: 800; font-size: 15px; color: white }
     .highlight-green { color: #166534; font-weight: 700 }
 
     /* Cost input */
     .cost-input {
       width: 80px; padding: 4px 6px; border-radius: 6px; text-align: right;
       border: 1.5px solid transparent; background: rgba(255,255,255,0.3);
-      font-family: Helvetica, 'Helvetica Neue', Arial, sans-serif; font-size: 12px; font-weight: 500; color: #1a2a3a;
+      font-family: Helvetica, 'Helvetica Neue', Arial, sans-serif; font-size: 12px; font-weight: 500; color: white;
       transition: border-color .2s; outline: none;
     }
     .cost-input:focus { border-color: rgba(26,42,58,0.3); background: rgba(255,255,255,0.6) }
@@ -212,9 +204,50 @@
     }
 
     .loading-msg { text-align: center; padding: 60px; color: rgba(26,42,58,0.4); font-size: 13px }
-  </style>
+  
+  /* ── Animated mesh blobs ── */
+  .gradient-bg { position: fixed; inset: 0; z-index: 0; overflow: hidden; background: #272b08; }
+  .gradient-bg::before, .gradient-bg::after, .b1, .b2, .b3 {
+    position: absolute; border-radius: 50%; filter: blur(90px); opacity: 0.9;
+  }
+  .gradient-bg::before { content: ''; width: 70vw; height: 70vw;
+    background: radial-gradient(circle, #60886a, transparent 70%);
+    top: -20%; left: -10%; animation: blob1 11s ease-in-out infinite alternate; }
+  .gradient-bg::after { content: ''; width: 60vw; height: 60vw;
+    background: radial-gradient(circle, #79a28e, transparent 70%);
+    bottom: -15%; right: -10%; animation: blob2 14s ease-in-out infinite alternate; }
+  .b1 { width: 55vw; height: 55vw; background: radial-gradient(circle, #466030, transparent 70%);
+    top: 30%; left: 30%; animation: blob3 9s ease-in-out infinite alternate; }
+  .b2 { width: 45vw; height: 45vw; background: radial-gradient(circle, #9ad5c8, transparent 70%);
+    top: -10%; right: 10%; animation: blob4 13s ease-in-out infinite alternate; }
+  .b3 { width: 50vw; height: 50vw; background: radial-gradient(circle, #1a2008, transparent 70%);
+    bottom: 10%; left: 20%; animation: blob5 16s ease-in-out infinite alternate; }
+  /* ── Vignette ── */
+  .vignette { position: fixed; inset: 0; z-index: 1; pointer-events: none;
+    background: radial-gradient(ellipse at center, transparent 40%, rgba(10,12,4,0.55) 100%); }
+  /* ── Film grain ── */
+  .grain { position: fixed; inset: 0; z-index: 2; pointer-events: none; }
+  .grain::before { content: ''; position: absolute; inset: -50%; width: 200%; height: 200%;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='grain'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23grain)'/%3E%3C/svg%3E");
+    background-size: 200px 200px; opacity: 0.12; mix-blend-mode: overlay;
+    animation: grain-shift 0.15s steps(1) infinite; }
+  @keyframes grain-shift {
+    0%{transform:translate(0,0)} 10%{transform:translate(-3%,-4%)} 20%{transform:translate(4%,2%)}
+    30%{transform:translate(-2%,5%)} 40%{transform:translate(5%,-3%)} 50%{transform:translate(-4%,4%)}
+    60%{transform:translate(3%,-2%)} 70%{transform:translate(-5%,3%)} 80%{transform:translate(2%,-5%)}
+    90%{transform:translate(-3%,2%)} 100%{transform:translate(4%,-4%)} }
+  @keyframes blob1 { 0%{transform:translate(0,0) scale(1)} 33%{transform:translate(8vw,5vh) scale(1.1)} 66%{transform:translate(-5vw,10vh) scale(0.95)} 100%{transform:translate(10vw,-8vh) scale(1.05)} }
+  @keyframes blob2 { 0%{transform:translate(0,0) scale(1)} 33%{transform:translate(-10vw,-6vh) scale(1.08)} 66%{transform:translate(6vw,-12vh) scale(1.12)} 100%{transform:translate(-8vw,5vh) scale(0.92)} }
+  @keyframes blob3 { 0%{transform:translate(0,0) scale(1)} 50%{transform:translate(-12vw,8vh) scale(1.15)} 100%{transform:translate(8vw,-10vh) scale(0.9)} }
+  @keyframes blob4 { 0%{transform:translate(0,0) scale(0.9)} 50%{transform:translate(10vw,12vh) scale(1.1)} 100%{transform:translate(-6vw,6vh) scale(1)} }
+  @keyframes blob5 { 0%{transform:translate(0,0) scale(1.1)} 50%{transform:translate(14vw,-8vh) scale(0.9)} 100%{transform:translate(-10vw,-12vh) scale(1.05)} }
+
+</style>
 </head>
 <body>
+<div class="gradient-bg"><div class="b1"></div><div class="b2"></div><div class="b3"></div></div>
+<div class="vignette"></div>
+<div class="grain"></div>
 
 <!-- Header -->
 <div class="header">
@@ -304,7 +337,7 @@
 </div>
 
 <!-- Table -->
-<div class="main" id="main-area" style="display:none">
+<div class="main" style="position:relative;z-index:3;" id="main-area" style="display:none">
   <div class="table-outer">
     <table>
       <colgroup>
