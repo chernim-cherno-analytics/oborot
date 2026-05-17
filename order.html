@@ -118,16 +118,18 @@
       overflow: auto; max-height: calc(100vh - 220px);
     }
     table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 1000px; table-layout: fixed }
-    colgroup col:nth-child(1) { width: 36px }
-    colgroup col:nth-child(2) { width: 220px }
-    colgroup col:nth-child(3) { width: 80px }
-    colgroup col:nth-child(4) { width: 90px }
-    colgroup col:nth-child(5) { width: 70px }
-    colgroup col:nth-child(6) { width: 90px }
-    colgroup col:nth-child(7) { width: 110px }
-    colgroup col:nth-child(8) { width: 130px }
-    colgroup col:nth-child(9) { width: 110px }
-    colgroup col:nth-child(10) { width: 80px }
+    colgroup col:nth-child(1) { width: 32px }
+    colgroup col:nth-child(2) { width: 200px }
+    colgroup col:nth-child(3) { width: 70px }
+    colgroup col:nth-child(4) { width: 80px }
+    colgroup col:nth-child(5) { width: 60px }
+    colgroup col:nth-child(6) { width: 65px }
+    colgroup col:nth-child(7) { width: 65px }
+    colgroup col:nth-child(8) { width: 80px }
+    colgroup col:nth-child(9) { width: 105px }
+    colgroup col:nth-child(10) { width: 110px }
+    colgroup col:nth-child(11) { width: 95px }
+    colgroup col:nth-child(12) { width: 80px }
     thead th {
       background: rgba(26,42,58,0.08); padding: 10px 10px; text-align: center;
       font-size: 10px; font-weight: 600; color: rgba(26,42,58,0.5);
@@ -255,8 +257,8 @@
   <div class="table-outer">
     <table>
       <colgroup>
-        <col/><col/><col/><col/><col/>
-        <col/><col/><col/><col/><col/>
+        <col/><col/><col/><col/><col/><col/>
+        <col/><col/><col/><col/><col/><col/>
       </colgroup>
       <thead>
         <tr>
@@ -326,6 +328,86 @@ function getCat(n){
 // ─── State ───────────────────────────────────────────────────────────────────
 let stockData={}, allDates=[], excludedItems=new Set();
 let currentSeason="year", arrivalDate=null, stockLoaded=false;
+let adjustments={}; // base → ±qty adjustment
+let addedToOrder=new Set(); // bases added from "possible" section
+let currentProject=null; // {id, name, date, data:{costs,adjustments,excluded}}
+
+function loadAdjustments(){
+  try{ adjustments=JSON.parse(localStorage.getItem("cc_order_adj_v1")||"{}"); }catch(e){ adjustments={}; }
+}
+function saveAdjustments(){
+  try{ localStorage.setItem("cc_order_adj_v1", JSON.stringify(adjustments)); }catch(e){}
+  if(currentProject) saveProjectData();
+}
+function getFinalQty(base, calcQty){
+  return Math.max(0, calcQty + (adjustments[base]||0));
+}
+
+// ── Projects (stored in localStorage, shared via URL) ──
+function getProjects(){
+  try{ return JSON.parse(localStorage.getItem("cc_projects_v1")||"[]"); }catch(e){ return []; }
+}
+function saveProjects(projects){
+  try{ localStorage.setItem("cc_projects_v1", JSON.stringify(projects)); }catch(e){}
+}
+function showProjModal(){
+  const d=new Date(Date.now()+14*24*3600*1000);
+  document.getElementById("proj-date").value=d.toISOString().split("T")[0];
+  document.getElementById("proj-name").value="";
+  document.getElementById("proj-modal").classList.remove("hidden");
+}
+function hideProjModal(){
+  document.getElementById("proj-modal").classList.add("hidden");
+}
+function createProject(){
+  const name=document.getElementById("proj-name").value.trim();
+  const date=document.getElementById("proj-date").value;
+  if(!name||!date){alert("Укажи название и дату");return;}
+  const id="proj_"+Date.now();
+  const projects=getProjects();
+  const proj={id,name,date,created:new Date().toISOString(),
+    data:{costs:{...costs},adjustments:{...adjustments},excluded:[...excludedItems]}};
+  projects.push(proj);
+  saveProjects(projects);
+  hideProjModal();
+  refreshProjectSelect();
+  loadProject(id);
+}
+function refreshProjectSelect(){
+  const sel=document.getElementById("project-select");
+  const projects=getProjects();
+  sel.innerHTML=`<option value="">— без проекта —</option>`;
+  projects.forEach(p=>{
+    const opt=document.createElement("option");
+    opt.value=p.id; opt.textContent=p.name+" ("+new Date(p.date).toLocaleDateString("ru-RU",{day:"numeric",month:"short",year:"numeric"})+")";
+    sel.appendChild(opt);
+  });
+}
+function loadProject(id){
+  if(!id){currentProject=null;document.getElementById("proj-info").style.display="none";return;}
+  const projects=getProjects();
+  const proj=projects.find(p=>p.id===id);
+  if(!proj)return;
+  currentProject=proj;
+  // Load project data
+  costs=proj.data.costs||{};
+  adjustments=proj.data.adjustments||{};
+  excludedItems=new Set(proj.data.excluded||[]);
+  // Set arrival date from project
+  arrivalDate=proj.date;
+  document.getElementById("arrival-chip").textContent="📅 "+new Date(proj.date).toLocaleDateString("ru-RU",{day:"numeric",month:"long",year:"numeric"});
+  document.getElementById("proj-info").style.display="inline";
+  document.getElementById("proj-info").textContent="Проект: "+proj.name;
+  render();
+}
+function saveProjectData(){
+  if(!currentProject)return;
+  const projects=getProjects();
+  const idx=projects.findIndex(p=>p.id===currentProject.id);
+  if(idx<0)return;
+  projects[idx].data={costs:{...costs},adjustments:{...adjustments},excluded:[...excludedItems]};
+  saveProjects(projects);
+}
 let costs={}; // base → cost per unit
 
 // Load/save costs to localStorage
@@ -451,15 +533,13 @@ function render(){
     items.push({base,cat,order,sk});
   }
 
-  // Active orders: qty >= 5
-  const active=items.filter(x=>x.order.qty>=5)
+  // Active: turn>=2000, qty>=5 OR added from possible section
+  const active=items.filter(x=>(x.order.turn>=2000&&x.order.qty>=5)||addedToOrder.has(x.base))
     .sort((a,b)=>b.order.revPotential-a.order.revPotential);
-  // Small orders: qty 1-4
-  const small=items.filter(x=>x.order.qty>=1&&x.order.qty<5)
+  // Possible: turn 1000-2000, qty>=5
+  const possible=items.filter(x=>x.order.turn>=1000&&x.order.turn<2000&&x.order.qty>=5&&!addedToOrder.has(x.base))
     .sort((a,b)=>b.order.revPotential-a.order.revPotential);
-  // No order needed
-  const none=items.filter(x=>x.order.qty===0&&(x.sk?.nr||0)>0)
-    .sort((a,b)=>(b.order.turn||0)-(a.order.turn||0));
+  // (turn<1000 hidden entirely)
 
   // Totals from active only
   const totalQty=active.reduce((s,x)=>s+x.order.qty,0);
@@ -473,13 +553,15 @@ function render(){
   const maxRev=Math.max(...active.map(x=>x.order.revPotential),1);
   let rank=1;
 
-  function buildRow(base,cat,order,sk,showRank){
+  function buildRow(base,cat,order,sk,showRank,isPossible){
     const tr=document.createElement("tr");
     tr.className=rowCls(order.turn);
     tr.dataset.base=base;
     const costVal=costs[base]||"";
+    const adjVal=adjustments[base]||"";
     const pct=Math.min(100,Math.round(order.revPotential/maxRev*100));
     const orderCostStr=order.orderCost>0?fmtM(order.orderCost)+" ₽":"—";
+    const isAdjusted=(adjustments[base]||0)!==0;
     tr.innerHTML=`
       <td class="rank">${showRank?rank++:"—"}</td>
       <td>
@@ -491,11 +573,16 @@ function render(){
         <span class="nb">${order.atArrival}</span>
         ${order.sold>0?`<div style="font-size:10px;color:rgba(26,42,58,0.4)">↓${order.sold} за ${order.days}дн</div>`:""}
       </td>
-      <td class="order-qty-big">${order.qty}</td>
+      <td class="nb" style="color:rgba(26,42,58,0.5)">${order.calcQty}</td>
+      <td>
+        <input class="adj-input" type="number" placeholder="±0" value="${adjVal}"
+          data-base="${base.replace(/"/g,'&quot;')}" onchange="setAdj(this)" onblur="setAdj(this)"/>
+      </td>
+      <td class="${isAdjusted?'qty-final adjusted':'qty-final'}">${order.qty}</td>
       <td class="nb">${fmt(order.turn)} ₽</td>
       <td>
         <div style="display:flex;align-items:center;gap:6px;justify-content:center">
-          <div style="width:50px;height:4px;background:rgba(26,42,58,0.08);border-radius:2px;overflow:hidden">
+          <div style="width:40px;height:4px;background:rgba(26,42,58,0.08);border-radius:2px;overflow:hidden">
             <div style="height:100%;width:${pct}%;background:rgba(26,42,58,0.35);border-radius:2px"></div>
           </div>
           <span class="nb highlight-green">${fmtM(order.revPotential)} ₽</span>
@@ -503,54 +590,66 @@ function render(){
       </td>
       <td>
         <input class="cost-input" type="number" min="0" placeholder="0" value="${costVal}"
-          data-base="${base}" onchange="setCost(this)" onblur="setCost(this)"/>
+          data-base="${base.replace(/"/g,'&quot;')}" onchange="setCost(this)" onblur="setCost(this)"/>
       </td>
       <td class="nb order-cost-cell">${orderCostStr}</td>
-      <td>
-        <button class="btn-exclude btn-excl-row">Исключить</button>
+      <td style="display:flex;gap:4px;align-items:center;padding:6px 8px">
+        ${isPossible
+          ? `<button class="btn-add-order btn-add-row">В заказ</button>`
+          : `<button class="btn-exclude btn-excl-row">Исключить</button>`
+        }
       </td>`;
     return tr;
   }
 
   // Active section
   for(const{base,cat,order,sk}of active){
-    tb.appendChild(buildRow(base,cat,order,sk,true));
+    tb.appendChild(buildRow(base,cat,order,sk,true,false));
   }
 
-  // Small orders section
-  if(small.length){
+  // Possible section (turn 1000-2000)
+  if(possible.length){
     const sep=document.createElement("tr"); sep.className="section-row";
-    sep.innerHTML=`<td colspan="10">Менее 5 шт к заказу — не включены в итог (${small.length} позиций)</td>`;
+    sep.innerHTML=`<td colspan="12" style="color:rgba(180,120,0,0.7)">⚠ Возможно к заказу — оборачиваемость 1 000–2 000 ₽/день (${possible.length} позиций)</td>`;
     tb.appendChild(sep);
-    rank=1;
-    for(const{base,cat,order,sk}of small){
-      const tr=buildRow(base,cat,order,sk,false);
-      tr.style.opacity="0.6";
-      tb.appendChild(tr);
-    }
-  }
-
-  // No order needed
-  if(none.length){
-    const sep=document.createElement("tr"); sep.className="section-row";
-    sep.innerHTML=`<td colspan="10">Заказ не нужен — запаса хватает на 90 дней (${none.length} позиций)</td>`;
-    tb.appendChild(sep);
-    for(const{base,cat,order}of none){
-      const tr=document.createElement("tr"); tr.className="rgr";
-      tr.innerHTML=`
-        <td class="rank">—</td>
-        <td><span class="pname">${base}</span><span class="cat-badge">${cat}</span></td>
-        <td class="nb">${order.cur}</td>
-        <td class="nb">${order.atArrival}</td>
-        <td style="font-size:11px;color:rgba(26,42,58,0.4)">достаточно</td>
-        <td class="nb">${fmt(order.turn)} ₽</td>
-        <td colspan="4"></td>`;
-      tb.appendChild(tr);
+    for(const{base,cat,order,sk}of possible){
+      tb.appendChild(buildRow(base,cat,order,sk,false,true));
     }
   }
 
   if(!items.length){
     tb.innerHTML=`<tr><td colspan="10" class="loading-msg">Нет данных</td></tr>`;
+  }
+}
+
+function setAdj(inp){
+  const base=inp.dataset.base;
+  const val=parseInt(inp.value)||0;
+  if(val===0) delete adjustments[base]; else adjustments[base]=val;
+  saveAdjustments();
+  // Update final qty cell and order cost cell in same row
+  const order=computeOrder(base);
+  if(order){
+    const tr=inp.closest("tr");
+    const qtyCell=tr.querySelector(".qty-final");
+    if(qtyCell){
+      qtyCell.textContent=order.qty;
+      qtyCell.className=(order.adj!==0)?'qty-final adjusted':'qty-final';
+    }
+    const costCell=tr.querySelector(".order-cost-cell");
+    if(costCell) costCell.textContent=order.orderCost>0?fmtM(order.orderCost)+" ₽":"—";
+    // Update totals
+    const active=[];
+    for(const tr2 of document.querySelectorAll("tbody tr[data-base]")){
+      const b=tr2.dataset.base; const o=computeOrder(b); if(!o)continue;
+      if((o.turn>=2000&&o.qty>=5)||addedToOrder.has(b)) active.push(o);
+    }
+    const tq=active.reduce((s,x)=>s+x.qty,0);
+    const tc=active.reduce((s,x)=>s+x.orderCost,0);
+    const tr2=active.reduce((s,x)=>s+x.revPotential,0);
+    document.getElementById("s-qty").textContent=fmt(tq)+" шт";
+    document.getElementById("s-cost").textContent=tc>0?fmtM(tc)+" ₽":"—";
+    document.getElementById("s-rev").textContent=fmtM(tr2)+" ₽";
   }
 }
 
@@ -581,12 +680,12 @@ function exclude(base){
 }
 
 function exportCSV(){
-  const rows=[["Название","Категория","Сейчас","На приход","К заказу","Оборач ₽/д","Потенциал ₽","Себестоимость","Стоимость заказа"]];
+  const rows=[["Название","Категория","Сейчас","На приход","Расчёт шт","Корр ±шт","Итого шт","Оборач ₽/д","Потенциал ₽","Себестоимость","Стоимость заказа"]];
   for(const tr of document.querySelectorAll("tbody tr[data-base]")){
     const base=tr.dataset.base; const cat=getCat(base)||"";
     const order=computeOrder(base); if(!order||order.qty<1)continue;
-    rows.push([base,cat,order.cur,order.atArrival,order.qty,
-      Math.round(order.turn),Math.round(order.revPotential),
+    rows.push([base,cat,order.cur,order.atArrival,order.calcQty,
+      order.adj||0,order.qty,Math.round(order.turn),Math.round(order.revPotential),
       costs[base]||"",Math.round(order.orderCost)]);
   }
   const csv=rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,"")}"`).join(",")).join("\n");
@@ -624,15 +723,14 @@ async function loadStock(){
 }
 
 document.body.addEventListener("click",function(e){
-  const btn=e.target.closest(".btn-excl-row");
-  if(!btn)return;
-  const tr=btn.closest("tr[data-base]");
-  if(!tr)return;
-  exclude(tr.dataset.base);
+  const excl=e.target.closest(".btn-excl-row");
+  if(excl){ const tr=excl.closest("tr[data-base]"); if(tr) exclude(tr.dataset.base); return; }
+  const add=e.target.closest(".btn-add-row");
+  if(add){ const tr=add.closest("tr[data-base]"); if(tr){ addedToOrder.add(tr.dataset.base); render(); } return; }
 });
 
 async function init(){
-  loadCosts(); loadExcluded(); initModal();
+  loadCosts(); loadExcluded(); loadAdjustments(); initModal(); refreshProjectSelect();
   try{
     await loadStock();
   }catch(e){
