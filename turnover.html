@@ -58,17 +58,17 @@
     }
     table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 1200px; table-layout: fixed }
     thead th {
-      background: rgba(26,42,58,0.08); padding: 10px 10px; text-align: center;
-      font-size: 10px; font-weight: 600; color: rgba(255,255,255,0.5);
-      letter-spacing: 0.06em; text-transform: uppercase;
-      border-bottom: 1px solid rgba(255,255,255,0.3); white-space: nowrap; position: sticky; top: 0; z-index: 10;
+      background: rgba(30,38,18,0.88);
+      backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+      padding: 10px 10px 10px; text-align: center;
+      font-size: 10px; font-weight: 500; color: rgba(255,255,255,0.45);
+      letter-spacing: 0.07em; text-transform: uppercase;
+      white-space: nowrap; position: sticky; top: 0; z-index: 10;
+      border-bottom: 1px solid rgba(255,255,255,0.12);
     }
     thead th:first-child { text-align: left; padding-left: 14px; min-width: 220px }
-    .subhead th {
-      background: rgba(26,42,58,0.04); padding: 5px 10px;
-      font-size: 10px; color: rgba(26,42,58,0.35); font-weight: 400;
-      border-bottom: 1px solid rgba(255,255,255,0.25); position: sticky; top: 37px; z-index: 10;
-    }
+    thead th .sub { display:block; font-size:9px; font-weight:400; letter-spacing:0; text-transform:none; opacity:0.45; margin-top:2px; }
+
     tbody tr.pr td {
       padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,0.12);
       text-align: center; vertical-align: middle;
@@ -164,7 +164,7 @@
 <div class="vignette"></div>
 <div class="grain"></div>
 <div class="header">
-  <a class="logo" href="/"><img src="/logo.png" alt="Chernim Cherno" style="height:26px;opacity:0.9;display:block;"></a>
+  <a class="logo" href="/" style="font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;font-size:15px;font-weight:400;letter-spacing:0.12em;color:rgba(255,255,255,0.88);text-decoration:none;">Chernim Cherno</a>
   <nav class="nav">
     <a href="/">Data</a>
     <a href="/analytics">Остатки</a>
@@ -177,7 +177,9 @@
   <div class="upload-bar">
     <input type="file" id="si" accept=".csv" multiple>
     <button class="upload-btn" onclick="document.getElementById('si').click()">↑ Загрузить CSV продаж</button>
-    <span id="us" style="color:rgba(26,42,58,0.45)">Обновление данных продаж из МоегоСклада</span>
+    <span id="us" style="color:rgba(255,255,255,0.4);line-height:1.6">
+      Для обновления данных перейдите по <a href="https://docs.google.com/spreadsheets/d/1mjz4Zjcq86TqkIbjc-s4nZyGUHAR0kLiNY1NH-MnBpk/edit?gid=1082363897#gid=1082363897" target="_blank" style="color:rgba(255,255,255,0.7);text-decoration:underline;text-underline-offset:3px">ссылке</a>, нажмите «Экспорт» и сохраните таблицу в CSV-формате. Сохранить нужно два листа: <b style="color:rgba(255,255,255,0.6);font-weight:500">Продажи</b> и <b style="color:rgba(255,255,255,0.6);font-weight:500">Возвраты</b>.
+    </span>
   </div>
   <div class="table-outer">
     <table id="mt">
@@ -190,23 +192,22 @@
       </colgroup>
       <thead>
         <tr>
-          <th rowspan="2" style="vertical-align:bottom">Название</th>
-          <th rowspan="2">Дней<br>в стоке</th>
-          <th rowspan="2">Ср. цена<br>продажи</th>
-          <th rowspan="2">Оборач.<br>за год</th>
-          <th>Зима</th><th>Весна</th><th>Лето</th><th>Осень</th>
-          <th rowspan="2">Остаток<br>шт</th>
-          <th rowspan="2">Запас<br>дней</th>
-          <th rowspan="2">Затовари-<br>вание</th>
-          <th rowspan="2">Недостаток<br>шт</th>
-          <th colspan="4">Заказ (3 мес)</th>
-        </tr>
-        <tr class="subhead">
-          <th>₽/день</th><th>₽/день</th><th>₽/день</th><th>₽/день</th>
-          <th style="color:#4ade80">Весна</th>
-          <th style="color:#fb923c">Лето</th>
-          <th style="color:#a78bfa">Осень</th>
-          <th style="color:#60a5fa">Зима</th>
+          <th>Название</th>
+          <th>Дней<br><span class="sub">в стоке</span></th>
+          <th>Ср. цена<br><span class="sub">продажи</span></th>
+          <th>Оборач.<br><span class="sub">за год</span></th>
+          <th>Зима<br><span class="sub">₽/день</span></th>
+          <th>Весна<br><span class="sub">₽/день</span></th>
+          <th>Лето<br><span class="sub">₽/день</span></th>
+          <th>Осень<br><span class="sub">₽/день</span></th>
+          <th>Остаток<br><span class="sub">шт</span></th>
+          <th>Запас<br><span class="sub">дней</span></th>
+          <th>Затовари-<br><span class="sub">вание</span></th>
+          <th>Недостаток<br><span class="sub">шт</span></th>
+          <th>Весна<br><span class="sub">заказ</span></th>
+          <th>Лето<br><span class="sub">заказ</span></th>
+          <th>Осень<br><span class="sub">заказ</span></th>
+          <th>Зима<br><span class="sub">заказ</span></th>
         </tr>
       </thead>
       <tbody id="tb"><tr><td colspan="16" class="loading">Загружаю данные...</td></tr></tbody>
