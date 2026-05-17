@@ -429,10 +429,6 @@ function loadProject(id){
   const proj=projects.find(p=>p.id===id);
   if(!proj)return;
   currentProject=proj;
-  // Load project data
-  costs=proj.data.costs||{};
-  adjustments=proj.data.adjustments||{};
-  excludedItems=new Set(proj.data.excluded||[]);
   // Set arrival date from project
   arrivalDate=proj.date;
   document.getElementById("arrival-chip").textContent="📅 "+new Date(proj.date).toLocaleDateString("ru-RU",{day:"numeric",month:"long",year:"numeric"});
@@ -440,16 +436,11 @@ function loadProject(id){
   render();
 }
 function saveProjectData(){
-  if(!currentProject)return;
-  const projects=getProjects();
-  const idx=projects.findIndex(p=>p.id===currentProject.id);
-  if(idx<0)return;
-  projects[idx].data={costs:{...costs},adjustments:{...adjustments},excluded:[...excludedItems],addedToOrder:[...addedToOrder]};
-  saveProjects(projects);
+  // costs, adjustments, excluded теперь хранятся на сервере глобально
+  // проект хранит только имя и дату прихода
 }
 let costs={}; // base → cost per unit
 
-// Load/save costs to localStorage
 async function loadCosts(){
   try{ costs=await(await fetch("/api/costs")).json(); }catch(e){ costs={}; }
 }
@@ -508,10 +499,6 @@ function confirmExistingProject(){
   const proj=projects.find(p=>p.id===id);
   if(!proj)return;
   currentProject=proj;
-  costs=proj.data.costs||{};
-  adjustments=proj.data.adjustments||{};
-  excludedItems=new Set(proj.data.excluded||[]);
-  addedToOrder=new Set(proj.data.addedToOrder||[]);
   const _pi=document.getElementById("proj-info"); if(_pi){_pi.style.display="inline";_pi.textContent="Проект: "+proj.name;}
   openWithDate(proj.date);
 }
