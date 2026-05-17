@@ -800,37 +800,11 @@ function exportCSV(){
 
 // ─── Load stock data ──────────────────────────────────────────────────────────
 async function loadStock(){
-  const dj=await(await fetch("/api/dates")).json();
-  allDates=dj.map(d=>d.date).sort();
-  if(!allDates.length)return;
-  const ck="cc_ord_stock_v2",dk="cc_ord_dates_v2",cds=JSON.stringify(allDates);
-  try{
-    if(localStorage.getItem(dk)===cds){
-      const c=JSON.parse(localStorage.getItem(ck));if(c){stockData=c;return;}
-    }
-  }catch(e){}
-  stockData={};
-  const totalDates=allDates.length;
-  for(let i=0;i<totalDates;i++){
-    const date=allDates[i];let page=1,more=true;
-    while(more){
-      const r=await(await fetch(`/api/stocks?date=${date}&page=${page}&per_page=200`)).json();
-      for(const it of r.items){
-        const b=stripSize(it.sku_name);
-        if(!stockData[b])stockData[b]={};
-        stockData[b][date]=(stockData[b][date]||0)+it.stock_qty;
-      }
-      if(page>=r.pages)more=false;page++;
-    }
-    // Update progress in table if visible
-    if(i%5===0){
-      const pct=Math.round(i/totalDates*100);
-      const tb=document.getElementById("tb");
-      if(tb) tb.innerHTML=`<tr><td colspan="12" class="loading-msg">⏳ Загружаю данные: ${pct}% (${i}/${totalDates} дат)...</td></tr>`;
-      await new Promise(r=>setTimeout(r,0));
-    }
-  }
-  try{localStorage.setItem(ck,JSON.stringify(stockData));localStorage.setItem(dk,cds);}catch(e){}
+  const tb=document.getElementById("tb");
+  if(tb) tb.innerHTML=`<tr><td colspan="12" class="loading-msg">⏳ Загружаю данные...</td></tr>`;
+  const r=await(await fetch("/api/stocks/all")).json();
+  allDates=r.dates;
+  stockData=r.stock;
 }
 
 document.body.addEventListener("click",function(e){
