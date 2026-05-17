@@ -57,31 +57,36 @@
       border-color: white;
     }
 
+    /* Page description */
+    .page-desc {
+      font-size: 12px; line-height: 1.8;
+      color: rgba(255,255,255,0.5);
+      padding: 16px 28px 8px;
+    }
+
     /* Category bar */
     .cat-bar {
-      padding: 16px 28px;
+      padding: 10px 28px;
       display: flex; gap: 8px; flex-wrap: wrap;
-      border-bottom: 1px solid rgba(255,255,255,0.15);
     }
 
     .cat-btn {
-      font-size: 12px; font-weight: 500;
-      padding: 6px 14px; border-radius: 20px;
-      border: 1px solid rgba(255,255,255,0.3);
-      background: rgba(255,255,255,0.12);
-      color: rgba(255,255,255,0.8);
-      cursor: pointer; transition: all .2s;
+      font-size: 12px; font-weight: 400;
+      padding: 0; border-radius: 0;
+      border: none;
+      background: transparent;
+      color: rgba(255,255,255,0.28);
+      cursor: pointer; transition: color .2s;
       white-space: nowrap;
     }
-    .cat-btn:hover { background: rgba(255,255,255,0.22); color: white }
+    .cat-btn:hover { color: rgba(255,255,255,0.6) }
     .cat-btn.active {
-      background: white; color: #6a9ab8;
-      border-color: white; font-weight: 600;
+      color: rgba(255,255,255,0.92);
+      font-weight: 500;
     }
     .cat-btn .count {
-      font-size: 10px; opacity: 0.6; margin-left: 4px;
+      font-size: 10px; opacity: 0.6; margin-left: 3px;
     }
-    .cat-btn.active .count { opacity: 0.5 }
 
     /* Main */
     .main { padding: 24px 28px; max-width: 1600px; margin: 0 auto }
@@ -270,10 +275,10 @@
 <div class="grain"></div>
 
 <div class="header">
-  <a class="logo" href="/">CERNIM CHERNO</a>
+  <a class="logo" href="/"><img src="/logo.png" alt="Chernim Cherno" onerror="this.style.display='none';this.nextElementSibling.style.display='inline'" style="height:22px;opacity:0.82"/><span style="display:none;font-size:13px;font-weight:500;letter-spacing:0.12em;color:rgba(255,255,255,0.85)">CHERNIM CHERNO</span></a>
   <nav class="nav">
-    <a href="/">Остатки</a>
-    <a href="/analytics" class="active">Аналитика</a>
+    <a href="/">Data</a>
+    <a href="/analytics" class="active">Остатки</a>
     <a href="/turnover">Оборачиваемость</a>
     <a href="/order">Заказ</a>
   </nav>
@@ -284,12 +289,15 @@
 </div>
 
 <div class="main" style="position:relative;z-index:3;">
-  <div class="season-legend">
-    <span><div class="season-dot s-winter"></div>Зима</span>
-    <span><div class="season-dot s-spring"></div>Весна</span>
-    <span><div class="season-dot s-summer"></div>Лето</span>
-    <span><div class="season-dot s-autumn"></div>Осень</span>
+  <div class="page-desc">
+    На этой странице можно видеть динамику наличия позиций на протяжении сезонов.<br>
+    Тут можно отправить позицию в архив, и она исчезнет из таблицы оборачиваемости.<br>
+    Это стоит делать с вещами, которые более невозможно перепроизвести: семплы и брак.<br>
+    В архив стоит отправлять также единичные позиции — их оборачиваемость не репрезентативна.<br>
+    Вернуть вещь из архива можно внизу страницы.<br>
+    Для поиска товара выбери категорию:
   </div>
+
   <div id="product-list" class="product-list">
     <div class="loading">
       <div>Загружаю данные...</div>
@@ -584,6 +592,8 @@ function renderCategory(cat) {
   }
 }
 
+const SEASON_NAMES = { winter:'зима', spring:'весна', summer:'лето', autumn:'осень' };
+
 function drawChart(canvas, dateMap, dates, small, large) {
   const ctx = canvas.getContext('2d');
   const W = canvas.offsetWidth||canvas.width;
@@ -592,18 +602,7 @@ function drawChart(canvas, dateMap, dates, small, large) {
   ctx.clearRect(0,0,W,H);
   if (dates.length<2) return;
 
-  // Season backgrounds
-  let prevS=null, segStart=0;
-  for (let i=0; i<=dates.length; i++) {
-    const s = i<dates.length ? getSeason(dates[i]) : null;
-    if (s!==prevS && prevS!==null) {
-      const x1=(segStart/(dates.length-1))*W;
-      const x2=(Math.min(i,dates.length-1)/(dates.length-1))*W;
-      ctx.fillStyle=SEASON_COLORS[prevS];
-      ctx.fillRect(x1,0,x2-x1,H);
-    }
-    if (s!==prevS){prevS=s;segStart=i;}
-  }
+  const pad = small?2:large?16:4;
 
   // Build values with forward fill
   const vals=[]; let last=0;
@@ -612,25 +611,80 @@ function drawChart(canvas, dateMap, dates, small, large) {
     vals.push(last);
   }
   const maxVal=Math.max(...vals,1);
-  const pad=small?2:large?16:4;
 
-  // Line
-  ctx.beginPath();
-  ctx.strokeStyle=small?LINE_COLOR_DIM:LINE_COLOR;
-  ctx.lineWidth=small?1:large?2:1.5;
-  ctx.lineJoin='round';
-  for (let i=0;i<vals.length;i++) {
-    const x=(i/(vals.length-1))*W;
-    const y=H-pad-(vals[i]/maxVal)*(H-pad*2);
-    if (i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+  // Collect season segments
+  const segments=[];
+  let prevS=null, segStart=0;
+  for (let i=0; i<=dates.length; i++) {
+    const s = i<dates.length ? getSeason(dates[i]) : null;
+    if (s!==prevS && prevS!==null) {
+      segments.push({season:prevS, from:segStart, to:Math.min(i,dates.length-1)});
+    }
+    if (s!==prevS){prevS=s;segStart=i;}
   }
-  ctx.stroke();
 
-  // Fill
-  const lastX=W, lastY=H;
-  ctx.lineTo(lastX,H); ctx.lineTo(0,H); ctx.closePath();
-  ctx.fillStyle=small?'rgba(255,255,255,0.05)':'rgba(255,255,255,0.1)';
+  // Draw dashed dividers between seasons
+  const dividerXs = segments.slice(1).map(seg => (seg.from/(dates.length-1))*W);
+  ctx.save();
+  ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([3,4]);
+  // Left edge
+  ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(0,H); ctx.stroke();
+  // Right edge
+  ctx.beginPath(); ctx.moveTo(W,0); ctx.lineTo(W,H); ctx.stroke();
+  // Between segments
+  for (const x of dividerXs) {
+    ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke();
+  }
+  ctx.setLineDash([]);
+  ctx.restore();
+
+  // Season labels (only on main chart rows, not small/large)
+  if (!small) {
+    ctx.save();
+    ctx.font = `${large?11:9}px Helvetica, Arial, sans-serif`;
+    ctx.fillStyle = 'rgba(255,255,255,0.38)';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    for (const seg of segments) {
+      const x1=(seg.from/(dates.length-1))*W;
+      const x2=(seg.to/(dates.length-1))*W;
+      const cx=(x1+x2)/2;
+      ctx.fillText(SEASON_NAMES[seg.season], cx, 3);
+    }
+    ctx.restore();
+  }
+
+  // Build smooth path using bezier curves
+  const pts = vals.map((v,i) => ({
+    x: (i/(vals.length-1))*W,
+    y: H - pad - (v/maxVal)*(H-pad*2)
+  }));
+
+  // Gradient fill: light washed green → dark red
+  const grad = ctx.createLinearGradient(0, 0, W, 0);
+  grad.addColorStop(0, 'rgba(180,220,190,0.55)');
+  grad.addColorStop(0.5, 'rgba(160,200,175,0.45)');
+  grad.addColorStop(1, 'rgba(110,40,40,0.55)');
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(pts[0].x, pts[0].y);
+  for (let i=1; i<pts.length; i++) {
+    const prev=pts[i-1], curr=pts[i];
+    const cpx=(prev.x+curr.x)/2;
+    ctx.bezierCurveTo(cpx, prev.y, cpx, curr.y, curr.x, curr.y);
+  }
+  // Close path for fill
+  ctx.lineTo(pts[pts.length-1].x, H);
+  ctx.lineTo(pts[0].x, H);
+  ctx.closePath();
+  ctx.fillStyle = grad;
   ctx.fill();
+  ctx.restore();
+
+  // No stroke line — just the gradient fill area
 }
 
 window.addEventListener('resize', ()=>renderCategory(currentCat));
