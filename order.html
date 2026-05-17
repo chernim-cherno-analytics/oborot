@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-  <title>CernimCherno · Заказ</title>
+  <title>Chernim Cherno · Заказ</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0 }
@@ -13,21 +13,19 @@
 
     /* NAV */
     .header {
-      position: sticky; top: 0; z-index: 300;
-      background: rgba(255,255,255,0.25); backdrop-filter: blur(20px);
-      border-bottom: 1px solid rgba(255,255,255,0.4);
+      position: sticky; top: 0; z-index: 200;
       padding: 0 28px; height: 56px;
       display: flex; align-items: center; justify-content: space-between;
     }
-    .logo { font-size: 14px; font-weight: 600; letter-spacing: 0.18em; color: white; text-decoration: none }
-    .nav { display: flex; gap: 6px }
+    .logo { text-decoration: none; display:flex; align-items:center; }
+    .nav { display: flex; gap: 20px }
     .nav a {
-      font-size: 12px; font-weight: 500; color: rgba(255,255,255,0.5);
-      text-decoration: none; padding: 6px 14px; border-radius: 20px;
-      border: 1px solid rgba(26,42,58,0.15); transition: all .2s;
+      font-size: 13px; font-weight: 400; letter-spacing: 0.05em;
+      color: rgba(255,255,255,0.3);
+      text-decoration: none; transition: color .2s;
     }
-    .nav a:hover { background: rgba(255,255,255,0.4); color: white }
-    .nav a.active { background: #1a2a3a; color: white; border-color: white }
+    .nav a:hover { color: rgba(255,255,255,0.7) }
+    .nav a.active { color: rgba(255,255,255,0.92); font-weight: 500; }
 
     /* DATE MODAL */
     .modal-overlay {
@@ -251,10 +249,10 @@
 
 <!-- Header -->
 <div class="header">
-  <a class="logo" href="/">CERNIM CHERNO</a>
+  <a class="logo" href="/"><img src="/logo.png" alt="Chernim Cherno" style="height:26px;opacity:0.9;display:block;"></a>
   <nav class="nav">
-    <a href="/">Остатки</a>
-    <a href="/analytics">Аналитика</a>
+    <a href="/">Data</a>
+    <a href="/analytics">Остатки</a>
     <a href="/turnover">Оборачиваемость</a>
     <a href="/order" class="active">Заказ</a>
   </nav>

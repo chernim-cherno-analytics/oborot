@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-  <title>CernimCherno · Остатки</title>
+  <title>Chernim Cherno · Data</title>
   
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0 }
@@ -11,23 +11,21 @@
     
     
     .header {
-      position: sticky; top: 0; z-index: 100; position: relative;
-      background: rgba(255,255,255,0.15);
-      backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-      border-bottom: 1px solid rgba(255,255,255,0.25);
+      position: sticky; top: 0; z-index: 100;
       padding: 0 28px; height: 56px;
       display: flex; align-items: center; justify-content: space-between;
     }
-    .logo { font-size: 14px; font-weight: 600; letter-spacing: 0.18em; color: white; text-decoration: none }
-    .hstats { font-size: 11px; color: rgba(255,255,255,0.6) }
-    .nav { display: flex; gap: 6px }
+    .logo { text-decoration: none; display: flex; align-items: center; }
+    .logo img { height: 26px; display: block; }
+    .hstats { font-size: 11px; color: rgba(255,255,255,0.4) }
+    .nav { display: flex; gap: 20px }
     .nav a {
-      font-size: 12px; font-weight: 500; color: rgba(255,255,255,0.7);
-      text-decoration: none; padding: 6px 14px; border-radius: 20px;
-      border: 1px solid rgba(255,255,255,0.2); transition: all .2s;
+      font-size: 13px; font-weight: 400; letter-spacing: 0.05em;
+      color: rgba(255,255,255,0.3);
+      text-decoration: none; transition: color .2s;
     }
-    .nav a:hover { background: rgba(255,255,255,0.15); color: white }
-    .nav a.active { background: white; color: #6a9ab8; border-color: white }
+    .nav a:hover { color: rgba(255,255,255,0.7) }
+    .nav a.active { color: rgba(255,255,255,0.92); font-weight: 500; }
 
     .main { max-width: 1400px; margin: 0 auto; padding: 28px; display: flex; flex-direction: column; gap: 18px }
 
@@ -169,11 +167,11 @@
 <div class="vignette"></div>
 <div class="grain"></div>
 <div class="header">
-  <a class="logo" href="/">CERNIM CHERNO</a>
+  <a class="logo" href="/"><img src="/logo.png" alt="Chernim Cherno" style="height:26px;opacity:0.9;display:block;"></a>
   <div class="hstats" id="hstats"></div>
   <nav class="nav">
-    <a href="/" class="active">Остатки</a>
-    <a href="/analytics">Аналитика</a>
+    <a href="/" class="active">Data</a>
+    <a href="/analytics">Остатки</a>
     <a href="/turnover">Оборачиваемость</a>
     <a href="/order">Заказ</a>
   </nav>
