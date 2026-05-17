@@ -808,7 +808,8 @@ async function loadStock(){
     }
   }catch(e){}
   stockData={};
-  for(let i=0;i<allDates.length;i++){
+  const totalDates=allDates.length;
+  for(let i=0;i<totalDates;i++){
     const date=allDates[i];let page=1,more=true;
     while(more){
       const r=await(await fetch(`/api/stocks?date=${date}&page=${page}&per_page=200`)).json();
@@ -819,7 +820,13 @@ async function loadStock(){
       }
       if(page>=r.pages)more=false;page++;
     }
-    if(i%10===0)await new Promise(r=>setTimeout(r,0));
+    // Update progress in table if visible
+    if(i%5===0){
+      const pct=Math.round(i/totalDates*100);
+      const tb=document.getElementById("tb");
+      if(tb) tb.innerHTML=`<tr><td colspan="12" class="loading-msg">⏳ Загружаю данные: ${pct}% (${i}/${totalDates} дат)...</td></tr>`;
+      await new Promise(r=>setTimeout(r,0));
+    }
   }
   try{localStorage.setItem(ck,JSON.stringify(stockData));localStorage.setItem(dk,cds);}catch(e){}
 }
