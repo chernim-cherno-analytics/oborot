@@ -319,11 +319,13 @@
           <th style="text-align:left;padding-left:12px">Название</th>
           <th>Сейчас<br>в стоке</th>
           <th>На день<br>прихода</th>
-          <th>Заказать<br>шт</th>
+          <th>Расчёт<br>шт</th>
+          <th>Корр.<br>±шт</th>
+          <th>Итого<br>шт</th>
           <th>Оборач.<br>₽/день</th>
           <th>Потенциал<br>выручки</th>
           <th>Себестои-<br>мость ₽</th>
-          <th>Стоимость<br>заказа ₽</th>
+          <th>Стоим.<br>заказа ₽</th>
           <th></th>
         </tr>
       </thead>
@@ -609,12 +611,14 @@ function computeOrder(base){
   const sold=Math.min(cur,dq*days);
   const atArrival=Math.max(0,cur-sold);
   const needed=Math.ceil(dq*90);
-  const qty=Math.ceil(Math.max(0,needed-atArrival));
+  const calcQty=Math.ceil(Math.max(0,needed-atArrival));
+  const adj=adjustments[base]||0;
+  const qty=Math.max(0,calcQty+adj);
   const cost=costs[base]||0;
   const orderCost=qty*cost;
   const revPotential=qty*turn;
   const profit=cost>0?qty*(turn-cost):null;
-  return{cur,atArrival:Math.round(atArrival),sold:Math.round(sold),days,qty,turn,revPotential,cost,orderCost,profit,dq};
+  return{cur,atArrival:Math.round(atArrival),sold:Math.round(sold),days,calcQty,adj,qty,turn,revPotential,cost,orderCost,profit,dq};
 }
 
 function rowCls(t){
