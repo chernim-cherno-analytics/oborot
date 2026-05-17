@@ -1,10 +1,7 @@
 fastapi
 uvicorn
 python-multipart
+xlrd
 pandas
 openpyxl
-lxml
-html5lib
-beautifulsoup4
-xlrd
-
+httpx

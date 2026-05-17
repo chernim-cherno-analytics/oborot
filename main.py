@@ -1,12 +1,122 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException
-from fastapi.responses import FileResponse
+from fastapi import FastAPI, UploadFile, File, HTTPException, Request, Response
+from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
-import sqlite3, os, tempfile, re as _re
+import sqlite3, os, tempfile, re as _re, hashlib, secrets
 from datetime import datetime
 from typing import Optional
 
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+
+# ─── Auth ─────────────────────────────────────────────────────────────────────
+USERS = {
+    "Даша":    "котики",
+    "Влад":    "песики",
+    "Жасмина": "цветочки",
+    "Коля":    "бабочки",
+}
+SESSIONS: dict = {}  # token → username
+
+# ─── Telegram ─────────────────────────────────────────────────────────────────
+TG_TOKEN  = "8918384964:AAHQbzu0RZcuX8AKeINiODNYp73JICJrMGs"
+TG_CHAT   = "-5150649365"
+
+async def tg_send(text: str):
+    import httpx
+    url = f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage"
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            await client.post(url, json={"chat_id": TG_CHAT, "text": text, "parse_mode": "HTML"})
+    except Exception as e:
+        print(f"TG error: {e}")
+
+
+
+def make_token(): return secrets.token_hex(32)
+
+def check_auth(request: Request) -> bool:
+    token = request.cookies.get("cc_session")
+    return token and token in SESSIONS
+
+@app.post("/api/login")
+async def login(data: dict, response: Response):
+    name = data.get("name","").strip()
+    pwd  = data.get("password","").strip()
+    if USERS.get(name) == pwd:
+        token = make_token()
+        SESSIONS[token] = name
+        response.set_cookie("cc_session", token, max_age=30*24*3600, httponly=True, samesite="lax")
+        return {"ok": True, "name": name}
+    raise HTTPException(401, "Неверный пароль")
+
+@app.post("/api/logout")
+async def logout(request: Request, response: Response):
+    token = request.cookies.get("cc_session")
+    if token: SESSIONS.pop(token, None)
+    response.delete_cookie("cc_session")
+    return {"ok": True}
+
+@app.get("/api/me")
+def get_me(request: Request):
+    token = request.cookies.get("cc_session")
+    if token and token in SESSIONS:
+        return {"name": SESSIONS[token]}
+    raise HTTPException(401, "Не авторизован")
+
+LOGIN_HTML = """<!DOCTYPE html>
+<html lang="ru"><head><meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>CernimCherno · Вход</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:"Inter",sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;
+background:linear-gradient(160deg,#c2dff2 0%,#9ec4dc 40%,#b0d0e8 70%,#8ab8d4 100%)}
+.card{background:rgba(255,255,255,0.3);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,0.5);
+border-radius:16px;padding:40px;width:100%;max-width:360px}
+.logo{font-size:13px;font-weight:600;letter-spacing:0.2em;color:#1a2a3a;text-align:center;margin-bottom:32px}
+label{font-size:11px;font-weight:500;color:rgba(26,42,58,0.6);letter-spacing:0.05em;text-transform:uppercase;display:block;margin-bottom:6px}
+select,input{width:100%;padding:10px 14px;border:1px solid rgba(26,42,58,0.2);border-radius:8px;
+background:rgba(255,255,255,0.5);font-family:"Inter",sans-serif;font-size:13px;color:#1a2a3a;
+outline:none;margin-bottom:16px;transition:border .2s}
+select:focus,input:focus{border-color:rgba(26,42,58,0.4);background:rgba(255,255,255,0.7)}
+button{width:100%;padding:11px;background:#1a2a3a;color:white;border:none;border-radius:8px;
+font-family:"Inter",sans-serif;font-size:13px;font-weight:500;cursor:pointer;transition:opacity .2s}
+button:hover{opacity:0.85}
+.err{color:#e53e3e;font-size:12px;text-align:center;margin-top:8px;min-height:18px}
+</style></head>
+<body><div class="card">
+<div class="logo">CERNIM CHERNO</div>
+<label>Имя</label>
+<select id="name">
+  <option value="">— выберите —</option>
+  <option>Даша</option><option>Влад</option><option>Жасмина</option><option>Коля</option>
+</select>
+<label>Пароль</label>
+<input type="password" id="pwd" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"/>
+<button onclick="doLogin()">Войти</button>
+<div class="err" id="err"></div>
+</div>
+<script>
+async function doLogin(){
+  const name=document.getElementById("name").value;
+  const pwd=document.getElementById("pwd").value;
+  if(!name){document.getElementById("err").textContent="Выбери имя";return;}
+  const r=await fetch("/api/login",{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({name,password:pwd})});
+  if(r.ok){location.href=location.href.includes("next")?new URLSearchParams(location.search).get("next"):"/order";}
+  else{document.getElementById("err").textContent="Неверный пароль";}
+}
+</script></body></html>"""
+
+def auth_guard(request: Request):
+    """Returns redirect to login if not authenticated."""
+    if not check_auth(request):
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(url="/login")
+    return None
+
+
 
 DB_PATH = "/data/stocks.db"
 
@@ -263,14 +373,82 @@ async def upload_sales(file: UploadFile = File(...)):
     conn.close()
     return {"inserted": inserted, "doc_type": doc_type, "date_from": date_from, "date_to": date_to}
 
+@app.post("/api/check-bestsellers")
+async def check_bestsellers():
+    """Проверяет бестселлеры (turn >= 2000) у которых запас < 45 дней и шлёт пуш в Telegram."""
+    import httpx
+    conn = get_db()
+    # Берём последние остатки по каждому SKU
+    rows = conn.execute("""
+        SELECT sku_name, stock_qty
+        FROM stock_snapshots
+        WHERE date = (SELECT MAX(date) FROM stock_snapshots)
+    """).fetchall()
+    # Берём продажи за последние 90 дней для расчёта дневных продаж
+    sales = conn.execute("""
+        SELECT sku_name, SUM(qty) as total_qty
+        FROM sales_data
+        WHERE doc_type = 'sale'
+          AND date >= date('now', '-90 days')
+        GROUP BY sku_name
+    """).fetchall()
+    conn.close()
+
+    sales_map = {_strip_size(r["sku_name"]): r["total_qty"] for r in sales}
+
+    alerts = []
+    for r in rows:
+        base = _strip_size(r["sku_name"])
+        stock = r["stock_qty"]
+        if stock <= 0:
+            continue
+        qty_90 = sales_map.get(base, 0)
+        if qty_90 <= 0:
+            continue
+        daily = qty_90 / 90
+        turn_rub = daily  # используем штуки/день для сравнения
+        days_left = stock / daily
+        # Только бестселлеры (продаётся хотя бы 1 шт в 2 дня) у которых < 45 дней запаса
+        if daily >= 0.5 and days_left < 45:
+            order_90 = max(0, round(daily * 90 - stock))
+            alerts.append({
+                "name": base,
+                "stock": round(stock),
+                "days_left": round(days_left),
+                "daily": round(daily, 1),
+                "order_90": order_90,
+            })
+
+    if not alerts:
+        return {"sent": 0, "message": "Всё в порядке, критических остатков нет"}
+
+    alerts.sort(key=lambda x: x["days_left"])
+    lines = ["🚨 <b>Заканчиваются бестселлеры!</b>\n"]
+    for a in alerts:
+        lines.append(
+            f"📦 <b>{a['name']}</b>\n"
+            f"   Остаток: {a['stock']} шт · закончится через <b>{a['days_left']} дн.</b>\n"
+            f"   К заказу на 90 дней: <b>{a['order_90']} шт</b>\n"
+        )
+    await tg_send("\n".join(lines))
+    return {"sent": len(alerts), "alerts": alerts}
+
+@app.get("/login")
+def serve_login():
+    return HTMLResponse(LOGIN_HTML)
+
 @app.get("/order")
-def serve_order():
+def serve_order(request: Request):
+    redir = auth_guard(request)
+    if redir: return redir
     if os.path.exists("order.html"):
         return FileResponse("order.html", media_type="text/html")
     return FileResponse("index.html", media_type="text/html")
 
 @app.get("/turnover")
-def serve_turnover():
+def serve_turnover(request: Request):
+    redir = auth_guard(request)
+    if redir: return redir
     if os.path.exists("turnover.html"):
         return FileResponse("turnover.html", media_type="text/html")
     return FileResponse("index.html", media_type="text/html")
@@ -297,13 +475,17 @@ def invalidate_cache():
     return {"ok": True}
 
 @app.get("/analytics")
-def serve_analytics():
+def serve_analytics(request: Request):
+    redir = auth_guard(request)
+    if redir: return redir
     if os.path.exists("analytics.html"):
         return FileResponse("analytics.html", media_type="text/html")
     return FileResponse("index.html", media_type="text/html")
 
 @app.get("/{full_path:path}")
-def serve_frontend(full_path: str):
+def serve_frontend(full_path: str, request: Request):
+    redir = auth_guard(request)
+    if redir: return redir
     if os.path.exists("index.html"):
         return FileResponse("index.html", media_type="text/html")
     return {"error": "not found"}
