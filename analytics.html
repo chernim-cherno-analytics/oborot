@@ -53,7 +53,11 @@
       display: flex; align-items: center; justify-content: space-between;
       padding: 0 28px; height: 56px;
     }
-    .logo-img { height: 28px; display: block; }
+    .logo-text {
+      font-family: Helvetica, 'Helvetica Neue', Arial, sans-serif;
+      font-size: 15px; font-weight: 400; letter-spacing: 0.12em;
+      color: rgba(255,255,255,0.88); text-decoration: none;
+    }
     .nav { display: flex; gap: 20px }
     .nav a {
       font-size: 13px; font-weight: 400; letter-spacing: 0.05em;
@@ -222,7 +226,7 @@
 
 <!-- Top bar: logo + nav -->
 <div class="topbar" style="position:sticky;top:0;z-index:200">
-  <a href="/"><img class="logo-img" src="/logo.png" alt="Chernim Cherno"></a>
+  <a class="logo-text" href="/">Chernim Cherno</a>
   <nav class="nav">
     <a href="/">Data</a>
     <a href="/analytics" class="active">Остатки</a>
@@ -617,7 +621,7 @@ function drawChart(canvas, dateMap, dates, small, large) {
   }
 
   // ── Gradient fill: light washed-green → dark red ──
-  const grad = ctx.createLinearGradient(0, 0, W, 0);
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
   if (small) {
     grad.addColorStop(0, 'rgba(180,210,160,0.18)');
     grad.addColorStop(1, 'rgba(120,40,40,0.12)');
