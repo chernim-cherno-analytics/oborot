@@ -172,6 +172,24 @@ def get_stocks(date: Optional[str]=None, search: Optional[str]=None, page: int=1
     return {"date": date, "items": [{"sku_name": r["sku_name"], "stock_qty": r["stock_qty"]} for r in rows],
             "total": total, "pages": -(-total//per_page)}
 
+@app.get("/api/stocks/all")
+def get_all_stocks():
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT date, sku_name, stock_qty FROM stock_snapshots ORDER BY date, sku_name"
+    ).fetchall()
+    conn.close()
+    stock = {}
+    dates_set = set()
+    for r in rows:
+        base = _strip_size(r["sku_name"])
+        date = r["date"]
+        dates_set.add(date)
+        if base not in stock:
+            stock[base] = {}
+        stock[base][date] = stock[base].get(date, 0) + r["stock_qty"]
+    return {"dates": sorted(dates_set), "stock": stock}
+
 @app.get("/api/stats")
 def get_stats():
     conn = get_db()
