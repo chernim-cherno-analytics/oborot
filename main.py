@@ -18,8 +18,8 @@ USERS = {
 SESSIONS: dict = {}  # token → username
 
 # ─── Telegram ─────────────────────────────────────────────────────────────────
-TG_TOKEN  = "8918384964:AAHQbzu0RZcuX8AKeINiODNYp73JICJrMGs"
-TG_CHAT   = "-5150649365"
+TG_TOKEN = os.environ.get("TG_TOKEN", "")
+TG_CHAT  = os.environ.get("TG_CHAT", "")
 
 async def tg_send(text: str):
     import httpx
