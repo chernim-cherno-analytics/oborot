@@ -150,25 +150,86 @@ def build_turnover_data(analytics_data):
     return {"dates": dates, "skus": skus}
 
 def rebuild_analytics_json(conn):
-    """Build analytics + turnover data and write both to disk. Memory-efficient."""
+    """Build analytics + turnover caches writing JSON to disk row-by-row (low memory)."""
     import json
-    data = build_analytics_data(conn)
+    from datetime import date as _dt, timedelta
+
+    dates = [r[0] for r in conn.execute(
+        "SELECT DISTINCT date FROM stock_snapshots ORDER BY date").fetchall()]
+    if not dates:
+        empty = '{"dates":[],"stock":{}}'
+        os.makedirs("/data", exist_ok=True)
+        with open(ANALYTICS_JSON_PATH, "w") as f: f.write(empty)
+        with open(TURNOVER_JSON_PATH, "w") as f: f.write('{"dates":[],"skus":{}}')
+        return
+
     os.makedirs("/data", exist_ok=True)
-    # Write analytics cache
-    tmp = ANALYTICS_JSON_PATH + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, separators=(",", ":"))
-    os.replace(tmp, ANALYTICS_JSON_PATH)
-    n_dates = len(data['dates']); n_skus = len(data['stock'])
-    # Build turnover cache then free analytics data
-    tdata = build_turnover_data(data)
-    del data  # free large object immediately
+    cutoff = (_dt.today() - timedelta(days=365)).isoformat()
+    recent = [d for d in dates if d >= cutoff]
+    latest = dates[-1]
+
+    def season(d):
+        m = int(d[5:7])
+        if m == 12 or m <= 2: return "winter"
+        if m <= 5: return "spring"
+        if m <= 8: return "summer"
+        return "autumn"
+
+    # Stream analytics JSON to disk and compute turnover in one pass
+    atmp = ANALYTICS_JSON_PATH + ".tmp"
     ttmp = TURNOVER_JSON_PATH + ".tmp"
-    with open(ttmp, "w", encoding="utf-8") as f:
-        json.dump(tdata, f, ensure_ascii=False, separators=(",", ":"))
+    skus_turnover = {}  # compact: {base: {dis,cs,sea_days}}
+    dates_json = json.dumps(dates, ensure_ascii=False)
+
+    # Get all SKU names first (to iterate base by base)
+    sku_names = [r[0] for r in conn.execute(
+        "SELECT DISTINCT sku_name FROM stock_snapshots ORDER BY sku_name").fetchall()]
+
+    with open(atmp, "w", encoding="utf-8") as af:
+        af.write('{"dates":'); af.write(dates_json); af.write(',"stock":{')
+        first = True
+        for sku_name in sku_names:
+            base = _strip_size(sku_name)
+            # Get this SKU's data
+            rows = conn.execute(
+                "SELECT date, SUM(stock_qty) as qty FROM stock_snapshots "
+                "WHERE sku_name=? GROUP BY date", (sku_name,)).fetchall()
+            dm = {r["date"]: r["qty"] for r in rows}
+            # Write to analytics JSON
+            if not first: af.write(",")
+            first = False
+            af.write(json.dumps(base, ensure_ascii=False))
+            af.write(":")
+            af.write(json.dumps(dm, ensure_ascii=False, separators=(",", ":")))
+            # Compute turnover stats
+            if base not in skus_turnover:
+                dis = 0; prev = 0
+                sea = {"winter":0,"spring":0,"summer":0,"autumn":0}
+                for d in recent:
+                    q = dm.get(d, prev)
+                    if q >= 3: dis += 1; sea[season(d)] += 1
+                    prev = q
+                skus_turnover[base] = {"dis": dis, "cs": int(dm.get(latest, 0)), "sea_days": sea}
+            else:
+                # Merge sizes into same base
+                t = skus_turnover[base]
+                dis_add = 0; prev = 0
+                for d in recent:
+                    q = dm.get(d, prev)
+                    if q >= 3: dis_add += 1; t["sea_days"][season(d)] += 1
+                    prev = q
+                t["dis"] += dis_add
+                t["cs"] += int(dm.get(latest, 0))
+        af.write("}}")
+    os.replace(atmp, ANALYTICS_JSON_PATH)
+
+    # Write turnover cache
+    with open(ttmp, "w", encoding="utf-8") as tf:
+        tf.write('{"dates":'); tf.write(dates_json)
+        tf.write(',"skus":'); tf.write(json.dumps(skus_turnover, ensure_ascii=False, separators=(",", ":")))
+        tf.write("}")
     os.replace(ttmp, TURNOVER_JSON_PATH)
-    del tdata
-    print(f"Caches rebuilt: {n_dates} dates, {n_skus} SKUs")
+    print(f"Caches rebuilt: {len(dates)} dates, {len(sku_names)} SKUs")
 
 def parse_xls(file_path):
     import xlrd
@@ -587,6 +648,7 @@ async def save_project_data(project_id: str, data: dict):
     conn.commit(); conn.close()
     return {"ok": True}
 
+@app.get("/api/projects")
 def list_projects():
     conn = get_db()
     rows = conn.execute("SELECT id, name, arrival_date, created_at FROM projects ORDER BY created_at DESC").fetchall()
@@ -621,7 +683,21 @@ def get_turnover_data():
     """Serve pre-computed compact turnover stats from disk."""
     if os.path.exists(TURNOVER_JSON_PATH):
         return FileResponse(TURNOVER_JSON_PATH, media_type="application/json")
-    # Cache missing — rebuild both
+    # Turnover cache missing — build from analytics cache if it exists (no SQL/memory)
+    if os.path.exists(ANALYTICS_JSON_PATH):
+        import json
+        with open(ANALYTICS_JSON_PATH, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        tdata = build_turnover_data(data)
+        del data
+        os.makedirs("/data", exist_ok=True)
+        tmp = TURNOVER_JSON_PATH + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(tdata, f, ensure_ascii=False, separators=(",", ":"))
+        os.replace(tmp, TURNOVER_JSON_PATH)
+        del tdata
+        return FileResponse(TURNOVER_JSON_PATH, media_type="application/json")
+    # Neither cache exists — need fresh rebuild from DB
     conn = get_db()
     rebuild_analytics_json(conn)
     conn.close()
