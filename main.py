@@ -1,21 +1,12 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException, Request, Response
+from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
-import sqlite3, os, tempfile, re as _re, hashlib, secrets
+import sqlite3, os, tempfile, re as _re
 from datetime import datetime
 from typing import Optional
 
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
-
-# ─── Auth ─────────────────────────────────────────────────────────────────────
-USERS = {
-    "Даша":    ["котики", "kotiki"],
-    "Влад":    ["песики", "pesiki"],
-    "Жасмина": ["цветочки", "cvetochki"],
-    "Коля":    ["бабочки", "babochki"],
-}
-SESSIONS: dict = {}  # token → username
 
 # ─── Telegram ─────────────────────────────────────────────────────────────────
 TG_TOKEN = os.environ.get("TG_TOKEN", "")
@@ -32,89 +23,13 @@ async def tg_send(text: str):
 
 
 
-def make_token(): return secrets.token_hex(32)
 
-def check_auth(request: Request) -> bool:
-    token = request.cookies.get("cc_session")
-    return token and token in SESSIONS
 
-@app.post("/api/login")
-async def login(data: dict, response: Response):
-    name = data.get("name","").strip()
-    pwd  = data.get("password","").strip()
-    if name in USERS and pwd in USERS[name]:
-        token = make_token()
-        SESSIONS[token] = name
-        response.set_cookie("cc_session", token, max_age=30*24*3600, httponly=True, samesite="lax")
-        return {"ok": True, "name": name}
-    raise HTTPException(401, "Неверный пароль")
 
-@app.post("/api/logout")
-async def logout(request: Request, response: Response):
-    token = request.cookies.get("cc_session")
-    if token: SESSIONS.pop(token, None)
-    response.delete_cookie("cc_session")
-    return {"ok": True}
 
-@app.get("/api/me")
-def get_me(request: Request):
-    token = request.cookies.get("cc_session")
-    if token and token in SESSIONS:
-        return {"name": SESSIONS[token]}
-    raise HTTPException(401, "Не авторизован")
 
-LOGIN_HTML = """<!DOCTYPE html>
-<html lang="ru"><head><meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>CernimCherno · Вход</title>
 
-<style>
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;
-background:linear-gradient(135deg,#1e6356 0%,#8ea3a6 25%,#47919d 50%,#59a395 75%,#9dafb4 100%)}
-.card{background:rgba(255,255,255,0.3);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,0.5);
-border-radius:16px;padding:40px;width:100%;max-width:360px}
-.logo{font-size:13px;font-weight:600;letter-spacing:0.2em;color:#1a2a3a;text-align:center;margin-bottom:32px}
-label{font-size:11px;font-weight:500;color:rgba(26,42,58,0.6);letter-spacing:0.05em;text-transform:uppercase;display:block;margin-bottom:6px}
-select,input{width:100%;padding:10px 14px;border:1px solid rgba(26,42,58,0.2);border-radius:8px;
-background:rgba(255,255,255,0.5);font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;font-size:13px;color:#1a2a3a;
-outline:none;margin-bottom:16px;transition:border .2s}
-select:focus,input:focus{border-color:rgba(26,42,58,0.4);background:rgba(255,255,255,0.7)}
-button{width:100%;padding:11px;background:#1a2a3a;color:white;border:none;border-radius:8px;
-font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;font-size:13px;font-weight:500;cursor:pointer;transition:opacity .2s}
-button:hover{opacity:0.85}
-.err{color:#e53e3e;font-size:12px;text-align:center;margin-top:8px;min-height:18px}
-</style></head>
-<body><div class="card">
-<div class="logo">CERNIM CHERNO</div>
-<label>Имя</label>
-<select id="name">
-  <option value="">— выберите —</option>
-  <option>Даша</option><option>Влад</option><option>Жасмина</option><option>Коля</option>
-</select>
-<label>Пароль</label>
-<input type="password" id="pwd" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"/>
-<button onclick="doLogin()">Войти</button>
-<div class="err" id="err"></div>
-</div>
-<script>
-async function doLogin(){
-  const name=document.getElementById("name").value;
-  const pwd=document.getElementById("pwd").value;
-  if(!name){document.getElementById("err").textContent="Выбери имя";return;}
-  const r=await fetch("/api/login",{method:"POST",headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({name,password:pwd})});
-  if(r.ok){location.href=location.href.includes("next")?new URLSearchParams(location.search).get("next"):"/order";}
-  else{document.getElementById("err").textContent="Неверный пароль";}
-}
-</script></body></html>"""
 
-def auth_guard(request: Request):
-    """Returns redirect to login if not authenticated."""
-    if not check_auth(request):
-        from fastapi.responses import RedirectResponse
-        return RedirectResponse(url="/login")
-    return None
 
 
 
@@ -448,20 +363,15 @@ async def check_bestsellers():
     await tg_send("\n".join(lines))
     return {"sent": len(alerts), "alerts": alerts}
 
-@app.get("/login")
-def serve_login():
-    return HTMLResponse(LOGIN_HTML)
 
 @app.get("/order")
-def serve_order(request: Request):
-    redir = auth_guard(request)
-    if redir: return redir
+def serve_order():
     if os.path.exists("order.html"):
         return FileResponse("order.html", media_type="text/html")
     return FileResponse("index.html", media_type="text/html")
 
 @app.get("/turnover")
-def serve_turnover(request: Request):
+def serve_turnover():
     if os.path.exists("turnover.html"):
         return FileResponse("turnover.html", media_type="text/html")
     return FileResponse("index.html", media_type="text/html")
@@ -499,13 +409,13 @@ def invalidate_cache():
     return {"ok": True}
 
 @app.get("/analytics")
-def serve_analytics(request: Request):
+def serve_analytics():
     if os.path.exists("analytics.html"):
         return FileResponse("analytics.html", media_type="text/html")
     return FileResponse("index.html", media_type="text/html")
 
 @app.get("/{full_path:path}")
-def serve_frontend(full_path: str, request: Request):
+def serve_frontend(full_path: str):
     if os.path.exists("index.html"):
         return FileResponse("index.html", media_type="text/html")
     return {"error": "not found"}
