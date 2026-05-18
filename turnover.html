@@ -257,12 +257,17 @@ let turnoverData = {};
 async function loadStock() {
   document.getElementById("tb").innerHTML=`<tr><td colspan="16" class="loading">Загружаю данные с сервера...</td></tr>`;
   try {
-    const res = await fetch("/api/turnover-data");
+    const controller = new AbortController();
+    const tid = setTimeout(() => controller.abort(), 30000);
+    const res = await fetch("/api/turnover-data", {signal: controller.signal});
+    clearTimeout(tid);
+    if (!res.ok) throw new Error("HTTP " + res.status);
     const data = await res.json();
     allDates = data.dates || [];
     turnoverData = data.skus || {};
   } catch(e) {
-    document.getElementById("tb").innerHTML=`<tr><td colspan="16" class="loading">Ошибка загрузки данных</td></tr>`;
+    const msg = e.name === "AbortError" ? "Превышено время ожидания — обновите страницу" : ("Ошибка: " + e.message);
+    document.getElementById("tb").innerHTML=`<tr><td colspan="16" class="loading" style="color:rgba(239,68,68,0.7)">${msg}&nbsp;&nbsp;<a href="javascript:location.reload()" style="color:inherit;text-decoration:underline">↻ обновить</a></td></tr>`;
   }
 }
 

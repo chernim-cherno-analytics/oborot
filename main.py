@@ -549,7 +549,7 @@ def delete_project(project_id: str):
 # ─── Turnover data: pre-computed per-SKU stats (fast) ────────────────────────
 @app.get("/api/turnover-data")
 def get_turnover_data():
-    """Fast endpoint: pre-computed per-base-SKU stock stats."""
+    """Fast endpoint: compute dis/cs/sea_days entirely in SQL."""
     conn = get_db()
     dates = [r[0] for r in conn.execute(
         "SELECT DISTINCT date FROM stock_snapshots ORDER BY date"
@@ -559,54 +559,55 @@ def get_turnover_data():
         return {"dates": [], "skus": {}}
 
     from datetime import date as _dt, timedelta
-    import re as _re
     cutoff = (_dt.today() - timedelta(days=365)).isoformat()
-    recent = [d for d in dates if d >= cutoff]
     latest = dates[-1]
 
-    raw = conn.execute(
-        "SELECT date, sku_name, SUM(stock_qty) as qty FROM stock_snapshots "
-        "WHERE date >= ? GROUP BY date, sku_name ORDER BY date",
-        (cutoff,)
-    ).fetchall()
+    # Count days in stock (qty>=3) per sku_name for last 365 days, split by season
+    season_sql = """
+        CASE
+            WHEN CAST(substr(date,6,2) AS INT) = 12
+              OR CAST(substr(date,6,2) AS INT) <= 2 THEN 'winter'
+            WHEN CAST(substr(date,6,2) AS INT) <= 5  THEN 'spring'
+            WHEN CAST(substr(date,6,2) AS INT) <= 8  THEN 'summer'
+            ELSE 'autumn'
+        END
+    """
+    rows = conn.execute(f"""
+        SELECT sku_name,
+               COUNT(DISTINCT date) as dis,
+               SUM(CASE WHEN ({season_sql})='winter' THEN 1 ELSE 0 END) as w,
+               SUM(CASE WHEN ({season_sql})='spring' THEN 1 ELSE 0 END) as sp,
+               SUM(CASE WHEN ({season_sql})='summer' THEN 1 ELSE 0 END) as su,
+               SUM(CASE WHEN ({season_sql})='autumn' THEN 1 ELSE 0 END) as au
+        FROM (
+            SELECT date, sku_name, SUM(stock_qty) as total
+            FROM stock_snapshots
+            WHERE date >= ?
+            GROUP BY date, sku_name
+            HAVING total >= 3
+        )
+        GROUP BY sku_name
+    """, (cutoff,)).fetchall()
 
-    cur_raw = conn.execute(
-        "SELECT sku_name, SUM(stock_qty) as qty FROM stock_snapshots "
-        "WHERE date=? GROUP BY sku_name",
-        (latest,)
-    ).fetchall()
+    cur_rows = conn.execute("""
+        SELECT sku_name, SUM(stock_qty) as qty
+        FROM stock_snapshots WHERE date=? GROUP BY sku_name
+    """, (latest,)).fetchall()
     conn.close()
 
-    _pat = _re.compile(r"\s*\([^)]*\)\s*$")
-    def strip(n): return _pat.sub("", str(n)).strip()
-
-    def season(d):
-        m = int(d[5:7])
-        if m == 12 or m <= 2: return "winter"
-        if m <= 5: return "spring"
-        if m <= 8: return "summer"
-        return "autumn"
-
-    from collections import defaultdict
-    dm = defaultdict(lambda: defaultdict(float))
-    for r in raw:
-        dm[strip(r["sku_name"])][r["date"]] += r["qty"]
-
-    cur = defaultdict(float)
-    for r in cur_raw:
-        cur[strip(r["sku_name"])] += r["qty"]
+    cur = {r["sku_name"]: int(r["qty"]) for r in cur_rows}
 
     result = {}
-    for base, stock_map in dm.items():
-        dis = 0; prev = 0
-        sea = {"winter": 0, "spring": 0, "summer": 0, "autumn": 0}
-        for d in recent:
-            q = stock_map.get(d, prev)
-            if q >= 3:
-                dis += 1
-                sea[season(d)] += 1
-            prev = q
-        result[base] = {"dis": dis, "cs": int(cur.get(base, 0)), "sea_days": sea}
+    for r in rows:
+        base = _strip_size(r["sku_name"])
+        existing = result.get(base, {"dis":0,"cs":0,"sea_days":{"winter":0,"spring":0,"summer":0,"autumn":0}})
+        existing["dis"] += r["dis"]
+        existing["sea_days"]["winter"] += r["w"]
+        existing["sea_days"]["spring"] += r["sp"]
+        existing["sea_days"]["summer"] += r["su"]
+        existing["sea_days"]["autumn"] += r["au"]
+        existing["cs"] = existing.get("cs", 0) + cur.get(r["sku_name"], 0)
+        result[base] = existing
 
     return {"dates": dates, "skus": result}
 
