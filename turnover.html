@@ -3,39 +3,26 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-  <title>CernimCherno · Оборачиваемость</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <title>Chernim Cherno · Оборачиваемость</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0 }
-    body { font-family: "Inter", sans-serif; min-height: 100vh; background: #b8d4e8; color: #1a2a3a; }
-    body::before {
-      content: ""; position: fixed; inset: 0;
-      background: radial-gradient(ellipse at 20% 20%, #c8dff0 0%, transparent 60%),
-                  radial-gradient(ellipse at 80% 10%, #d4e8f5 0%, transparent 50%),
-                  linear-gradient(160deg, #c2dff2 0%, #9ec4dc 40%, #b0d0e8 70%, #8ab8d4 100%);
-      z-index: -2;
-    }
-    body::after {
-      content: ""; position: fixed; inset: 0;
-      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
-      background-size: 200px 200px; opacity: 0.4; z-index: -1; pointer-events: none;
-    }
+    body { font-family: Helvetica, 'Helvetica Neue', Arial, sans-serif; min-height: 100vh; background: #272b08; color: white; }
+    
+    
     .header {
       position: sticky; top: 0; z-index: 200;
-      background: rgba(255,255,255,0.25); backdrop-filter: blur(20px);
-      border-bottom: 1px solid rgba(255,255,255,0.4);
       padding: 0 28px; height: 56px;
       display: flex; align-items: center; justify-content: space-between;
     }
-    .logo { font-size: 14px; font-weight: 600; letter-spacing: 0.18em; color: #1a2a3a; text-decoration: none }
-    .nav { display: flex; gap: 6px }
+    .logo { text-decoration: none; display:flex; align-items:center; }
+    .nav { display: flex; gap: 20px }
     .nav a {
-      font-size: 12px; font-weight: 500; color: rgba(26,42,58,0.6);
-      text-decoration: none; padding: 6px 14px; border-radius: 20px;
-      border: 1px solid rgba(26,42,58,0.15); transition: all .2s;
+      font-size: 13px; font-weight: 400; letter-spacing: 0.05em;
+      color: rgba(255,255,255,0.3);
+      text-decoration: none; transition: color .2s;
     }
-    .nav a:hover { background: rgba(255,255,255,0.4); color: #1a2a3a }
-    .nav a.active { background: #1a2a3a; color: white; border-color: #1a2a3a }
+    .nav a:hover { color: rgba(255,255,255,0.7) }
+    .nav a.active { color: rgba(255,255,255,0.92); font-weight: 500; }
     .cat-bar {
       padding: 14px 28px; display: flex; gap: 8px; flex-wrap: wrap;
       border-bottom: 1px solid rgba(255,255,255,0.3);
@@ -44,25 +31,12 @@
     .cat-btn {
       font-size: 12px; font-weight: 500; padding: 5px 14px; border-radius: 20px;
       border: 1px solid rgba(26,42,58,0.2); background: rgba(255,255,255,0.3);
-      color: rgba(26,42,58,0.7); cursor: pointer; transition: all .15s; white-space: nowrap;
+      color: rgba(255,255,255,0.7); cursor: pointer; transition: all .15s; white-space: nowrap;
     }
-    .cat-btn:hover { background: rgba(255,255,255,0.5); color: #1a2a3a }
-    .cat-btn.active { background: #1a2a3a; color: white; border-color: #1a2a3a }
+    .cat-btn:hover { background: rgba(255,255,255,0.5); color: white }
+    .cat-btn.active { background: #1a2a3a; color: white; border-color: white }
     .cat-btn .cnt { font-size: 10px; opacity: 0.6; margin-left: 3px }
     .main { padding: 20px 28px; max-width: 1800px; margin: 0 auto }
-    .upload-bar {
-      display: flex; align-items: center; gap: 12px; padding: 10px 16px; margin-bottom: 16px;
-      background: rgba(255,255,255,0.25); backdrop-filter: blur(12px);
-      border: 1px solid rgba(255,255,255,0.4); border-radius: 10px;
-      font-size: 12px; color: rgba(26,42,58,0.7);
-    }
-    .upload-bar input { display: none }
-    .upload-btn {
-      background: #1a2a3a; color: white; border: none;
-      padding: 6px 14px; border-radius: 16px; font-size: 12px; font-weight: 500;
-      cursor: pointer; font-family: "Inter", sans-serif; white-space: nowrap;
-    }
-    .upload-btn:hover { opacity: 0.85 }
     .table-outer {
       background: rgba(255,255,255,0.2); backdrop-filter: blur(16px);
       border: 1px solid rgba(255,255,255,0.35); border-radius: 12px;
@@ -70,17 +44,17 @@
     }
     table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 1200px; table-layout: fixed }
     thead th {
-      background: rgba(26,42,58,0.08); padding: 10px 10px; text-align: center;
-      font-size: 10px; font-weight: 600; color: rgba(26,42,58,0.5);
-      letter-spacing: 0.06em; text-transform: uppercase;
-      border-bottom: 1px solid rgba(255,255,255,0.3); white-space: nowrap; position: sticky; top: 0; z-index: 10;
+      background: rgba(30,38,18,0.88);
+      backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+      padding: 10px 10px 10px; text-align: center;
+      font-size: 10px; font-weight: 500; color: rgba(255,255,255,0.45);
+      letter-spacing: 0.07em; text-transform: uppercase;
+      white-space: nowrap; position: sticky; top: 0; z-index: 10;
+      border-bottom: 1px solid rgba(255,255,255,0.12);
     }
     thead th:first-child { text-align: left; padding-left: 14px; min-width: 220px }
-    .subhead th {
-      background: rgba(26,42,58,0.04); padding: 5px 10px;
-      font-size: 10px; color: rgba(26,42,58,0.35); font-weight: 400;
-      border-bottom: 1px solid rgba(255,255,255,0.25); position: sticky; top: 37px; z-index: 10;
-    }
+    thead th .sub { display:block; font-size:9px; font-weight:400; letter-spacing:0; text-transform:none; opacity:0.45; margin-top:2px; }
+
     tbody tr.pr td {
       padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,0.12);
       text-align: center; vertical-align: middle;
@@ -131,25 +105,61 @@
     .ois { font-size:10px; color:rgba(26,42,58,0.45); font-weight:600 }
     .oiv { font-size:15px; font-weight:700; color:#1a2a3a }
     .loading { text-align:center; padding:60px; color:rgba(26,42,58,0.4); font-size:13px }
-  </style>
+  
+  /* ── Animated mesh blobs ── */
+  .gradient-bg { position: fixed; inset: 0; z-index: 0; overflow: hidden; background: #272b08; }
+  .gradient-bg::before, .gradient-bg::after, .b1, .b2, .b3 {
+    position: absolute; border-radius: 50%; filter: blur(90px); opacity: 0.9;
+  }
+  .gradient-bg::before { content: ''; width: 70vw; height: 70vw;
+    background: radial-gradient(circle, #60886a, transparent 70%);
+    top: -20%; left: -10%; animation: blob1 11s ease-in-out infinite alternate; }
+  .gradient-bg::after { content: ''; width: 60vw; height: 60vw;
+    background: radial-gradient(circle, #79a28e, transparent 70%);
+    bottom: -15%; right: -10%; animation: blob2 14s ease-in-out infinite alternate; }
+  .b1 { width: 55vw; height: 55vw; background: radial-gradient(circle, #466030, transparent 70%);
+    top: 30%; left: 30%; animation: blob3 9s ease-in-out infinite alternate; }
+  .b2 { width: 45vw; height: 45vw; background: radial-gradient(circle, #9ad5c8, transparent 70%);
+    top: -10%; right: 10%; animation: blob4 13s ease-in-out infinite alternate; }
+  .b3 { width: 50vw; height: 50vw; background: radial-gradient(circle, #1a2008, transparent 70%);
+    bottom: 10%; left: 20%; animation: blob5 16s ease-in-out infinite alternate; }
+  /* ── Vignette ── */
+  .vignette { position: fixed; inset: 0; z-index: 1; pointer-events: none;
+    background: radial-gradient(ellipse at center, transparent 40%, rgba(10,12,4,0.55) 100%); }
+  /* ── Film grain ── */
+  .grain { position: fixed; inset: 0; z-index: 2; pointer-events: none; }
+  .grain::before { content: ''; position: absolute; inset: -50%; width: 200%; height: 200%;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='grain'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23grain)'/%3E%3C/svg%3E");
+    background-size: 200px 200px; opacity: 0.12; mix-blend-mode: overlay;
+    animation: grain-shift 0.15s steps(1) infinite; }
+  @keyframes grain-shift {
+    0%{transform:translate(0,0)} 10%{transform:translate(-3%,-4%)} 20%{transform:translate(4%,2%)}
+    30%{transform:translate(-2%,5%)} 40%{transform:translate(5%,-3%)} 50%{transform:translate(-4%,4%)}
+    60%{transform:translate(3%,-2%)} 70%{transform:translate(-5%,3%)} 80%{transform:translate(2%,-5%)}
+    90%{transform:translate(-3%,2%)} 100%{transform:translate(4%,-4%)} }
+  @keyframes blob1 { 0%{transform:translate(0,0) scale(1)} 33%{transform:translate(8vw,5vh) scale(1.1)} 66%{transform:translate(-5vw,10vh) scale(0.95)} 100%{transform:translate(10vw,-8vh) scale(1.05)} }
+  @keyframes blob2 { 0%{transform:translate(0,0) scale(1)} 33%{transform:translate(-10vw,-6vh) scale(1.08)} 66%{transform:translate(6vw,-12vh) scale(1.12)} 100%{transform:translate(-8vw,5vh) scale(0.92)} }
+  @keyframes blob3 { 0%{transform:translate(0,0) scale(1)} 50%{transform:translate(-12vw,8vh) scale(1.15)} 100%{transform:translate(8vw,-10vh) scale(0.9)} }
+  @keyframes blob4 { 0%{transform:translate(0,0) scale(0.9)} 50%{transform:translate(10vw,12vh) scale(1.1)} 100%{transform:translate(-6vw,6vh) scale(1)} }
+  @keyframes blob5 { 0%{transform:translate(0,0) scale(1.1)} 50%{transform:translate(14vw,-8vh) scale(0.9)} 100%{transform:translate(-10vw,-12vh) scale(1.05)} }
+
+</style>
 </head>
 <body>
+<div class="gradient-bg"><div class="b1"></div><div class="b2"></div><div class="b3"></div></div>
+<div class="vignette"></div>
+<div class="grain"></div>
 <div class="header">
-  <a class="logo" href="/">CERNIM CHERNO</a>
+  <a class="logo" href="/" style="font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;font-size:15px;font-weight:400;letter-spacing:0.12em;color:rgba(255,255,255,0.88);text-decoration:none;">Chernim Cherno</a>
   <nav class="nav">
-    <a href="/">Остатки</a>
-    <a href="/analytics">Аналитика</a>
+    <a href="/">Data</a>
+    <a href="/analytics">Остатки</a>
     <a href="/turnover" class="active">Оборачиваемость</a>
     <a href="/order">Заказ</a>
   </nav>
 </div>
 <div class="cat-bar" id="cat-bar"><span style="font-size:12px;color:rgba(26,42,58,0.4)">Загрузка...</span></div>
-<div class="main">
-  <div class="upload-bar">
-    <input type="file" id="si" accept=".csv" multiple>
-    <button class="upload-btn" onclick="document.getElementById('si').click()">↑ Загрузить CSV продаж</button>
-    <span id="us" style="color:rgba(26,42,58,0.45)">Обновление данных продаж из МоегоСклада</span>
-  </div>
+<div class="main" style="position:relative;z-index:3;">
   <div class="table-outer">
     <table id="mt">
       <colgroup>
@@ -161,23 +171,22 @@
       </colgroup>
       <thead>
         <tr>
-          <th rowspan="2" style="vertical-align:bottom">Название</th>
-          <th rowspan="2">Дней<br>в стоке</th>
-          <th rowspan="2">Ср. цена<br>продажи</th>
-          <th rowspan="2">Оборач.<br>за год</th>
-          <th>Зима</th><th>Весна</th><th>Лето</th><th>Осень</th>
-          <th rowspan="2">Остаток<br>шт</th>
-          <th rowspan="2">Запас<br>дней</th>
-          <th rowspan="2">Затовари-<br>вание</th>
-          <th rowspan="2">Недостаток<br>шт</th>
-          <th colspan="4">Заказ (3 мес)</th>
-        </tr>
-        <tr class="subhead">
-          <th>₽/день</th><th>₽/день</th><th>₽/день</th><th>₽/день</th>
-          <th style="color:#4ade80">Весна</th>
-          <th style="color:#fb923c">Лето</th>
-          <th style="color:#a78bfa">Осень</th>
-          <th style="color:#60a5fa">Зима</th>
+          <th>Название</th>
+          <th>Дней<br><span class="sub">в стоке</span></th>
+          <th>Ср. цена<br><span class="sub">продажи</span></th>
+          <th>Оборач.<br><span class="sub">за год</span></th>
+          <th>Зима<br><span class="sub">₽/день</span></th>
+          <th>Весна<br><span class="sub">₽/день</span></th>
+          <th>Лето<br><span class="sub">₽/день</span></th>
+          <th>Осень<br><span class="sub">₽/день</span></th>
+          <th>Остаток<br><span class="sub">шт</span></th>
+          <th>Запас<br><span class="sub">дней</span></th>
+          <th>Затовари-<br><span class="sub">вание</span></th>
+          <th>Недостаток<br><span class="sub">шт</span></th>
+          <th>Весна<br><span class="sub">заказ</span></th>
+          <th>Лето<br><span class="sub">заказ</span></th>
+          <th>Осень<br><span class="sub">заказ</span></th>
+          <th>Зима<br><span class="sub">заказ</span></th>
         </tr>
       </thead>
       <tbody id="tb"><tr><td colspan="16" class="loading">Загружаю данные...</td></tr></tbody>
@@ -474,13 +483,6 @@ function drawChart(base,canvas,chartData) {
   ctx.stroke();
 }
 
-// CSV upload
-document.getElementById("si").addEventListener("change",async e=>{
-  const st=document.getElementById("us"); st.textContent="Загружаю...";
-  for(const file of Array.from(e.target.files)){
-    const fd=new FormData();fd.append("file",file);
-    try{
-      const r=await fetch("/api/upload-sales",{method:"POST",body:fd});
       const d=await r.json();
       if(r.ok){st.textContent=`✓ ${file.name}: ${d.inserted} записей`;
       try{localStorage.removeItem("cc_to_stock_v1");localStorage.removeItem("cc_to_dates_v1");}catch(e){}}
@@ -500,4 +502,5 @@ async function init(){
 init();
 </script>
 </body>
+</html>
 </html>
