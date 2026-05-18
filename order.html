@@ -58,15 +58,15 @@
       text-transform: uppercase; letter-spacing:.06em; margin-bottom: 6px }
     .modal input[type=date], .modal input[type=text] {
       width: 100%; padding: 11px 14px; border-radius: 10px;
-      border: 1.5px solid rgba(26,42,58,0.15); background: rgba(255,255,255,0.6);
-      font-family: Helvetica, 'Helvetica Neue', Arial, sans-serif; font-size: 14px; font-weight: 500; color: white;
+      border: 1.5px solid rgba(26,42,58,0.25); background: rgba(255,255,255,0.75);
+      font-family: Helvetica, 'Helvetica Neue', Arial, sans-serif; font-size: 14px; font-weight: 500; color: #1a2a3a;
       outline: none; margin-bottom: 14px; transition: border-color .2s;
     }
-    .modal input:focus { border-color: white }
+    .modal input:focus { border-color: rgba(26,42,58,0.5); background: rgba(255,255,255,0.9) }
     .modal select {
       width: 100%; padding: 11px 14px; border-radius: 10px;
-      border: 1.5px solid rgba(26,42,58,0.15); background: rgba(255,255,255,0.6);
-      font-family: Helvetica, 'Helvetica Neue', Arial, sans-serif; font-size: 14px; color: white;
+      border: 1.5px solid rgba(26,42,58,0.25); background: rgba(255,255,255,0.75);
+      font-family: Helvetica, 'Helvetica Neue', Arial, sans-serif; font-size: 14px; color: #1a2a3a;
       outline: none; margin-bottom: 14px; cursor: pointer;
     }
     .modal-btn {
@@ -104,20 +104,40 @@
     }
     .arrival-chip:hover { background: rgba(26,42,58,0.1) }
 
-    /* SEASON TABS */
+    /* Project bar */
+    .project-bar {
+      background: rgba(255,255,255,0.18);
+      backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(255,255,255,0.25);
+      padding: 10px 28px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    }
+    .project-label { font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.7); white-space: nowrap }
+    .project-select {
+      background: rgba(255,255,255,0.85); border: 1.5px solid rgba(255,255,255,0.5);
+      color: #1a2a3a; padding: 6px 12px; border-radius: 8px;
+      font-family: Helvetica, 'Helvetica Neue', Arial, sans-serif;
+      font-size: 13px; font-weight: 500; cursor: pointer; outline: none; min-width: 200px;
+    }
+    .project-chip {
+      font-size: 11px; color: rgba(255,255,255,0.65); font-weight: 500;
+      padding: 4px 10px; border-radius: 20px;
+      background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.25);
+    }
     .controls-bar {
       padding: 10px 28px;
-      background: rgba(255,255,255,0.1);
-      border-bottom: 1px solid rgba(255,255,255,0.2);
+      background: rgba(0,0,0,0.15);
+      border-bottom: 1px solid rgba(255,255,255,0.15);
       display: flex; align-items: center; gap: 8px;
     }
+    .controls-bar-label { font-size: 11px; color: rgba(255,255,255,0.5); font-weight: 600; letter-spacing: 0.06em; margin-right: 4px }
     .season-tab {
-      font-size: 12px; font-weight: 500; padding: 5px 12px; border-radius: 20px;
-      border: 1px solid rgba(26,42,58,0.15); background: rgba(255,255,255,0.3);
-      color: rgba(255,255,255,0.5); cursor: pointer; transition: all .15s;
+      font-size: 12px; font-weight: 500; padding: 5px 14px; border-radius: 20px;
+      border: 1px solid rgba(255,255,255,0.35); background: rgba(255,255,255,0.12);
+      color: rgba(255,255,255,0.75); cursor: pointer; transition: all .15s;
+      font-family: Helvetica, 'Helvetica Neue', Arial, sans-serif;
     }
-    .season-tab:hover { background: rgba(255,255,255,0.5); color: white }
-    .season-tab.active { background: #1a2a3a; color: white; border-color: white }
+    .season-tab:hover { background: rgba(255,255,255,0.28); color: white; border-color: rgba(255,255,255,0.6) }
+    .season-tab.active { background: rgba(255,255,255,0.9); color: #2a3210; border-color: rgba(255,255,255,0.9); font-weight: 600 }
 
     /* MAIN TABLE */
     .main { padding: 20px 28px }
@@ -326,7 +346,7 @@
 
 <!-- Season controls -->
 <div class="controls-bar" id="controls-bar" style="display:none">
-  <span style="font-size:11px;color:rgba(26,42,58,0.45);font-weight:600;margin-right:4px">СЕЗОН:</span>
+  <span class="controls-bar-label">СЕЗОН:</span>
   <button class="season-tab active" data-season="year" onclick="setSeason(this)">Весь год</button>
   <button class="season-tab" data-season="spring" onclick="setSeason(this)">Весна</button>
   <button class="season-tab" data-season="summer" onclick="setSeason(this)">Лето</button>

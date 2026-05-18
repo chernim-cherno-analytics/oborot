@@ -160,11 +160,12 @@ def get_analytics_cache_key(conn):
     row = conn.execute("SELECT COUNT(*) as c, MAX(date) as d FROM stock_snapshots").fetchone()
     return f"{row['c']}_{row['d']}"
 
+ANALYTICS_JSON_PATH = "/data/analytics_cache.json"
+
 def build_analytics_data(conn):
     dates = [r[0] for r in conn.execute("SELECT DISTINCT date FROM stock_snapshots ORDER BY date").fetchall()]
     if not dates:
         return {"dates": [], "stock": {}}
-    # Aggregate in SQL to avoid loading raw rows into Python memory
     rows = conn.execute("""
         SELECT date, sku_name, SUM(stock_qty) as qty
         FROM stock_snapshots
@@ -178,6 +179,17 @@ def build_analytics_data(conn):
             stock[base] = {}
         stock[base][r["date"]] = stock[base].get(r["date"], 0) + r["qty"]
     return {"dates": dates, "stock": stock}
+
+def rebuild_analytics_json(conn):
+    """Build analytics data once and write to disk as a static JSON file."""
+    import json
+    data = build_analytics_data(conn)
+    os.makedirs("/data", exist_ok=True)
+    tmp = ANALYTICS_JSON_PATH + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, separators=(",", ":"))
+    os.replace(tmp, ANALYTICS_JSON_PATH)
+    print(f"analytics_cache.json rebuilt: {len(data['dates'])} dates, {len(data['stock'])} SKUs")
 
 def parse_xls(file_path):
     import xlrd
@@ -245,6 +257,9 @@ async def upload_stock(file: UploadFile = File(...)):
     global _analytics_cache, _analytics_cache_key
     _analytics_cache = None
     _analytics_cache_key = None
+    conn2 = get_db()
+    rebuild_analytics_json(conn2)
+    conn2.close()
     return {"date": date_str, "inserted": inserted, "skipped": len(rows)-inserted, "total_skus": len(rows)}
 
 @app.get("/api/dates")
@@ -447,45 +462,50 @@ def serve_order(request: Request):
 
 @app.get("/turnover")
 def serve_turnover(request: Request):
-    redir = auth_guard(request)
-    if redir: return redir
     if os.path.exists("turnover.html"):
         return FileResponse("turnover.html", media_type="text/html")
     return FileResponse("index.html", media_type="text/html")
 
 @app.get("/api/analytics-data")
 def get_analytics_data():
-    global _analytics_cache, _analytics_cache_key
+    """Serve pre-built analytics JSON from disk. If missing, build it first."""
+    if os.path.exists(ANALYTICS_JSON_PATH):
+        return FileResponse(ANALYTICS_JSON_PATH, media_type="application/json")
+    # First run: build the file
     conn = get_db()
-    key = get_analytics_cache_key(conn)
-    if _analytics_cache is not None and _analytics_cache_key == key:
-        conn.close()
-        return _analytics_cache
-    data = build_analytics_data(conn)
+    rebuild_analytics_json(conn)
     conn.close()
-    _analytics_cache = data
-    _analytics_cache_key = key
-    return data
+    if os.path.exists(ANALYTICS_JSON_PATH):
+        return FileResponse(ANALYTICS_JSON_PATH, media_type="application/json")
+    # Fallback: return empty
+    return {"dates": [], "stock": {}}
+
+@app.post("/api/rebuild-analytics")
+def trigger_rebuild():
+    """Manually trigger analytics rebuild (admin use)."""
+    conn = get_db()
+    rebuild_analytics_json(conn)
+    conn.close()
+    return {"ok": True}
 
 @app.post("/api/invalidate-cache")
 def invalidate_cache():
     global _analytics_cache, _analytics_cache_key
     _analytics_cache = None
     _analytics_cache_key = None
+    # Also remove disk cache so next request rebuilds it
+    if os.path.exists(ANALYTICS_JSON_PATH):
+        os.remove(ANALYTICS_JSON_PATH)
     return {"ok": True}
 
 @app.get("/analytics")
 def serve_analytics(request: Request):
-    redir = auth_guard(request)
-    if redir: return redir
     if os.path.exists("analytics.html"):
         return FileResponse("analytics.html", media_type="text/html")
     return FileResponse("index.html", media_type="text/html")
 
 @app.get("/{full_path:path}")
 def serve_frontend(full_path: str, request: Request):
-    redir = auth_guard(request)
-    if redir: return redir
     if os.path.exists("index.html"):
         return FileResponse("index.html", media_type="text/html")
     return {"error": "not found"}

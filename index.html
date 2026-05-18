@@ -177,12 +177,30 @@
   </nav>
 </div>
 <div class="main" style="position:relative;z-index:3;">
+
+  <!-- Instructions -->
+  <div style="margin-bottom:16px;padding:16px 20px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);border-radius:8px;font-size:12px;color:rgba(255,255,255,0.5);line-height:1.8">
+    Сюда необходимо загрузить остатки из МоегоСклада. Выгрузка остатков происходит по дням — например, если нужно 10 дней, надо выгрузить 10 файлов.<br>
+    Заходим в <a href="https://www.moysklad.ru/" target="_blank" style="color:rgba(255,255,255,0.75);text-underline-offset:3px">МойСклад</a>, выбираем нужную нам дату, ставим фильтр по складам: только <b style="color:rgba(255,255,255,0.7);font-weight:500">Гороховая</b>, <b style="color:rgba(255,255,255,0.7);font-weight:500">Мясницкая</b> и <b style="color:rgba(255,255,255,0.7);font-weight:500">Интернет-магазин</b>.<br>
+    Загружаем файлы в поле ниже. Последнюю загруженную дату можно видеть в списке подгруженных дат.
+  </div>
+
   <div class="upload-zone" id="dropzone">
     <input type="file" id="file-input" accept=".xls" multiple style="display:none">
     <div class="upload-icon" id="upload-icon">↑</div>
     <div class="upload-text" id="upload-text">Перетащите XLS файлы или нажмите для выбора</div>
     <div class="upload-hint">Отчёты остатков из МоегоСклада · Гороховая, Мясницкая, Интернет-магазин</div>
   </div>
+  <!-- CSV Sales Upload -->
+  <div style="margin-top:12px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:8px;padding:14px 18px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+    <input type="file" id="csv-input" accept=".csv" multiple style="display:none">
+    <button onclick="document.getElementById('csv-input').click()" style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);color:white;padding:7px 16px;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;font-family:Helvetica,sans-serif;white-space:nowrap;transition:background .15s" onmouseover="this.style.background='rgba(255,255,255,0.25)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'">↑ Загрузить CSV продаж</button>
+    <span style="font-size:12px;color:rgba(255,255,255,0.45);line-height:1.6">
+      Для обновления перейдите по <a href="https://docs.google.com/spreadsheets/d/1mjz4Zjcq86TqkIbjc-s4nZyGUHAR0kLiNY1NH-MnBpk/edit?gid=1082363897#gid=1082363897" target="_blank" style="color:rgba(255,255,255,0.7);text-underline-offset:3px">ссылке</a>, нажмите «Экспорт», сохраните CSV. Нужно два листа: <b style="color:rgba(255,255,255,0.65);font-weight:500">Продажи</b> и <b style="color:rgba(255,255,255,0.65);font-weight:500">Возвраты</b>.
+    </span>
+    <span id="csv-status" style="font-size:11px;color:rgba(255,255,255,0.5);font-family:monospace"></span>
+  </div>
+
   <div class="msg ok" id="msg-ok"><div class="msg-title" id="msg-title"></div><div class="msg-details" id="msg-details"></div><button class="close-btn" onclick="document.getElementById('msg-ok').classList.remove('show')">✕</button></div>
   <div class="msg err" id="msg-err"><span id="msg-err-text"></span><button class="close-btn" onclick="document.getElementById('msg-err').classList.remove('show')">✕</button></div>
   <div class="controls">
@@ -284,6 +302,26 @@ dz.addEventListener("dragover",e=>{e.preventDefault();dz.classList.add("drag");}
 dz.addEventListener("dragleave",()=>dz.classList.remove("drag"));
 dz.addEventListener("drop",e=>{e.preventDefault();dz.classList.remove("drag");uploadFiles(e.dataTransfer.files);});
 document.getElementById("file-input").addEventListener("change",e=>uploadFiles(e.target.files));
+// CSV Sales upload
+document.getElementById("csv-input").addEventListener("change", async function(e) {
+  const files = Array.from(e.target.files);
+  if (!files.length) return;
+  const status = document.getElementById("csv-status");
+  status.textContent = "Загружаю...";
+  let ok = 0, errors = [];
+  for (const file of files) {
+    const fd = new FormData(); fd.append("file", file);
+    try {
+      const r = await fetch("/api/upload-sales", {method:"POST", body:fd});
+      const d = await r.json();
+      if (r.ok) { ok++; status.textContent = `✓ ${d.doc_type === "return" ? "Возвраты" : "Продажи"}: ${d.inserted} строк (${d.date_from} — ${d.date_to})`; }
+      else errors.push(file.name + ": " + (d.detail || "ошибка"));
+    } catch(err) { errors.push(file.name + ": сетевая ошибка"); }
+  }
+  if (errors.length) status.textContent = errors.join("; ");
+  else if (ok > 1) status.textContent = `✓ Загружено ${ok} файлов`;
+  e.target.value = "";
+});
 loadStats();loadDates();
 </script>
 </body>
