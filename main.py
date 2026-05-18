@@ -150,7 +150,7 @@ def build_turnover_data(analytics_data):
     return {"dates": dates, "skus": skus}
 
 def rebuild_analytics_json(conn):
-    """Build analytics + turnover data and write both to disk."""
+    """Build analytics + turnover data and write both to disk. Memory-efficient."""
     import json
     data = build_analytics_data(conn)
     os.makedirs("/data", exist_ok=True)
@@ -159,13 +159,16 @@ def rebuild_analytics_json(conn):
     with open(tmp, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, separators=(",", ":"))
     os.replace(tmp, ANALYTICS_JSON_PATH)
-    # Write turnover cache (pre-computed, compact)
+    n_dates = len(data['dates']); n_skus = len(data['stock'])
+    # Build turnover cache then free analytics data
     tdata = build_turnover_data(data)
+    del data  # free large object immediately
     ttmp = TURNOVER_JSON_PATH + ".tmp"
     with open(ttmp, "w", encoding="utf-8") as f:
         json.dump(tdata, f, ensure_ascii=False, separators=(",", ":"))
     os.replace(ttmp, TURNOVER_JSON_PATH)
-    print(f"Caches rebuilt: {len(data['dates'])} dates, {len(data['stock'])} SKUs")
+    del tdata
+    print(f"Caches rebuilt: {n_dates} dates, {n_skus} SKUs")
 
 def parse_xls(file_path):
     import xlrd
@@ -266,24 +269,16 @@ def get_stocks(date: Optional[str]=None, search: Optional[str]=None, page: int=1
 
 @app.get("/api/stocks/all")
 def get_all_stocks():
+    """Serve pre-built analytics cache from disk. Zero memory usage."""
+    if os.path.exists(ANALYTICS_JSON_PATH):
+        return FileResponse(ANALYTICS_JSON_PATH, media_type="application/json")
+    # Cache missing — build it
     conn = get_db()
-    rows = conn.execute("""
-        SELECT date, sku_name, SUM(stock_qty) as qty
-        FROM stock_snapshots
-        GROUP BY date, sku_name
-        ORDER BY date, sku_name
-    """).fetchall()
+    rebuild_analytics_json(conn)
     conn.close()
-    stock = {}
-    dates_set = set()
-    for r in rows:
-        base = _strip_size(r["sku_name"])
-        date = r["date"]
-        dates_set.add(date)
-        if base not in stock:
-            stock[base] = {}
-        stock[base][date] = stock[base].get(date, 0) + r["qty"]
-    return {"dates": sorted(dates_set), "stock": stock}
+    if os.path.exists(ANALYTICS_JSON_PATH):
+        return FileResponse(ANALYTICS_JSON_PATH, media_type="application/json")
+    return {"dates": [], "stock": {}}
 
 @app.get("/api/stats")
 def get_stats():

@@ -614,11 +614,7 @@ async function confirmNewProject(){
 async function confirmExistingProject(){
   const id=document.getElementById("modal-proj-select").value;
   if(!id){alert("Выбери проект");return;}
-  const proj=allProjects.find(p=>p.id===id);
-  if(!proj)return;
-  currentProject=proj;
-  const _pi=document.getElementById("proj-info"); if(_pi){_pi.style.display="inline";_pi.textContent="Проект: "+proj.name;}
-  openWithDate(proj.date);
+  await loadProject(id); // loadProject handles everything including openWithDate
 }
 async function deleteSelectedProject(){
   const id=document.getElementById("modal-proj-select").value;
@@ -638,6 +634,8 @@ function openWithDate(date){
   document.getElementById("main-area").style.display="block";
   const d=new Date(date); const opts={day:"numeric",month:"long",year:"numeric"};
   document.getElementById("arrival-chip").textContent="📅 "+d.toLocaleDateString("ru-RU",opts);
+  const bs=document.getElementById("btn-save");
+  if(bs) bs.style.display=currentProject?"inline-flex":"none";
   if(stockLoaded){render();}
   else{document.getElementById("tb").innerHTML=`<tr><td colspan="10" class="loading-msg">⏳ Загружаю остатки, подождите...</td></tr>`;}
 }
