@@ -129,6 +129,9 @@ def rebuild_analytics_json(conn):
     with open(tmp, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, separators=(",", ":"))
     os.replace(tmp, ANALYTICS_JSON_PATH)
+    # Invalidate turnover cache so it gets recomputed
+    if os.path.exists("/data/turnover_cache.json"):
+        os.remove("/data/turnover_cache.json")
     print(f"analytics_cache.json rebuilt: {len(data['dates'])} dates, {len(data['stock'])} SKUs")
 
 def parse_xls(file_path):
@@ -547,69 +550,67 @@ def delete_project(project_id: str):
 
 
 # ─── Turnover data: pre-computed per-SKU stats (fast) ────────────────────────
+TURNOVER_JSON_PATH = "/data/turnover_cache.json"
+
 @app.get("/api/turnover-data")
 def get_turnover_data():
-    """Fast endpoint: compute dis/cs/sea_days entirely in SQL."""
-    conn = get_db()
-    dates = [r[0] for r in conn.execute(
-        "SELECT DISTINCT date FROM stock_snapshots ORDER BY date"
-    ).fetchall()]
-    if not dates:
+    """Compute turnover stats from analytics cache, save result to disk."""
+    import json
+    from datetime import date as _dt, timedelta
+
+    # Serve from disk cache if fresh (same day as analytics cache)
+    if os.path.exists(TURNOVER_JSON_PATH) and os.path.exists(ANALYTICS_JSON_PATH):
+        if os.path.getmtime(TURNOVER_JSON_PATH) >= os.path.getmtime(ANALYTICS_JSON_PATH):
+            return FileResponse(TURNOVER_JSON_PATH, media_type="application/json")
+
+    if not os.path.exists(ANALYTICS_JSON_PATH):
+        conn = get_db()
+        rebuild_analytics_json(conn)
         conn.close()
+
+    if not os.path.exists(ANALYTICS_JSON_PATH):
         return {"dates": [], "skus": {}}
 
-    from datetime import date as _dt, timedelta
+    with open(ANALYTICS_JSON_PATH, "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    dates = data.get("dates", [])
+    stock = data.get("stock", {})
+
+    if not dates:
+        return {"dates": [], "skus": {}}
+
     cutoff = (_dt.today() - timedelta(days=365)).isoformat()
+    recent = [d for d in dates if d >= cutoff]
     latest = dates[-1]
 
-    # Count days in stock (qty>=3) per sku_name for last 365 days, split by season
-    season_sql = """
-        CASE
-            WHEN CAST(substr(date,6,2) AS INT) = 12
-              OR CAST(substr(date,6,2) AS INT) <= 2 THEN 'winter'
-            WHEN CAST(substr(date,6,2) AS INT) <= 5  THEN 'spring'
-            WHEN CAST(substr(date,6,2) AS INT) <= 8  THEN 'summer'
-            ELSE 'autumn'
-        END
-    """
-    rows = conn.execute(f"""
-        SELECT sku_name,
-               COUNT(DISTINCT date) as dis,
-               SUM(CASE WHEN ({season_sql})='winter' THEN 1 ELSE 0 END) as w,
-               SUM(CASE WHEN ({season_sql})='spring' THEN 1 ELSE 0 END) as sp,
-               SUM(CASE WHEN ({season_sql})='summer' THEN 1 ELSE 0 END) as su,
-               SUM(CASE WHEN ({season_sql})='autumn' THEN 1 ELSE 0 END) as au
-        FROM (
-            SELECT date, sku_name, SUM(stock_qty) as total
-            FROM stock_snapshots
-            WHERE date >= ?
-            GROUP BY date, sku_name
-            HAVING total >= 3
-        )
-        GROUP BY sku_name
-    """, (cutoff,)).fetchall()
-
-    cur_rows = conn.execute("""
-        SELECT sku_name, SUM(stock_qty) as qty
-        FROM stock_snapshots WHERE date=? GROUP BY sku_name
-    """, (latest,)).fetchall()
-    conn.close()
-
-    cur = {r["sku_name"]: int(r["qty"]) for r in cur_rows}
+    def season(d):
+        m = int(d[5:7])
+        if m == 12 or m <= 2: return "winter"
+        if m <= 5: return "spring"
+        if m <= 8: return "summer"
+        return "autumn"
 
     result = {}
-    for r in rows:
-        base = _strip_size(r["sku_name"])
-        existing = result.get(base, {"dis":0,"cs":0,"sea_days":{"winter":0,"spring":0,"summer":0,"autumn":0}})
-        existing["dis"] += r["dis"]
-        existing["sea_days"]["winter"] += r["w"]
-        existing["sea_days"]["spring"] += r["sp"]
-        existing["sea_days"]["summer"] += r["su"]
-        existing["sea_days"]["autumn"] += r["au"]
-        existing["cs"] = existing.get("cs", 0) + cur.get(r["sku_name"], 0)
-        result[base] = existing
+    for base, dm in stock.items():
+        dis = 0; prev = 0
+        sea = {"winter": 0, "spring": 0, "summer": 0, "autumn": 0}
+        for d in recent:
+            q = dm.get(d, prev)
+            if q >= 3:
+                dis += 1
+                sea[season(d)] += 1
+            prev = q
+        result[base] = {"dis": dis, "cs": int(dm.get(latest, 0)), "sea_days": sea}
 
-    return {"dates": dates, "skus": result}
+    out = {"dates": dates, "skus": result}
+    os.makedirs("/data", exist_ok=True)
+    tmp = TURNOVER_JSON_PATH + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(out, f, ensure_ascii=False, separators=(",", ":"))
+    os.replace(tmp, TURNOVER_JSON_PATH)
+
+    return FileResponse(TURNOVER_JSON_PATH, media_type="application/json")
 
 @app.get("/{full_path:path}")
 def serve_frontend(full_path: str):
