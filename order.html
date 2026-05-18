@@ -435,24 +435,28 @@ function getCat(n){
 let stockData={}, allDates=[], excludedItems=new Set();
 let currentSeason="year", arrivalDate=null, stockLoaded=false;
 let adjustments={}; // base → ±qty adjustment
-let addedToOrder=new Set(); // bases added from "possible" section
-let currentProject=null; // {id, name, date, data:{costs,adjustments,excluded}}
+let addedToOrder=new Set();
+let currentProject=null; // {id, name, date}
+let allProjects=[]; // loaded from server
 
-async function loadAdjustments(){
-  try{ adjustments=await(await fetch("/api/adjustments")).json(); }catch(e){ adjustments={}; }
+function currentPid(){ return currentProject ? currentProject.id : ""; }
+
+// ── Projects (stored on server) ──
+async function loadProjects(){
+  try{ allProjects=await(await fetch("/api/projects")).json(); }catch(e){ allProjects=[]; }
 }
-function saveAdjustments(){ /* no-op: saved immediately in setAdj */ }
-function getFinalQty(base, calcQty){
-  return Math.max(0, calcQty + (adjustments[base]||0));
+async function createProject(name, date){
+  const r=await fetch("/api/projects",{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({name,date})});
+  const p=await r.json();
+  await loadProjects();
+  return p;
+}
+async function deleteProjectFromServer(id){
+  await fetch("/api/projects/"+id,{method:"DELETE"});
+  await loadProjects();
 }
 
-// ── Projects (stored in localStorage, shared via URL) ──
-function getProjects(){
-  try{ return JSON.parse(localStorage.getItem("cc_projects_v1")||"[]"); }catch(e){ return []; }
-}
-function saveProjects(projects){
-  try{ localStorage.setItem("cc_projects_v1", JSON.stringify(projects)); }catch(e){}
-}
 function showProjModal(){
   const d=new Date(Date.now()+14*24*3600*1000);
   document.getElementById("proj-date").value=d.toISOString().split("T")[0];
@@ -462,50 +466,55 @@ function showProjModal(){
 function hideProjModal(){
   const _pm2=document.getElementById("proj-modal"); if(_pm2) _pm2.classList.add("hidden");
 }
-// createProject moved to confirmNewProject
+
 function refreshProjectSelect(){
   const sel=document.getElementById("project-select");
   if(!sel)return;
-  const projects=getProjects();
   sel.innerHTML=`<option value="">— без проекта —</option>`;
-  projects.forEach(p=>{
+  allProjects.forEach(p=>{
     const opt=document.createElement("option");
     opt.value=p.id; opt.textContent=p.name+" ("+new Date(p.date).toLocaleDateString("ru-RU",{day:"numeric",month:"short",year:"numeric"})+")";
+    if(currentProject&&currentProject.id===p.id) opt.selected=true;
     sel.appendChild(opt);
   });
 }
-function loadProject(id){
+
+async function loadProject(id){
   if(!id){currentProject=null;const pi0=document.getElementById("proj-info"); if(pi0) pi0.style.display="none";return;}
-  const projects=getProjects();
-  const proj=projects.find(p=>p.id===id);
+  const proj=allProjects.find(p=>p.id===id);
   if(!proj)return;
   currentProject=proj;
-  // Set arrival date from project
   arrivalDate=proj.date;
   document.getElementById("arrival-chip").textContent="📅 "+new Date(proj.date).toLocaleDateString("ru-RU",{day:"numeric",month:"long",year:"numeric"});
   const _pi=document.getElementById("proj-info"); if(_pi){_pi.style.display="inline";_pi.textContent="Проект: "+proj.name;}
+  // Reload project-specific data
+  await Promise.all([loadAdjustments(), loadExcluded(), loadAddedToOrder()]);
   render();
 }
-function saveProjectData(){
-  // costs, adjustments, excluded теперь хранятся на сервере глобально
-  // проект хранит только имя и дату прихода
+
+async function loadAdjustments(){
+  try{ adjustments=await(await fetch("/api/adjustments?project_id="+encodeURIComponent(currentPid()))).json(); }catch(e){ adjustments={}; }
 }
-let costs={}; // base → cost per unit
+function getFinalQty(base, calcQty){
+  return Math.max(0, calcQty + (adjustments[base]||0));
+}
+
+let costs={}; // base → cost per unit (global, not per project)
 
 async function loadCosts(){
   try{ costs=await(await fetch("/api/costs")).json(); }catch(e){ costs={}; }
 }
-function saveCosts(){ /* no-op: saved immediately in setCost */ }
+
 async function loadExcluded(){
   try{
+    const pid=encodeURIComponent(currentPid());
     const [excl, hidden] = await Promise.all([
-      fetch("/api/excluded").then(r=>r.json()),
+      fetch("/api/excluded?project_id="+pid).then(r=>r.json()),
       fetch("/api/hidden").then(r=>r.json())
     ]);
     excludedItems = new Set([...excl, ...hidden]);
   }catch(e){ excludedItems=new Set(); }
 }
-function saveExcluded(){ /* no-op: saved immediately in exclude() */ }
 
 // ─── Modal logic ─────────────────────────────────────────────────────────────
 function initModal(){
@@ -523,49 +532,41 @@ function switchModalTab(tab){
 function refreshModalProjectSelect(){
   const sel=document.getElementById("modal-proj-select");
   if(!sel)return;
-  const projects=getProjects();
   sel.innerHTML=`<option value="">— выберите проект —</option>`;
-  projects.forEach(p=>{
+  allProjects.forEach(p=>{
     const opt=document.createElement("option");
     opt.value=p.id;
     opt.textContent=p.name+" · "+new Date(p.date).toLocaleDateString("ru-RU",{day:"numeric",month:"short",year:"numeric"});
     sel.appendChild(opt);
   });
-  if(projects.length>0) switchModalTab("existing");
+  if(allProjects.length>0) switchModalTab("existing");
 }
-function confirmNewProject(){
+async function confirmNewProject(){
   const name=document.getElementById("modal-proj-name").value.trim();
   const date=document.getElementById("modal-date").value;
   if(!date){alert("Укажи дату прихода");return;}
   if(name){
-    const id="proj_"+Date.now();
-    const projects=getProjects();
-    const proj={id,name,date,created:new Date().toISOString(),
-      data:{costs:{},adjustments:{},excluded:[],addedToOrder:[]}};
-    projects.push(proj);
-    saveProjects(projects);
+    const proj=await createProject(name, date);
     currentProject=proj;
     const _pi=document.getElementById("proj-info"); if(_pi){_pi.style.display="inline";_pi.textContent="Проект: "+name;}
   }
   openWithDate(date);
 }
-function confirmExistingProject(){
+async function confirmExistingProject(){
   const id=document.getElementById("modal-proj-select").value;
   if(!id){alert("Выбери проект");return;}
-  const projects=getProjects();
-  const proj=projects.find(p=>p.id===id);
+  const proj=allProjects.find(p=>p.id===id);
   if(!proj)return;
   currentProject=proj;
   const _pi=document.getElementById("proj-info"); if(_pi){_pi.style.display="inline";_pi.textContent="Проект: "+proj.name;}
   openWithDate(proj.date);
 }
-function deleteSelectedProject(){
+async function deleteSelectedProject(){
   const id=document.getElementById("modal-proj-select").value;
   if(!id)return;
-  const projects=getProjects();
-  const proj=projects.find(p=>p.id===id);
+  const proj=allProjects.find(p=>p.id===id);
   if(!proj||!confirm("Удалить проект «"+proj.name+"»?"))return;
-  saveProjects(projects.filter(p=>p.id!==id));
+  await deleteProjectFromServer(id);
   refreshModalProjectSelect();
 }
 function openWithDate(date){
@@ -770,7 +771,7 @@ function setAdj(inp){
   const val=parseInt(inp.value)||0;
   if(val===0) delete adjustments[base]; else adjustments[base]=val;
   fetch("/api/adjustments",{method:"POST",headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({sku_base:base,qty_adj:val})}).catch(()=>{});
+    body:JSON.stringify({project_id:currentPid(),sku_base:base,qty_adj:val})}).catch(()=>{});
   // Update final qty cell and order cost cell in same row
   const order=computeOrder(base);
   if(order){
@@ -823,7 +824,7 @@ function setCost(inp){
 function exclude(base){
   excludedItems.add(base);
   fetch("/api/excluded",{method:"POST",headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({sku_base:base})}).catch(()=>{});
+    body:JSON.stringify({project_id:currentPid(),sku_base:base})}).catch(()=>{});
   render();
 }
 
@@ -858,17 +859,21 @@ document.body.addEventListener("click",function(e){
   if(add){ const tr=add.closest("tr[data-base]"); if(tr){
     const base=tr.dataset.base; addedToOrder.add(base);
     fetch("/api/order-added",{method:"POST",headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({sku_base:base})}).catch(()=>{});
+      body:JSON.stringify({project_id:currentPid(),sku_base:base})}).catch(()=>{});
     render(); } return; }
 });
 
 async function loadAddedToOrder(){
-  try{ addedToOrder=new Set(await(await fetch("/api/order-added")).json()); }catch(e){ addedToOrder=new Set(); }
+  try{ addedToOrder=new Set(await(await fetch("/api/order-added?project_id="+encodeURIComponent(currentPid()))).json()); }catch(e){ addedToOrder=new Set(); }
 }
 
 async function init(){
   initModal();
-  await Promise.all([loadCosts(), loadExcluded(), loadAdjustments(), loadAddedToOrder()]);
+  await loadProjects();
+  refreshModalProjectSelect();
+  refreshProjectSelect();
+  await Promise.all([loadCosts(), loadAdjustments(), loadAddedToOrder()]);
+  await loadExcluded();
   try{
     await loadStock();
   }catch(e){
@@ -877,7 +882,6 @@ async function init(){
   stockLoaded=true;
   if(arrivalDate) render();
   else {
-    // Show hint in modal that data is ready
     const btn=document.querySelector(".modal-btn");
     if(btn) btn.textContent="✓ Данные загружены — выбери дату →";
   }

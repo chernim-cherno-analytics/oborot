@@ -66,15 +66,26 @@ def init_db():
         cost REAL NOT NULL DEFAULT 0,
         updated_at TEXT NOT NULL)""")
     conn.execute("""CREATE TABLE IF NOT EXISTS sku_adjustments (
-        sku_base TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL DEFAULT '',
+        sku_base TEXT NOT NULL,
         qty_adj INTEGER NOT NULL DEFAULT 0,
-        updated_at TEXT NOT NULL)""")
+        updated_at TEXT NOT NULL,
+        PRIMARY KEY (project_id, sku_base))""")
     conn.execute("""CREATE TABLE IF NOT EXISTS order_excluded (
-        sku_base TEXT PRIMARY KEY,
-        excluded_at TEXT NOT NULL)""")
+        project_id TEXT NOT NULL DEFAULT '',
+        sku_base TEXT NOT NULL,
+        excluded_at TEXT NOT NULL,
+        PRIMARY KEY (project_id, sku_base))""")
     conn.execute("""CREATE TABLE IF NOT EXISTS order_added (
-        sku_base TEXT PRIMARY KEY,
-        added_at TEXT NOT NULL)""")
+        project_id TEXT NOT NULL DEFAULT '',
+        sku_base TEXT NOT NULL,
+        added_at TEXT NOT NULL,
+        PRIMARY KEY (project_id, sku_base))""")
+    conn.execute("""CREATE TABLE IF NOT EXISTS projects (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        arrival_date TEXT NOT NULL,
+        created_at TEXT NOT NULL)""")
     conn.commit(); conn.close()
 
 init_db()
@@ -447,9 +458,9 @@ async def set_cost(data: dict):
 
 # ─── Adjustments ──────────────────────────────────────────────────────────────
 @app.get("/api/adjustments")
-def get_adjustments():
+def get_adjustments(project_id: str = ""):
     conn = get_db()
-    rows = conn.execute("SELECT sku_base, qty_adj FROM sku_adjustments").fetchall()
+    rows = conn.execute("SELECT sku_base, qty_adj FROM sku_adjustments WHERE project_id=?", (project_id,)).fetchall()
     conn.close()
     return {r["sku_base"]: r["qty_adj"] for r in rows}
 
@@ -457,50 +468,80 @@ def get_adjustments():
 async def set_adjustment(data: dict):
     conn = get_db()
     adj = int(data.get("qty_adj", 0))
+    pid = data.get("project_id", "")
     if adj == 0:
-        conn.execute("DELETE FROM sku_adjustments WHERE sku_base=?", (data["sku_base"],))
+        conn.execute("DELETE FROM sku_adjustments WHERE project_id=? AND sku_base=?", (pid, data["sku_base"]))
     else:
-        conn.execute("INSERT OR REPLACE INTO sku_adjustments (sku_base, qty_adj, updated_at) VALUES (?,?,?)",
-                     (data["sku_base"], adj, datetime.now().isoformat()))
+        conn.execute("INSERT OR REPLACE INTO sku_adjustments (project_id, sku_base, qty_adj, updated_at) VALUES (?,?,?,?)",
+                     (pid, data["sku_base"], adj, datetime.now().isoformat()))
     conn.commit(); conn.close()
     return {"ok": True}
 
 # ─── Order excluded ───────────────────────────────────────────────────────────
 @app.get("/api/excluded")
-def get_excluded():
+def get_excluded(project_id: str = ""):
     conn = get_db()
-    rows = conn.execute("SELECT sku_base FROM order_excluded").fetchall()
+    rows = conn.execute("SELECT sku_base FROM order_excluded WHERE project_id=?", (project_id,)).fetchall()
     conn.close()
     return [r["sku_base"] for r in rows]
 
 @app.post("/api/excluded")
 async def add_excluded(data: dict):
     conn = get_db()
-    conn.execute("INSERT OR IGNORE INTO order_excluded (sku_base, excluded_at) VALUES (?,?)",
-                 (data["sku_base"], datetime.now().isoformat()))
+    pid = data.get("project_id", "")
+    conn.execute("INSERT OR IGNORE INTO order_excluded (project_id, sku_base, excluded_at) VALUES (?,?,?)",
+                 (pid, data["sku_base"], datetime.now().isoformat()))
     conn.commit(); conn.close()
     return {"ok": True}
 
 @app.delete("/api/excluded/{sku_base}")
-def remove_excluded(sku_base: str):
+def remove_excluded(sku_base: str, project_id: str = ""):
     conn = get_db()
-    conn.execute("DELETE FROM order_excluded WHERE sku_base=?", (sku_base,))
+    conn.execute("DELETE FROM order_excluded WHERE project_id=? AND sku_base=?", (project_id, sku_base))
     conn.commit(); conn.close()
     return {"ok": True}
 
 # ─── Order added (possible→active) ───────────────────────────────────────────
 @app.get("/api/order-added")
-def get_order_added():
+def get_order_added(project_id: str = ""):
     conn = get_db()
-    rows = conn.execute("SELECT sku_base FROM order_added").fetchall()
+    rows = conn.execute("SELECT sku_base FROM order_added WHERE project_id=?", (project_id,)).fetchall()
     conn.close()
     return [r["sku_base"] for r in rows]
 
 @app.post("/api/order-added")
 async def add_order_added(data: dict):
     conn = get_db()
-    conn.execute("INSERT OR IGNORE INTO order_added (sku_base, added_at) VALUES (?,?)",
-                 (data["sku_base"], datetime.now().isoformat()))
+    pid = data.get("project_id", "")
+    conn.execute("INSERT OR IGNORE INTO order_added (project_id, sku_base, added_at) VALUES (?,?,?)",
+                 (pid, data["sku_base"], datetime.now().isoformat()))
+    conn.commit(); conn.close()
+    return {"ok": True}
+
+# ─── Projects ─────────────────────────────────────────────────────────────────
+@app.get("/api/projects")
+def list_projects():
+    conn = get_db()
+    rows = conn.execute("SELECT id, name, arrival_date, created_at FROM projects ORDER BY created_at DESC").fetchall()
+    conn.close()
+    return [{"id": r["id"], "name": r["name"], "date": r["arrival_date"]} for r in rows]
+
+@app.post("/api/projects")
+async def upsert_project(data: dict):
+    import uuid as _uuid
+    conn = get_db()
+    pid = data.get("id") or _uuid.uuid4().hex[:8]
+    conn.execute("INSERT OR REPLACE INTO projects (id, name, arrival_date, created_at) VALUES (?,?,?,?)",
+                 (pid, data["name"], data["date"], datetime.now().isoformat()))
+    conn.commit(); conn.close()
+    return {"id": pid, "name": data["name"], "date": data["date"]}
+
+@app.delete("/api/projects/{project_id}")
+def delete_project(project_id: str):
+    conn = get_db()
+    for tbl in ("sku_adjustments", "order_excluded", "order_added"):
+        conn.execute(f"DELETE FROM {tbl} WHERE project_id=?", (project_id,))
+    conn.execute("DELETE FROM projects WHERE id=?", (project_id,))
     conn.commit(); conn.close()
     return {"ok": True}
 
@@ -508,9 +549,8 @@ async def add_order_added(data: dict):
 # ─── Turnover data: pre-computed per-SKU stats (fast) ────────────────────────
 @app.get("/api/turnover-data")
 def get_turnover_data():
-    """Return per-base-SKU: days_in_stock, current_stock, season_days - computed in SQL."""
+    """Fast endpoint: pre-computed per-base-SKU stock stats."""
     conn = get_db()
-    # All dates sorted
     dates = [r[0] for r in conn.execute(
         "SELECT DISTINCT date FROM stock_snapshots ORDER BY date"
     ).fetchall()]
@@ -518,89 +558,57 @@ def get_turnover_data():
         conn.close()
         return {"dates": [], "skus": {}}
 
-    from datetime import date as _date, timedelta
-    cutoff = (_date.today() - timedelta(days=365)).isoformat()
-    recent_dates = [d for d in dates if d >= cutoff]
+    from datetime import date as _dt, timedelta
+    import re as _re
+    cutoff = (_dt.today() - timedelta(days=365)).isoformat()
+    recent = [d for d in dates if d >= cutoff]
+    latest = dates[-1]
 
-    # Get aggregated stock per base-sku per date for last 365 days
-    rows = conn.execute("""
-        SELECT date,
-               REPLACE(REPLACE(REPLACE(sku_name,
-                 CASE WHEN INSTR(sku_name,'(') > 0
-                      THEN SUBSTR(sku_name, INSTR(sku_name,'(') - 1)
-                      ELSE '' END, ''), ' (', ''), '(', '') as base,
-               SUM(stock_qty) as qty
-        FROM stock_snapshots
-        WHERE date >= ?
-        GROUP BY date, base
-        ORDER BY date
-    """, (cutoff,)).fetchall()
+    raw = conn.execute(
+        "SELECT date, sku_name, SUM(stock_qty) as qty FROM stock_snapshots "
+        "WHERE date >= ? GROUP BY date, sku_name ORDER BY date",
+        (cutoff,)
+    ).fetchall()
+
+    cur_raw = conn.execute(
+        "SELECT sku_name, SUM(stock_qty) as qty FROM stock_snapshots "
+        "WHERE date=? GROUP BY sku_name",
+        (latest,)
+    ).fetchall()
     conn.close()
 
-    # Build {base: {date: qty}}
-    from collections import defaultdict
-    stock_by_base = defaultdict(dict)
-    for r in rows:
-        # Simple strip: remove trailing (SIZE) pattern
-        import re as _re2
-        base = _re2.sub(r'[\s]*\([^)]*\)[\s]*$', '', str(r["sku_name"] if "sku_name" in r.keys() else r[1])).strip()
-        stock_by_base[base][r["date"]] = (stock_by_base[base].get(r["date"], 0) + r["qty"])
+    _pat = _re.compile(r"\s*\([^)]*\)\s*$")
+    def strip(n): return _pat.sub("", str(n)).strip()
 
-    # Recompute from raw rows properly
-    conn2 = get_db()
-    raw = conn2.execute("""
-        SELECT date, sku_name, SUM(stock_qty) as qty
-        FROM stock_snapshots
-        WHERE date >= ?
-        GROUP BY date, sku_name
-        ORDER BY date
-    """, (cutoff,)).fetchall()
-    # Also get max date stock for current stock
-    latest_date = dates[-1] if dates else None
-    latest_raw = conn2.execute("""
-        SELECT sku_name, SUM(stock_qty) as qty
-        FROM stock_snapshots
-        WHERE date = ?
-        GROUP BY sku_name
-    """, (latest_date,)).fetchall() if latest_date else []
-    conn2.close()
-
-    import re as _re3
-    def strip(n): return _re3.sub(r'[\s]*[(][^)]*[)][\s]*$', '', str(n)).strip()
-
-    # Aggregate by base
-    by_base = defaultdict(lambda: defaultdict(float))
-    for r in raw:
-        by_base[strip(r["sku_name"])][r["date"]] += r["qty"]
-
-    cur_by_base = defaultdict(float)
-    for r in latest_raw:
-        cur_by_base[strip(r["sku_name"])] += r["qty"]
-
-    def get_season(d):
+    def season(d):
         m = int(d[5:7])
-        if m==12 or m<=2: return "winter"
-        if m<=5: return "spring"
-        if m<=8: return "summer"
+        if m == 12 or m <= 2: return "winter"
+        if m <= 5: return "spring"
+        if m <= 8: return "summer"
         return "autumn"
 
+    from collections import defaultdict
+    dm = defaultdict(lambda: defaultdict(float))
+    for r in raw:
+        dm[strip(r["sku_name"])][r["date"]] += r["qty"]
+
+    cur = defaultdict(float)
+    for r in cur_raw:
+        cur[strip(r["sku_name"])] += r["qty"]
+
     result = {}
-    for base, dm in by_base.items():
+    for base, stock_map in dm.items():
         dis = 0; prev = 0
-        sea_days = {"winter":0,"spring":0,"summer":0,"autumn":0}
-        for d in recent_dates:
-            q = dm.get(d, prev)
+        sea = {"winter": 0, "spring": 0, "summer": 0, "autumn": 0}
+        for d in recent:
+            q = stock_map.get(d, prev)
             if q >= 3:
                 dis += 1
-                sea_days[get_season(d)] += 1
+                sea[season(d)] += 1
             prev = q
-        result[base] = {
-            "dis": dis,
-            "cs": int(cur_by_base.get(base, 0)),
-            "sea_days": sea_days
-        }
+        result[base] = {"dis": dis, "cs": int(cur.get(base, 0)), "sea_days": sea}
 
-    return {"dates": dates, "recent_dates": recent_dates, "skus": result}
+    return {"dates": dates, "skus": result}
 
 @app.get("/{full_path:path}")
 def serve_frontend(full_path: str):
