@@ -125,19 +125,21 @@
     }
     .controls-bar {
       padding: 10px 28px;
-      background: rgba(0,0,0,0.15);
-      border-bottom: 1px solid rgba(255,255,255,0.15);
+      background: rgba(0,0,0,0.35);
+      backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+      border-bottom: 2px solid rgba(255,255,255,0.2);
       display: flex; align-items: center; gap: 8px;
+      position: sticky; top: 56px; z-index: 50;
     }
-    .controls-bar-label { font-size: 11px; color: rgba(255,255,255,0.5); font-weight: 600; letter-spacing: 0.06em; margin-right: 4px }
+    .controls-bar-label { font-size: 11px; color: rgba(255,255,255,0.6); font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; margin-right: 4px }
     .season-tab {
-      font-size: 12px; font-weight: 500; padding: 5px 14px; border-radius: 20px;
-      border: 1px solid rgba(255,255,255,0.35); background: rgba(255,255,255,0.12);
-      color: rgba(255,255,255,0.75); cursor: pointer; transition: all .15s;
+      font-size: 12px; font-weight: 600; padding: 6px 18px; border-radius: 20px;
+      border: 2px solid rgba(255,255,255,0.6); background: rgba(255,255,255,0.08);
+      color: white; cursor: pointer; transition: all .15s;
       font-family: Helvetica, 'Helvetica Neue', Arial, sans-serif;
     }
-    .season-tab:hover { background: rgba(255,255,255,0.28); color: white; border-color: rgba(255,255,255,0.6) }
-    .season-tab.active { background: rgba(255,255,255,0.9); color: #2a3210; border-color: rgba(255,255,255,0.9); font-weight: 600 }
+    .season-tab:hover { background: rgba(255,255,255,0.22); border-color: white }
+    .season-tab.active { background: white; color: #2a3210; border-color: white; font-weight: 700; box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
 
     /* MAIN TABLE */
     .main { padding: 20px 28px }
@@ -495,7 +497,13 @@ async function loadCosts(){
 }
 function saveCosts(){ /* no-op: saved immediately in setCost */ }
 async function loadExcluded(){
-  try{ excludedItems=new Set(await(await fetch("/api/excluded")).json()); }catch(e){ excludedItems=new Set(); }
+  try{
+    const [excl, hidden] = await Promise.all([
+      fetch("/api/excluded").then(r=>r.json()),
+      fetch("/api/hidden").then(r=>r.json())
+    ]);
+    excludedItems = new Set([...excl, ...hidden]);
+  }catch(e){ excludedItems=new Set(); }
 }
 function saveExcluded(){ /* no-op: saved immediately in exclude() */ }
 
@@ -728,7 +736,7 @@ function render(){
           data-base="${base.replace(/"/g,'&quot;')}" onchange="setCost(this)" onblur="setCost(this)"/>
       </td>
       <td class="nb order-cost-cell">${orderCostStr}</td>
-      <td style="display:flex;gap:4px;align-items:center;padding:6px 8px">
+      <td style="white-space:nowrap;padding:6px 8px;text-align:center">
         ${isPossible
           ? `<button class="btn-add-order btn-add-row">В заказ</button>`
           : `<button class="btn-exclude btn-excl-row">Исключить</button>`
