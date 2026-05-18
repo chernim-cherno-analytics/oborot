@@ -251,50 +251,62 @@ async function loadHidden() {
   try { hiddenItems = new Set(await (await fetch("/api/hidden")).json()); } catch(e) {}
 }
 
-// turnoverData: {base: {dis, cs, sea_days}} — pre-computed on server
-let turnoverData = {};
+// stockData: {base: {date: qty}} — same as order page
+let stockData = {};
 
 async function loadStock() {
   document.getElementById("tb").innerHTML=`<tr><td colspan="16" class="loading">Загружаю данные с сервера...</td></tr>`;
   try {
-    const controller = new AbortController();
-    const tid = setTimeout(() => controller.abort(), 30000);
-    const res = await fetch("/api/turnover-data", {signal: controller.signal});
-    clearTimeout(tid);
-    if (!res.ok) throw new Error("HTTP " + res.status);
-    const data = await res.json();
-    allDates = data.dates || [];
-    turnoverData = data.skus || {};
+    const r = await (await fetch("/api/stocks/all")).json();
+    allDates = r.dates || [];
+    stockData = r.stock || {};
   } catch(e) {
-    const msg = e.name === "AbortError" ? "Превышено время ожидания — обновите страницу" : ("Ошибка: " + e.message);
-    document.getElementById("tb").innerHTML=`<tr><td colspan="16" class="loading" style="color:rgba(239,68,68,0.7)">${msg}&nbsp;&nbsp;<a href="javascript:location.reload()" style="color:inherit;text-decoration:underline">↻ обновить</a></td></tr>`;
+    document.getElementById("tb").innerHTML=`<tr><td colspan="16" class="loading" style="color:rgba(239,68,68,0.7)">Ошибка загрузки — <a href="javascript:location.reload()" style="color:inherit;text-decoration:underline">↻ обновить</a></td></tr>`;
   }
 }
 
 function compute() {
-  // turnoverData already has dis/cs/sea_days pre-computed — just merge with SKUS
-  for (const base of Object.keys(turnoverData)) {
+  const cutoff = new Date(Date.now() - 365*24*3600*1000);
+  const last365 = allDates.filter(d => new Date(d) >= cutoff);
+
+  for (const base of Object.keys(stockData)) {
+    const dm = stockData[base] || {};
     const sk = SKUS[base] || {nq:0, nr:0, ap:0, sea:{}, chart:[]};
-    const td = turnoverData[base];
-    const dis = td.dis || 0;
-    const cs  = td.cs  || 0;
-    const sd  = td.sea_days || {winter:0, spring:0, summer:0, autumn:0};
+
+    // Days in stock + season breakdown
+    let dis = 0, prev = 0;
+    const sd = {winter:0, spring:0, summer:0, autumn:0};
+    for (const d of last365) {
+      const q = dm[d] !== undefined ? dm[d] : prev;
+      if (q >= 3) { dis++; sd[getSeason(d)]++; }
+      prev = q;
+    }
+
     const turn = dis > 0 ? sk.nr / dis : 0;
     const sea = {};
     for (const s of ["winter","spring","summer","autumn"]) {
       sea[s] = sd[s] > 0 ? (sk.sea[s] || 0) / sd[s] : 0;
     }
+
+    // Current stock (last date)
+    let cs = 0;
+    for (let i = allDates.length-1; i >= 0; i--) {
+      if (dm[allDates[i]] !== undefined) { cs = dm[allDates[i]]; break; }
+    }
+
     const dsq = dis > 0 ? sk.nq / dis : 0;
     const sup = dsq > 0 ? Math.round(cs / dsq) : null;
     const zat = sup !== null ? Math.round(sup / 90 * 100) : null;
     const needed = Math.round(dsq * 90);
     const defq = Math.max(0, needed - cs);
     const defp = needed > 0 ? Math.round(defq / needed * 100) : 0;
+
     const ord = {};
     for (const s of ["winter","spring","summer","autumn"]) {
       const sqty = sk.nq > 0 && sk.nr > 0 ? sk.nq * (sk.sea[s] || 0) / sk.nr : 0;
       ord[s] = sd[s] > 0 ? Math.round(sqty / sd[s] * SEASON_DAYS[s]) : 0;
     }
+
     computed[base] = {dis, turn, sea, cs, sup, zat, defq, defp, ord, ap: sk.ap, nr: sk.nr, chart: sk.chart || []};
   }
 }

@@ -97,6 +97,15 @@
       font-weight: 500; cursor: pointer; font-family: Helvetica, 'Helvetica Neue', Arial, sans-serif; transition: all .2s;
     }
     .btn-outline:hover { background: rgba(255,255,255,0.6) }
+    .btn-save {
+      background: rgba(34,197,94,0.18); border: 1.5px solid rgba(34,197,94,0.55);
+      color: rgba(255,255,255,0.9); padding: 8px 16px; border-radius: 8px;
+      font-size: 12px; font-weight: 600; cursor: pointer; transition: all .2s;
+      font-family: Helvetica, 'Helvetica Neue', Arial, sans-serif;
+    }
+    .btn-save:hover { background: rgba(34,197,94,0.35); border-color: rgba(34,197,94,0.9); }
+    .btn-save.saving { opacity: 0.6; pointer-events: none; }
+    .btn-save.ok { background: rgba(34,197,94,0.45); border-color: rgba(34,197,94,1); }
     .arrival-chip {
       font-size: 12px; color: rgba(255,255,255,0.5); font-weight: 500;
       padding: 6px 12px; border-radius: 20px; background: rgba(26,42,58,0.06);
@@ -333,6 +342,7 @@
   </div>
   <div class="sum-actions">
     <span class="arrival-chip" onclick="reopenModal()" id="arrival-chip">📅 Дата прихода</span>
+    <button class="btn-save" id="btn-save" onclick="saveProject()" style="display:none">💾 Сохранить изменения</button>
     <button class="btn-outline" onclick="exportCSV()">⬇ Выгрузить</button>
   </div>
 </div>
@@ -484,6 +494,7 @@ async function loadProject(id){
     currentProject=null;
     excludedItems=new Set(); adjustments={}; addedToOrder=new Set();
     const pi0=document.getElementById("proj-info"); if(pi0) pi0.style.display="none";
+    const bs=document.getElementById("btn-save"); if(bs) bs.style.display="none";
     render(); return;
   }
   const proj=allProjects.find(p=>p.id===id);
@@ -492,16 +503,51 @@ async function loadProject(id){
   arrivalDate=proj.date;
   document.getElementById("arrival-chip").textContent="📅 "+new Date(proj.date).toLocaleDateString("ru-RU",{day:"numeric",month:"long",year:"numeric"});
   const _pi=document.getElementById("proj-info"); if(_pi){_pi.style.display="inline";_pi.textContent="Проект: "+proj.name;}
-  // Reset and reload all project-specific data fresh from server
+  // Load all project data in one request
   excludedItems=new Set(); adjustments={}; addedToOrder=new Set();
-  await Promise.all([loadAdjustments(), loadExcluded(), loadAddedToOrder()]);
-  // Show table
+  try{
+    const d=await(await fetch("/api/projects/"+id+"/data")).json();
+    adjustments=d.adjustments||{};
+    excludedItems=new Set(d.excluded||[]);
+    addedToOrder=new Set(d.added||[]);
+    // Also merge hidden items from analytics
+    const hidden=await(await fetch("/api/hidden")).json();
+    hidden.forEach(h=>excludedItems.add(h));
+  }catch(e){}
+  const bs=document.getElementById("btn-save"); if(bs) bs.style.display="inline-flex";
   const _pb=document.getElementById("project-bar"); if(_pb) _pb.style.display="flex";
   document.getElementById("controls-bar").style.display="flex";
   document.getElementById("main-area").style.display="block";
   document.getElementById("summary-bar").style.display="flex";
   render();
 }
+
+async function saveProject(){
+  if(!currentProject) return;
+  const btn=document.getElementById("btn-save");
+  btn.classList.add("saving"); btn.textContent="Сохраняю...";
+  try{
+    // Save project state
+    const excluded=[...excludedItems].filter(b=>!hiddenFromAnalytics.has(b));
+    await fetch("/api/projects/"+currentProject.id+"/data",{
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({adjustments, excluded, added:[...addedToOrder]})
+    });
+    // Save costs separately (global)
+    for(const [base,cost] of Object.entries(costs)){
+      await fetch("/api/costs",{method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({sku_base:base,cost})});
+    }
+    btn.classList.remove("saving"); btn.classList.add("ok");
+    btn.textContent="✓ Сохранено";
+    setTimeout(()=>{btn.classList.remove("ok");btn.textContent="💾 Сохранить изменения";},2000);
+  }catch(e){
+    btn.classList.remove("saving");
+    btn.textContent="⚠ Ошибка сохранения";
+    setTimeout(()=>{btn.textContent="💾 Сохранить изменения";},2000);
+  }
+}
+let hiddenFromAnalytics = new Set();
 
 async function loadAdjustments(){
   try{ adjustments=await(await fetch("/api/adjustments?project_id="+encodeURIComponent(currentPid()))).json(); }catch(e){ adjustments={}; }
@@ -783,31 +829,22 @@ function setAdj(inp){
   const base=inp.dataset.base;
   const val=parseInt(inp.value)||0;
   if(val===0) delete adjustments[base]; else adjustments[base]=val;
-  fetch("/api/adjustments",{method:"POST",headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({project_id:currentPid(),sku_base:base,qty_adj:val})}).catch(()=>{});
-  // Update final qty cell and order cost cell in same row
+  // Update final qty cell
   const order=computeOrder(base);
   if(order){
     const tr=inp.closest("tr");
     const qtyCell=tr.querySelector(".qty-final");
-    if(qtyCell){
-      qtyCell.textContent=order.qty;
-      qtyCell.className=(order.adj!==0)?'qty-final adjusted':'qty-final';
-    }
+    if(qtyCell){qtyCell.textContent=order.qty;qtyCell.className=(order.adj!==0)?'qty-final adjusted':'qty-final';}
     const costCell=tr.querySelector(".order-cost-cell");
     if(costCell) costCell.textContent=order.orderCost>0?fmtM(order.orderCost)+" ₽":"—";
-    // Update totals
     const active=[];
     for(const tr2 of document.querySelectorAll("tbody tr[data-base]")){
       const b=tr2.dataset.base; const o=computeOrder(b); if(!o)continue;
       if((o.turn>=2000&&o.qty>=5)||addedToOrder.has(b)) active.push(o);
     }
-    const tq=active.reduce((s,x)=>s+x.qty,0);
-    const tc=active.reduce((s,x)=>s+x.orderCost,0);
-    const tr2=active.reduce((s,x)=>s+x.revPotential,0);
-    document.getElementById("s-qty").textContent=fmt(tq)+" шт";
-    document.getElementById("s-cost").textContent=tc>0?fmtM(tc)+" ₽":"—";
-    document.getElementById("s-rev").textContent=fmtM(tr2)+" ₽";
+    document.getElementById("s-qty").textContent=fmt(active.reduce((s,x)=>s+x.qty,0))+" шт";
+    document.getElementById("s-cost").textContent=active.reduce((s,x)=>s+x.orderCost,0)>0?fmtM(active.reduce((s,x)=>s+x.orderCost,0))+" ₽":"—";
+    document.getElementById("s-rev").textContent=fmtM(active.reduce((s,x)=>s+x.revPotential,0))+" ₽";
   }
 }
 
@@ -815,29 +852,24 @@ function setCost(inp){
   const base=inp.dataset.base;
   const val=parseFloat(inp.value)||0;
   costs[base]=val;
+  // Costs are global — save immediately
   fetch("/api/costs",{method:"POST",headers:{"Content-Type":"application/json"},
     body:JSON.stringify({sku_base:base,cost:val})}).catch(()=>{});
-  // Update order cost cell
   const order=computeOrder(base);
   if(order){
     const cell=inp.closest("tr").querySelector(".order-cost-cell");
     if(cell) cell.textContent=order.orderCost>0?fmtM(order.orderCost)+" ₽":"—";
-    // Recompute totals
     const active=[];
     for(const tr of document.querySelectorAll("tbody tr[data-base]")){
-      const b=tr.dataset.base;
-      const o=computeOrder(b); if(!o)continue;
+      const b=tr.dataset.base; const o=computeOrder(b); if(!o)continue;
       if(o.qty>=5) active.push(o);
     }
-    const totalCost=active.reduce((s,x)=>s+x.orderCost,0);
-    document.getElementById("s-cost").textContent=totalCost>0?fmtM(totalCost)+" ₽":"—";
+    document.getElementById("s-cost").textContent=active.reduce((s,x)=>s+x.orderCost,0)>0?fmtM(active.reduce((s,x)=>s+x.orderCost,0))+" ₽":"—";
   }
 }
 
 function exclude(base){
   excludedItems.add(base);
-  fetch("/api/excluded",{method:"POST",headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({project_id:currentPid(),sku_base:base})}).catch(()=>{});
   render();
 }
 
@@ -870,10 +902,7 @@ document.body.addEventListener("click",function(e){
   if(excl){ const tr=excl.closest("tr[data-base]"); if(tr) exclude(tr.dataset.base); return; }
   const add=e.target.closest(".btn-add-row");
   if(add){ const tr=add.closest("tr[data-base]"); if(tr){
-    const base=tr.dataset.base; addedToOrder.add(base);
-    fetch("/api/order-added",{method:"POST",headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({project_id:currentPid(),sku_base:base})}).catch(()=>{});
-    render(); } return; }
+    addedToOrder.add(tr.dataset.base); render(); } return; }
 });
 
 async function loadAddedToOrder(){

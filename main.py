@@ -555,7 +555,43 @@ async def add_order_added(data: dict):
     return {"ok": True}
 
 # ─── Projects ─────────────────────────────────────────────────────────────────
-@app.get("/api/projects")
+@app.get("/api/projects/{project_id}/data")
+def get_project_data(project_id: str):
+    """Load saved project state: adjustments, excluded, added."""
+    conn = get_db()
+    adj = {r["sku_base"]: r["qty_adj"] for r in conn.execute(
+        "SELECT sku_base, qty_adj FROM sku_adjustments WHERE project_id=?", (project_id,)).fetchall()}
+    excl = [r["sku_base"] for r in conn.execute(
+        "SELECT sku_base FROM order_excluded WHERE project_id=?", (project_id,)).fetchall()]
+    added = [r["sku_base"] for r in conn.execute(
+        "SELECT sku_base FROM order_added WHERE project_id=?", (project_id,)).fetchall()]
+    conn.close()
+    return {"adjustments": adj, "excluded": excl, "added": added}
+
+@app.post("/api/projects/{project_id}/data")
+async def save_project_data(project_id: str, data: dict):
+    """Save full project state at once: adjustments, excluded, added."""
+    conn = get_db()
+    now = datetime.now().isoformat()
+    # Replace adjustments
+    conn.execute("DELETE FROM sku_adjustments WHERE project_id=?", (project_id,))
+    for base, qty in (data.get("adjustments") or {}).items():
+        if int(qty) != 0:
+            conn.execute("INSERT INTO sku_adjustments (project_id,sku_base,qty_adj,updated_at) VALUES (?,?,?,?)",
+                         (project_id, base, int(qty), now))
+    # Replace excluded
+    conn.execute("DELETE FROM order_excluded WHERE project_id=?", (project_id,))
+    for base in (data.get("excluded") or []):
+        conn.execute("INSERT INTO order_excluded (project_id,sku_base,excluded_at) VALUES (?,?,?)",
+                     (project_id, base, now))
+    # Replace added
+    conn.execute("DELETE FROM order_added WHERE project_id=?", (project_id,))
+    for base in (data.get("added") or []):
+        conn.execute("INSERT INTO order_added (project_id,sku_base,added_at) VALUES (?,?,?)",
+                     (project_id, base, now))
+    conn.commit(); conn.close()
+    return {"ok": True}
+
 def list_projects():
     conn = get_db()
     rows = conn.execute("SELECT id, name, arrival_date, created_at FROM projects ORDER BY created_at DESC").fetchall()
