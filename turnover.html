@@ -155,6 +155,13 @@
     .og { display:grid; grid-template-columns:1fr 1fr; gap:5px }
     .oi { background:rgba(255,255,255,0.07); border-radius:6px; padding:6px 8px; text-align:center }
     .ois { font-size:10px; color:rgba(255,255,255,0.4); font-weight:600 }
+    .size-sel { display:flex; align-items:center; gap:6px; margin-bottom:10px; flex-wrap:wrap }
+    .size-sel-lbl { font-size:10px; font-weight:600; color:rgba(255,255,255,0.35); letter-spacing:.06em; text-transform:uppercase }
+    .sz-btn { font-size:11px; font-weight:600; padding:3px 10px; border-radius:12px; border:1px solid rgba(255,255,255,0.18); background:rgba(255,255,255,0.07); color:rgba(255,255,255,0.4); cursor:pointer; transition:all .15s; font-family:inherit; display:flex; align-items:center; gap:5px }
+    .sz-btn:hover { background:rgba(255,255,255,0.13); color:rgba(255,255,255,0.7) }
+    .sz-btn.active { background:rgba(255,255,255,0.1); color:rgba(255,255,255,0.92); border-color:var(--sc) }
+    .sz-dot { width:7px; height:7px; border-radius:50%; background:var(--sc); opacity:0.4; transition:opacity .15s; flex-shrink:0 }
+    .sz-btn.active .sz-dot { opacity:1 }
     .oiv { font-size:15px; font-weight:700; color:rgba(255,255,255,0.9) }
     .loading { text-align:center; padding:60px; color:rgba(255,255,255,0.3); font-size:13px }
   </style>
@@ -174,11 +181,6 @@
 </div>
 <div class="cat-bar" id="cat-bar"><span style="font-size:12px;color:rgba(26,42,58,0.4)">Загрузка...</span></div>
 <div class="main">
-  <div class="upload-bar">
-    <input type="file" id="si" accept=".csv" multiple>
-    <button class="upload-btn" onclick="document.getElementById('si').click()">↑ Загрузить CSV продаж</button>
-    <span id="us" style="color:rgba(26,42,58,0.45)">Обновление данных продаж из МоегоСклада</span>
-  </div>
   <div class="table-outer">
     <table id="mt">
       <colgroup>
@@ -401,8 +403,13 @@ function render() {
       // Detail row
       const dtr=document.createElement("tr"); dtr.className="dr"; dtr.style.display="none";
       const dtd=document.createElement("td"); dtd.colSpan=16;
+      const SIZE_COLORS=["rgba(251,191,36,0.85)","rgba(239,68,68,0.85)","rgba(167,139,250,0.85)","rgba(56,189,248,0.85)","rgba(251,113,133,0.85)"];
+      const sizes=Object.keys(stockData).filter(k=>stripSize(k)===base&&k!==base);
+      // build size buttons with color dots
+      const sizeOpts=sizes.length>0?`<div class="size-sel"><span class="size-sel-lbl">Размер:</span>${sizes.map((s,i)=>{const sz=s.match(/\(([^)]+)\)$/);const col=SIZE_COLORS[i%SIZE_COLORS.length];return sz?`<button class="sz-btn active" data-sku="${s}" data-idx="${i}" style="--sc:${col}"><span class="sz-dot"></span>${sz[1]}</button>`:""}).join("")}</div>`:"";
       dtd.innerHTML=`<div class="dp" id="dp_${sid}">
         <div class="cc">
+          ${sizeOpts}
           <div class="ctitle">Динамика оборачиваемости — 14-дневное скользящее среднее (₽/день)</div>
           <canvas id="cv_${sid}" style="width:100%;height:160px;display:block"></canvas>
         </div>
@@ -437,13 +444,116 @@ function render() {
         const ei=tr.querySelector(".ei");
         dp.classList.toggle("open",!open);
         ei.classList.toggle("open",!open);
-        if(!open) drawChart(base,dtd.querySelector("canvas"),d.chart);
+        if(!open){
+          const canvas=dtd.querySelector("canvas");
+          const redraw=()=>{
+            const activeBtns=[...dtd.querySelectorAll(".sz-btn.active")];
+            if(sizes.length===0||activeBtns.length===0){
+              // no sizes or all deactivated → show base aggregate
+              drawChart(base,canvas,d.chart,"rgba(180,255,150,0.85)");
+            } else if(activeBtns.length===1){
+              const btn=activeBtns[0];
+              const sku=btn.dataset.sku;
+              const col=SIZE_COLORS[parseInt(btn.dataset.idx)%SIZE_COLORS.length];
+              const cd=SKUS[sku]?SKUS[sku].chart:[];
+              drawChart(sku,canvas,cd,col);
+            } else {
+              // multi: draw base gray + all active sizes
+              const series=[{sku:base,chart:d.chart,color:"rgba(255,255,255,0.2)",dash:true},...activeBtns.map(btn=>({sku:btn.dataset.sku,chart:SKUS[btn.dataset.sku]?SKUS[btn.dataset.sku].chart:[],color:SIZE_COLORS[parseInt(btn.dataset.idx)%SIZE_COLORS.length]}))];
+              drawMultiChart(canvas,series);
+            }
+          };
+          redraw();
+          dtd.querySelectorAll(".sz-btn").forEach(btn=>{
+            btn.addEventListener("click",()=>{
+              btn.classList.toggle("active");
+              redraw();
+            });
+          });
+        }
       });
     }
   }
 }
 
-function drawChart(base,canvas,chartData) {
+function drawMultiChart(canvas,series){
+  if(!canvas||!series.length) return;
+  const W=canvas.offsetWidth||800; const H=160;
+  canvas.width=W; canvas.height=H;
+  const ctx=canvas.getContext("2d");
+  ctx.clearRect(0,0,W,H);
+  const n=series[0].chart.length||0;
+  if(!n) return;
+  const pad=12;
+  // compute smoothed for all series to find global max
+  const allSmoothed=series.map(s=>{
+    const cd=s.chart;
+    return cd.map((v,i)=>{let sum=0,cnt=0;for(let j=Math.max(0,i-1);j<=Math.min(cd.length-1,i+1);j++){if(cd[j]>0){sum+=cd[j];cnt++;}}return cnt>0?sum/cnt:0;});
+  });
+  const maxV=Math.max(...allSmoothed.flatMap(sm=>sm),5000);
+  function toY(v){return H-pad-Math.max(0,v)/maxV*(H-pad*2);}
+  function xOf(i){return(i/(n-1))*W;}
+  // background zones
+  for(const [min,max,color] of [[0,1000,"rgba(239,68,68,0.12)"],[1000,2000,"rgba(251,146,60,0.12)"],[2000,5000,"rgba(134,239,172,0.15)"],[5000,maxV+1,"rgba(34,197,94,0.15)"]]){
+    const y1=max>maxV?pad:toY(max);const y2=toY(min);
+    ctx.fillStyle=color;ctx.fillRect(0,y1,W,Math.max(0,y2-y1));
+  }
+  ctx.font="9px Helvetica,Arial,sans-serif";ctx.fillStyle="rgba(255,255,255,0.25)";
+  for(const [v,l] of [[1000,"1k"],[2000,"2k"],[5000,"5k"]]){if(v<maxV)ctx.fillText(l,2,toY(v)-2);}
+  // season dividers (use first non-empty series base for stockData)
+  const sn=CHART_DATES.map(d=>getSeason(d));
+  const sl={winter:"Зима",spring:"Весна",summer:"Лето",autumn:"Осень"};
+  for(let i=1;i<sn.length;i++){
+    if(sn[i]!==sn[i-1]){
+      const x=xOf(i);
+      ctx.setLineDash([3,3]);ctx.strokeStyle="rgba(255,255,255,0.15)";ctx.lineWidth=1;
+      ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();ctx.setLineDash([]);
+      ctx.font="9px Helvetica,Arial,sans-serif";ctx.fillStyle="rgba(255,255,255,0.25)";ctx.fillText(sl[sn[i-1]],Math.max(0,x-30),H-2);
+    }
+  }
+  // draw each series
+  series.forEach((s,si)=>{
+    const smooth=allSmoothed[si];
+    const dm=stockData[s.sku]||{};
+    const inStock=CHART_DATES.map(d=>(dm[d]!==undefined?dm[d]:0)>=3);
+    if(s.dash){
+      // dashed background line (aggregate)
+      ctx.beginPath();ctx.strokeStyle=s.color;ctx.lineWidth=1;ctx.lineJoin="round";ctx.setLineDash([4,4]);
+      let started=false;
+      for(let i=0;i<n;i++){
+        const has=inStock[i];const x=xOf(i);const y=toY(smooth[i]);
+        if(!has)started=false;
+        else{if(!started){ctx.moveTo(x,y);started=true;}else ctx.lineTo(x,y);}
+      }
+      ctx.stroke();ctx.setLineDash([]);
+    } else {
+      // fill gradient
+      const rgb=s.color.match(/[\d.]+/g);
+      const grad=ctx.createLinearGradient(0,0,0,H);
+      grad.addColorStop(0,`rgba(${rgb[0]},${rgb[1]},${rgb[2]},0.18)`);
+      grad.addColorStop(1,`rgba(${rgb[0]},${rgb[1]},${rgb[2]},0)`);
+      let inSeg=false;ctx.beginPath();
+      for(let i=0;i<n;i++){
+        const has=inStock[i];const x=xOf(i);const y=toY(smooth[i]);
+        if(!has){if(inSeg){ctx.lineTo(x,H);ctx.closePath();ctx.fillStyle=grad;ctx.fill();inSeg=false;ctx.beginPath();}}
+        else{if(!inSeg){ctx.moveTo(x,H);ctx.lineTo(x,y);inSeg=true;}else ctx.lineTo(x,y);}
+      }
+      if(inSeg){ctx.lineTo(xOf(n-1),H);ctx.closePath();ctx.fillStyle=grad;ctx.fill();}
+      // line
+      ctx.beginPath();ctx.strokeStyle=s.color;ctx.lineWidth=1.8;ctx.lineJoin="round";
+      let started=false;
+      for(let i=0;i<n;i++){
+        const has=inStock[i];const x=xOf(i);const y=toY(smooth[i]);
+        if(!has)started=false;
+        else{if(!started){ctx.moveTo(x,y);started=true;}else ctx.lineTo(x,y);}
+      }
+      ctx.stroke();
+    }
+  });
+}
+
+function drawChart(base,canvas,chartData,lineColor) {
+  lineColor=lineColor||"rgba(180,255,150,0.85)";
   if(!canvas||!chartData||!chartData.length) return;
   const W=canvas.offsetWidth||800; const H=160;
   canvas.width=W; canvas.height=H;
@@ -483,7 +593,7 @@ function drawChart(base,canvas,chartData) {
   }
   // Fill
   const grad=ctx.createLinearGradient(0,0,0,H);
-  grad.addColorStop(0,"rgba(200,255,180,0.2)");grad.addColorStop(1,"rgba(200,255,180,0)");
+  grad.addColorStop(0,lineColor.replace(/[\d.]+\)$/,"0.2)"));grad.addColorStop(1,lineColor.replace(/[\d.]+\)$/,"0)"));
   let inSeg=false;ctx.beginPath();
   for(let i=0;i<n;i++){
     const has=inStock[i];const x=xOf(i);const y=toY(smooth[i]);
@@ -492,7 +602,7 @@ function drawChart(base,canvas,chartData) {
   }
   if(inSeg){ctx.lineTo(xOf(n-1),H);ctx.closePath();ctx.fillStyle=grad;ctx.fill();}
   // Line
-  ctx.beginPath();ctx.strokeStyle="rgba(180,255,150,0.75)";ctx.lineWidth=1.5;ctx.lineJoin="round";
+  ctx.beginPath();ctx.strokeStyle=lineColor;ctx.lineWidth=1.5;ctx.lineJoin="round";
   let started=false;
   for(let i=0;i<n;i++){
     const has=inStock[i];const x=xOf(i);const y=toY(smooth[i]);
