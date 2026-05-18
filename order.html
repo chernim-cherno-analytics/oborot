@@ -480,15 +480,26 @@ function refreshProjectSelect(){
 }
 
 async function loadProject(id){
-  if(!id){currentProject=null;const pi0=document.getElementById("proj-info"); if(pi0) pi0.style.display="none";return;}
+  if(!id){
+    currentProject=null;
+    excludedItems=new Set(); adjustments={}; addedToOrder=new Set();
+    const pi0=document.getElementById("proj-info"); if(pi0) pi0.style.display="none";
+    render(); return;
+  }
   const proj=allProjects.find(p=>p.id===id);
   if(!proj)return;
   currentProject=proj;
   arrivalDate=proj.date;
   document.getElementById("arrival-chip").textContent="📅 "+new Date(proj.date).toLocaleDateString("ru-RU",{day:"numeric",month:"long",year:"numeric"});
   const _pi=document.getElementById("proj-info"); if(_pi){_pi.style.display="inline";_pi.textContent="Проект: "+proj.name;}
-  // Reload project-specific data
+  // Reset and reload all project-specific data fresh from server
+  excludedItems=new Set(); adjustments={}; addedToOrder=new Set();
   await Promise.all([loadAdjustments(), loadExcluded(), loadAddedToOrder()]);
+  // Show table
+  const _pb=document.getElementById("project-bar"); if(_pb) _pb.style.display="flex";
+  document.getElementById("controls-bar").style.display="flex";
+  document.getElementById("main-area").style.display="block";
+  document.getElementById("summary-bar").style.display="flex";
   render();
 }
 
@@ -548,6 +559,8 @@ async function confirmNewProject(){
   if(name){
     const proj=await createProject(name, date);
     currentProject=proj;
+    excludedItems=new Set(); adjustments={}; addedToOrder=new Set();
+    refreshProjectSelect();
     const _pi=document.getElementById("proj-info"); if(_pi){_pi.style.display="inline";_pi.textContent="Проект: "+name;}
   }
   openWithDate(date);
@@ -872,8 +885,8 @@ async function init(){
   await loadProjects();
   refreshModalProjectSelect();
   refreshProjectSelect();
-  await Promise.all([loadCosts(), loadAdjustments(), loadAddedToOrder()]);
-  await loadExcluded();
+  await loadCosts(); // costs are global, load always
+  // Don't load adjustments/excluded/added until a project is chosen
   try{
     await loadStock();
   }catch(e){
