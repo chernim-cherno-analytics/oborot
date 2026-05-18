@@ -251,7 +251,7 @@ async function loadHidden() {
   try { hiddenItems = new Set(await (await fetch("/api/hidden")).json()); } catch(e) {}
 }
 
-// turnoverData: {base: {dis, cs, sea_days:{winter,spring,summer,autumn}}}
+// turnoverData: {base: {date: qty}} — same format as analytics cache
 let turnoverData = {};
 
 async function loadStock() {
@@ -264,7 +264,7 @@ async function loadStock() {
     if (!res.ok) throw new Error("HTTP " + res.status);
     const data = await res.json();
     allDates = data.dates || [];
-    turnoverData = data.skus || {};
+    turnoverData = data.stock || {};
   } catch(e) {
     const msg = e.name === "AbortError" ? "Превышено время ожидания — обновите страницу" : ("Ошибка: " + e.message);
     document.getElementById("tb").innerHTML=`<tr><td colspan="16" class="loading" style="color:rgba(239,68,68,0.7)">${msg}&nbsp;&nbsp;<a href="javascript:location.reload()" style="color:inherit;text-decoration:underline">↻ обновить</a></td></tr>`;
@@ -272,42 +272,37 @@ async function loadStock() {
 }
 
 function compute() {
-  // Merge SKUS (sales data) with turnoverData (stock data) — both keyed by base name
-  const allBases = new Set([...Object.keys(SKUS), ...Object.keys(turnoverData)]);
-  for (const base of allBases) {
+  const last365 = allDates.filter(d=>new Date(d)>=new Date(Date.now()-365*24*3600*1000));
+  for (const base of Object.keys(turnoverData)) {
+    const dm = turnoverData[base] || {};
     const sk = SKUS[base] || {nq:0, nr:0, ap:0, sea:{}, chart:[]};
-    const td = turnoverData[base] || {dis:0, cs:0, sea_days:{winter:0,spring:0,summer:0,autumn:0}};
-
-    const dis = td.dis || 0;
-    const cs  = td.cs  || 0;
-    const sea_days = td.sea_days || {winter:0,spring:0,summer:0,autumn:0};
-
-    const turn = dis > 0 ? sk.nr / dis : 0;
-
-    // Seasonal turnover ₽/day
+    let dis=0, prev=0;
+    for(const d of last365){const s=dm[d]!==undefined?dm[d]:prev;if(s>=3)dis++;prev=s;}
+    const turn = dis>0 ? sk.nr/dis : 0;
     const sea = {};
-    for (const s of ["winter","spring","summer","autumn"]) {
-      const si = sea_days[s] || 0;
-      sea[s] = si > 0 ? (sk.sea[s] || 0) / si : 0;
+    for(const s of ["winter","spring","summer","autumn"]){
+      const sd=last365.filter(d=>getSeason(d)===s);
+      let si=0,p2=0;
+      for(const d of sd){const q=dm[d]!==undefined?dm[d]:p2;if(q>=3)si++;p2=q;}
+      sea[s]=si>0?(sk.sea[s]||0)/si:0;
     }
-
-    // Supply days and load %
-    const dsq  = dis > 0 ? sk.nq / dis : 0;
-    const sup  = dsq > 0 ? Math.round(cs / dsq) : null;
-    const zat  = sup !== null ? Math.round(sup / 90 * 100) : null;
-    const needed = Math.round(dsq * 90);
-    const defq = Math.max(0, needed - cs);
-    const defp = needed > 0 ? Math.round(defq / needed * 100) : 0;
-
-    // Order qty per season (3 months)
-    const ord = {};
-    for (const s of ["winter","spring","summer","autumn"]) {
-      const si = sea_days[s] || 0;
-      const sqty = sk.nq > 0 && sk.nr > 0 ? sk.nq * (sk.sea[s] || 0) / sk.nr : 0;
-      ord[s] = si > 0 ? Math.round(sqty / si * SEASON_DAYS[s]) : 0;
+    let cs=0;
+    for(let i=allDates.length-1;i>=0;i--){if(dm[allDates[i]]!==undefined){cs=dm[allDates[i]];break;}}
+    const dsq=dis>0?sk.nq/dis:0;
+    const sup=dsq>0?Math.round(cs/dsq):null;
+    const zat=sup!==null?Math.round(sup/90*100):null;
+    const needed=Math.round(dsq*90);
+    const defq=Math.max(0,needed-cs);
+    const defp=needed>0?Math.round(defq/needed*100):0;
+    const ord={};
+    for(const s of ["winter","spring","summer","autumn"]){
+      const sd=last365.filter(d=>getSeason(d)===s);
+      let si=0,p2=0;
+      for(const d of sd){const q=dm[d]!==undefined?dm[d]:p2;if(q>=3)si++;p2=q;}
+      const sqty=sk.nq>0&&sk.nr>0?sk.nq*(sk.sea[s]||0)/sk.nr:0;
+      ord[s]=si>0?Math.round(sqty/si*SEASON_DAYS[s]):0;
     }
-
-    computed[base] = {dis, turn, sea, cs, sup, zat, defq, defp, ord, ap: sk.ap, nr: sk.nr, chart: sk.chart || []};
+    computed[base]={dis,turn,sea,cs,sup,zat,defq,defp,ord,ap:sk.ap,nr:sk.nr,chart:sk.chart||[]};
   }
 }
 

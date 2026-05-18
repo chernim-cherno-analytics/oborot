@@ -554,63 +554,15 @@ TURNOVER_JSON_PATH = "/data/turnover_cache.json"
 
 @app.get("/api/turnover-data")
 def get_turnover_data():
-    """Compute turnover stats from analytics cache, save result to disk."""
-    import json
-    from datetime import date as _dt, timedelta
-
-    # Serve from disk cache if fresh (same day as analytics cache)
-    if os.path.exists(TURNOVER_JSON_PATH) and os.path.exists(ANALYTICS_JSON_PATH):
-        if os.path.getmtime(TURNOVER_JSON_PATH) >= os.path.getmtime(ANALYTICS_JSON_PATH):
-            return FileResponse(TURNOVER_JSON_PATH, media_type="application/json")
-
-    if not os.path.exists(ANALYTICS_JSON_PATH):
-        conn = get_db()
-        rebuild_analytics_json(conn)
-        conn.close()
-
-    if not os.path.exists(ANALYTICS_JSON_PATH):
-        return {"dates": [], "skus": {}}
-
-    with open(ANALYTICS_JSON_PATH, "r", encoding="utf-8") as f:
-        data = json.load(f)
-
-    dates = data.get("dates", [])
-    stock = data.get("stock", {})
-
-    if not dates:
-        return {"dates": [], "skus": {}}
-
-    cutoff = (_dt.today() - timedelta(days=365)).isoformat()
-    recent = [d for d in dates if d >= cutoff]
-    latest = dates[-1]
-
-    def season(d):
-        m = int(d[5:7])
-        if m == 12 or m <= 2: return "winter"
-        if m <= 5: return "spring"
-        if m <= 8: return "summer"
-        return "autumn"
-
-    result = {}
-    for base, dm in stock.items():
-        dis = 0; prev = 0
-        sea = {"winter": 0, "spring": 0, "summer": 0, "autumn": 0}
-        for d in recent:
-            q = dm.get(d, prev)
-            if q >= 3:
-                dis += 1
-                sea[season(d)] += 1
-            prev = q
-        result[base] = {"dis": dis, "cs": int(dm.get(latest, 0)), "sea_days": sea}
-
-    out = {"dates": dates, "skus": result}
-    os.makedirs("/data", exist_ok=True)
-    tmp = TURNOVER_JSON_PATH + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as f:
-        json.dump(out, f, ensure_ascii=False, separators=(",", ":"))
-    os.replace(tmp, TURNOVER_JSON_PATH)
-
-    return FileResponse(TURNOVER_JSON_PATH, media_type="application/json")
+    """Serve analytics cache for turnover page — same data as /api/analytics-data."""
+    if os.path.exists(ANALYTICS_JSON_PATH):
+        return FileResponse(ANALYTICS_JSON_PATH, media_type="application/json")
+    conn = get_db()
+    rebuild_analytics_json(conn)
+    conn.close()
+    if os.path.exists(ANALYTICS_JSON_PATH):
+        return FileResponse(ANALYTICS_JSON_PATH, media_type="application/json")
+    return {"dates": [], "stock": {}}
 
 @app.get("/{full_path:path}")
 def serve_frontend(full_path: str):
