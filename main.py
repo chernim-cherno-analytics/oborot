@@ -185,48 +185,41 @@ def rebuild_analytics_json(conn):
     sku_names = [r[0] for r in conn.execute(
         "SELECT DISTINCT sku_name FROM stock_snapshots ORDER BY sku_name").fetchall()]
 
-    # Collect all data per sku_name, build base aggregates and sized keys separately
-    sku_data = {}   # sku_name -> {date: qty}
-    base_agg = {}   # base -> {date: qty}
-    for sku_name in sku_names:
-        rows = conn.execute(
-            "SELECT date, SUM(stock_qty) as qty FROM stock_snapshots "
-            "WHERE sku_name=? GROUP BY date", (sku_name,)).fetchall()
-        dm = {r["date"]: r["qty"] for r in rows}
-        sku_data[sku_name] = dm
-        base = _strip_size(sku_name)
-        if base not in base_agg:
-            base_agg[base] = {}
-        for d, q in dm.items():
-            base_agg[base][d] = base_agg[base].get(d, 0) + q
-
     with open(atmp, "w", encoding="utf-8") as af:
         af.write('{"dates":'); af.write(dates_json); af.write(',"stock":{')
         first = True
-        # Write base aggregates (sum across all sizes)
-        for base, dm in base_agg.items():
+        for sku_name in sku_names:
+            base = _strip_size(sku_name)
+            # Get this SKU's data
+            rows = conn.execute(
+                "SELECT date, SUM(stock_qty) as qty FROM stock_snapshots "
+                "WHERE sku_name=? GROUP BY date", (sku_name,)).fetchall()
+            dm = {r["date"]: r["qty"] for r in rows}
+            # Write to analytics JSON
             if not first: af.write(",")
             first = False
             af.write(json.dumps(base, ensure_ascii=False))
             af.write(":")
             af.write(json.dumps(dm, ensure_ascii=False, separators=(",", ":")))
-            # Turnover stats on the aggregate
-            dis = 0; prev = 0
-            sea = {"winter":0,"spring":0,"summer":0,"autumn":0}
-            for d in recent:
-                q = dm.get(d, prev)
-                if q >= 3: dis += 1; sea[season(d)] += 1
-                prev = q
-            skus_turnover[base] = {"dis": dis, "cs": int(dm.get(latest, 0)), "sea_days": sea}
-        # Write sized keys only where sku_name != base (has a size suffix)
-        for sku_name, dm in sku_data.items():
-            base = _strip_size(sku_name)
-            if sku_name == base:
-                continue  # no size, already written above as the base key
-            af.write(",")
-            af.write(json.dumps(sku_name, ensure_ascii=False))
-            af.write(":")
-            af.write(json.dumps(dm, ensure_ascii=False, separators=(",", ":")))
+            # Compute turnover stats
+            if base not in skus_turnover:
+                dis = 0; prev = 0
+                sea = {"winter":0,"spring":0,"summer":0,"autumn":0}
+                for d in recent:
+                    q = dm.get(d, prev)
+                    if q >= 3: dis += 1; sea[season(d)] += 1
+                    prev = q
+                skus_turnover[base] = {"dis": dis, "cs": int(dm.get(latest, 0)), "sea_days": sea}
+            else:
+                # Merge sizes into same base
+                t = skus_turnover[base]
+                dis_add = 0; prev = 0
+                for d in recent:
+                    q = dm.get(d, prev)
+                    if q >= 3: dis_add += 1; t["sea_days"][season(d)] += 1
+                    prev = q
+                t["dis"] += dis_add
+                t["cs"] += int(dm.get(latest, 0))
         af.write("}}")
     os.replace(atmp, ANALYTICS_JSON_PATH)
 
@@ -308,6 +301,30 @@ async def upload_stock(file: UploadFile = File(...)):
     rebuild_analytics_json(conn2)
     conn2.close()
     return {"date": date_str, "inserted": inserted, "skipped": len(rows)-inserted, "total_skus": len(rows)}
+
+
+
+@app.get("/api/debug-skus")
+def debug_skus():
+    """Show sample sku_names from DB to understand naming format."""
+    conn = get_db()
+    # Get 50 sku_names that have potential size info (longer names, various patterns)
+    rows = conn.execute(
+        "SELECT DISTINCT sku_name FROM stock_snapshots ORDER BY sku_name LIMIT 100"
+    ).fetchall()
+    conn.close()
+    names = [r["sku_name"] for r in rows]
+    # Group: which have parens, which have slash, which have comma
+    has_parens = [n for n in names if "(" in n]
+    has_slash  = [n for n in names if "/" in n]
+    has_comma  = [n for n in names if "," in n and any(c.isupper() for c in n.split(",")[-1])]
+    return {
+        "total": len(names),
+        "sample_all": names[:30],
+        "has_parens": has_parens[:20],
+        "has_slash": has_slash[:20],
+        "has_comma": has_comma[:20],
+    }
 
 @app.get("/api/dates")
 def get_dates():
