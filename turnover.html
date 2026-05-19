@@ -523,11 +523,14 @@ function render() {
         if(!open){
           const cv=dtd.querySelector("canvas");
           const redraw=()=>{
-            const active=[...dtd.querySelectorAll(".sz-btn.active")];
-            if(!szKeys.length||!active.length){drawChart(base,cv,d.chart,"rgba(180,255,150,0.85)");return;}
-            const series=active.map(b=>({sku:b.dataset.sku,chart:SKUS[b.dataset.sku]?SKUS[b.dataset.sku].chart:[],color:SIZE_COLORS[+b.dataset.idx%SIZE_COLORS.length]}));
-            if(series.length===1){drawChart(series[0].sku,cv,series[0].chart,series[0].color);return;}
-            drawMultiChart(cv,series);
+            // wait for layout so offsetWidth is correct
+            requestAnimationFrame(()=>{
+              const active=[...dtd.querySelectorAll(".sz-btn.active")];
+              if(!szKeys.length||!active.length){drawChart(base,cv,d.chart,"rgba(180,255,150,0.85)");return;}
+              const series=active.map(b=>({sku:b.dataset.sku,chart:SKUS[b.dataset.sku]?SKUS[b.dataset.sku].chart:[],color:SIZE_COLORS[+b.dataset.idx%SIZE_COLORS.length]}));
+              if(series.length===1){drawChart(series[0].sku,cv,series[0].chart,series[0].color);return;}
+              drawMultiChart(cv,series);
+            });
           };
           redraw();
           dtd.querySelectorAll(".sz-btn").forEach(btn=>btn.addEventListener("click",()=>{btn.classList.toggle("active");redraw();}));
