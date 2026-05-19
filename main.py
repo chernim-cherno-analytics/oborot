@@ -305,7 +305,7 @@ def rebuild_analytics_json(conn):
             sz_dis = 0; sz_prev = 0
             for d in recent:
                 q = dm.get(d, sz_prev)
-                if q >= 1: sz_dis += 1
+                if q >= 3: sz_dis += 1
                 sz_prev = q
             skus_turnover[sku_name] = {
                 "dis": sz_dis, "cs": int(dm.get(latest, 0)),

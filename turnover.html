@@ -403,9 +403,12 @@ function computeSize(szKey, baseData) {
   let cs=0;
   for(let i=allDates.length-1;i>=0;i--){if(dm[allDates[i]]!==undefined){cs=dm[allDates[i]];break;}}
 
-  // Days in stock
-  let dis=0, prev=0;
-  for(const d of last365){const s=dm[d]!==undefined?dm[d]:prev;if(s>=1)dis++;prev=s;}
+  // Days in stock — use precomputed from server if available, else recalc
+  let dis = (sk.dis != null) ? sk.dis : 0;
+  if (!dis) {
+    let prev2=0;
+    for(const d of last365){const s=dm[d]!==undefined?dm[d]:prev2;if(s>=3)dis++;prev2=s;}
+  }
 
   // Real sales data for this size
   const sk = SKUS[szKey] || {};
