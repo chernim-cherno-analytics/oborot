@@ -399,23 +399,23 @@ function computeSize(szKey, baseData) {
   const dm = stockData[szKey] || {};
   const last365 = allDates.filter(d=>new Date(d)>=new Date(Date.now()-365*24*3600*1000));
 
-  // Current stock
-  let cs=0;
-  for(let i=allDates.length-1;i>=0;i--){if(dm[allDates[i]]!==undefined){cs=dm[allDates[i]];break;}}
-
-  // Days in stock — use precomputed from server if available, else recalc
-  let dis = (sk.dis != null) ? sk.dis : 0;
-  if (!dis) {
-    let prev2=0;
-    for(const d of last365){const s=dm[d]!==undefined?dm[d]:prev2;if(s>=3)dis++;prev2=s;}
-  }
-
   // Real sales data for this size
   const sk = SKUS[szKey] || {};
   const skNr = sk.nr || 0;
   const skNq = sk.nq || 0;
   const skAp = sk.ap || 0;
   const skSea = sk.sea || {};
+
+  // Current stock
+  let cs=0;
+  for(let i=allDates.length-1;i>=0;i--){if(dm[allDates[i]]!==undefined){cs=dm[allDates[i]];break;}}
+
+  // Days in stock — use precomputed from server if available, else recalc
+  let dis = (sk.dis != null && sk.dis > 0) ? sk.dis : 0;
+  if (!dis) {
+    let prev2=0;
+    for(const d of last365){const s=dm[d]!==undefined?dm[d]:prev2;if(s>=3)dis++;prev2=s;}
+  }
 
   // Daily revenue rate
   const turn = dis > 0 ? skNr / dis : 0;
@@ -432,7 +432,7 @@ function computeSize(szKey, baseData) {
   for(const s of ["winter","spring","summer","autumn"]){
     const sd = last365.filter(d=>getSeason(d)===s);
     let si=0, p2=0;
-    for(const d of sd){const q=dm[d]!==undefined?dm[d]:p2;if(q>=1)si++;p2=q;}
+    for(const d of sd){const q=dm[d]!==undefined?dm[d]:p2;if(q>=3)si++;p2=q;}
     const sqty = skNq>0&&skNr>0 ? skNq*(skSea[s]||0)/skNr : 0;
     ord[s] = si>0 ? Math.round(sqty/si*SEASON_DAYS[s]) : 0;
   }
