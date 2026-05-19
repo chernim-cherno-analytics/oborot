@@ -300,8 +300,11 @@ async function loadStock() {
 function compute() {
   const last365 = allDates.filter(d=>new Date(d)>=new Date(Date.now()-365*24*3600*1000));
   for (const base of Object.keys(stockData)) {
+    // Skip size variants — only compute for base names
+    if (base !== base.replace(/\s*\([^)]*\)\s*$/, "").trim()) continue;
     const dm=stockData[base]||{};
     const sk=SKUS[base]||{nq:0,nr:0,ap:0,sea:{},chart:[]};
+    const skSea = sk.sea || {};
     // Days in stock last 365
     let dis=0,prev=0;
     for(const d of last365){const s=dm[d]!==undefined?dm[d]:prev;if(s>=3)dis++;prev=s;}
@@ -312,7 +315,7 @@ function compute() {
       const sd=last365.filter(d=>getSeason(d)===s);
       let si=0,p2=0;
       for(const d of sd){const q=dm[d]!==undefined?dm[d]:p2;if(q>=3)si++;p2=q;}
-      sea[s]=si>0?(sk.sea[s]||0)/si:0;
+      sea[s]=si>0?(skSea[s]||0)/si:0;
     }
     // Current stock
     let cs=0;
@@ -330,7 +333,7 @@ function compute() {
       const sd=last365.filter(d=>getSeason(d)===s);
       let si=0,p2=0;
       for(const d of sd){const q=dm[d]!==undefined?dm[d]:p2;if(q>=3)si++;p2=q;}
-      const sqty=sk.nq>0&&sk.nr>0?sk.nq*(sk.sea[s]||0)/sk.nr:0;
+      const sqty=sk.nq>0&&sk.nr>0?sk.nq*(skSea[s]||0)/sk.nr:0;
       ord[s]=si>0?Math.round(sqty/si*SEASON_DAYS[s]):0;
     }
     computed[base]={dis,turn,sea,cs,sup,zat,defq,defp,ord,ap:sk.ap,nr:sk.nr,chart:sk.chart||[]};
