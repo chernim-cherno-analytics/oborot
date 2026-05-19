@@ -399,34 +399,42 @@ function computeSize(szKey, baseData) {
   const dm = stockData[szKey] || {};
   const last365 = allDates.filter(d=>new Date(d)>=new Date(Date.now()-365*24*3600*1000));
 
+  // Current stock
   let cs=0;
   for(let i=allDates.length-1;i>=0;i--){if(dm[allDates[i]]!==undefined){cs=dm[allDates[i]];break;}}
 
+  // Days in stock
   let dis=0, prev=0;
   for(const d of last365){const s=dm[d]!==undefined?dm[d]:prev;if(s>=1)dis++;prev=s;}
 
-  // Use base daily sales rate scaled by size stock share vs total base stock
-  const baseTotalCs = Object.keys(stockData)
-    .filter(k=>stripSize(k)===szKey.replace(/\s*\([^)]*\)\s*$/,"").trim()&&k!==stripSize(k))
-    .reduce((sum,k)=>{
-      let q=0;
-      for(let i=allDates.length-1;i>=0;i--){if(stockData[k][allDates[i]]!==undefined){q=stockData[k][allDates[i]];break;}}
-      return sum+q;
-    }, 0) || baseData.cs || 1;
-  const share = baseTotalCs > 0 ? cs / baseTotalCs : 0;
-  const baseNqPerDay = baseData.dis > 0 ? (baseData.nr / (baseData.ap||1)) / baseData.dis : 0;
-  const sizeNqPerDay = baseNqPerDay * share;
+  // Real sales data for this size
+  const sk = SKUS[szKey] || {};
+  const skNr = sk.nr || 0;
+  const skNq = sk.nq || 0;
+  const skAp = sk.ap || 0;
+  const skSea = sk.sea || {};
 
-  const sup = sizeNqPerDay > 0 ? Math.round(cs / sizeNqPerDay) : null;
+  // Daily revenue rate
+  const turn = dis > 0 ? skNr / dis : 0;
+
+  // Daily qty rate → supply days
+  const dsq = dis > 0 ? skNq / dis : 0;
+  const sup = dsq > 0 ? Math.round(cs / dsq) : null;
   const zat = sup !== null ? Math.round(sup/90*100) : null;
-  const needed = Math.round(sizeNqPerDay * 90);
+  const needed = Math.round(dsq * 90);
   const defq = Math.max(0, needed - cs);
 
+  // Seasonal orders
   const ord = {};
   for(const s of ["winter","spring","summer","autumn"]){
-    ord[s] = Math.round((baseData.ord[s]||0) * share);
+    const sd = last365.filter(d=>getSeason(d)===s);
+    let si=0, p2=0;
+    for(const d of sd){const q=dm[d]!==undefined?dm[d]:p2;if(q>=1)si++;p2=q;}
+    const sqty = skNq>0&&skNr>0 ? skNq*(skSea[s]||0)/skNr : 0;
+    ord[s] = si>0 ? Math.round(sqty/si*SEASON_DAYS[s]) : 0;
   }
-  return {dis, cs, sup, zat, defq, ord};
+
+  return {dis, cs, turn, sup, zat, defq, ord, ap: skAp, nr: skNr};
 }
 
 function render() {

@@ -297,6 +297,21 @@ def rebuild_analytics_json(conn):
             af.write(json.dumps(sku_name, ensure_ascii=False))
             af.write(":")
             af.write(json.dumps(dm, ensure_ascii=False, separators=(",", ":")))
+            # Add per-size turnover stats
+            sz_s = sales_by_sku.get(sku_name, {"nq":0,"nr":0,"ap":0})
+            sz_sea = sea_by_sku.get(sku_name, {"winter":0,"spring":0,"summer":0,"autumn":0})
+            sz_chart_map = chart_by_sku.get(sku_name, {})
+            sz_chart = [sz_chart_map.get(d, 0) for d in dates]
+            sz_dis = 0; sz_prev = 0
+            for d in recent:
+                q = dm.get(d, sz_prev)
+                if q >= 1: sz_dis += 1
+                sz_prev = q
+            skus_turnover[sku_name] = {
+                "dis": sz_dis, "cs": int(dm.get(latest, 0)),
+                "nq": sz_s["nq"], "nr": sz_s["nr"], "ap": sz_s["ap"],
+                "sea": sz_sea, "chart": sz_chart
+            }
         af.write("}}")
     os.replace(atmp, ANALYTICS_JSON_PATH)
 
