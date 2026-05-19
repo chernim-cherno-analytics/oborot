@@ -512,7 +512,7 @@ function render() {
       const sortedSzKeys = sortSizes(szKeys);
       const sid2 = base.replace(/[^a-zа-яё0-9]/gi,"_");
       for (const szKey of sortedSzKeys) {
-        const sd = computeSize(szKey);
+        const sd = computeSize(szKey, d);
         const szMatch = szKey.match(/\(([^)]+)\)$/);
         const szLabel = szMatch ? szMatch[1] : szKey;
         const [szc,szl,szt] = zatStyle(sd.zat);
