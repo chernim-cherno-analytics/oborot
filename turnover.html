@@ -696,43 +696,6 @@ function drawChart(base,canvas,chartData,lineColor) {
   }
   ctx.stroke();
 }
-  // Zones (₽/day thresholds)
-  for(const [min,max,color] of [[0,143,"rgba(239,68,68,0.12)"],[143,286,"rgba(251,146,60,0.12)"],[286,714,"rgba(134,239,172,0.15)"],[714,maxV+1,"rgba(34,197,94,0.15)"]]){
-    const y1=max>maxV?pad:toY(max);const y2=toY(min);
-    ctx.fillStyle=color;ctx.fillRect(0,y1,W,Math.max(0,y2-y1));
-  }
-  ctx.font="9px Helvetica,Arial,sans-serif";ctx.fillStyle="rgba(255,255,255,0.25)";
-  for(const [v,l] of [[143,"1k/нед"],[286,"2k/нед"],[714,"5k/нед"]]){if(v<maxV)ctx.fillText(l,2,toY(v)-2);}
-  // Season dividers
-  const sn=CHART_DATES.map(d=>getSeason(d));
-  const sl={winter:"Зима",spring:"Весна",summer:"Лето",autumn:"Осень"};
-  for(let i=1;i<sn.length;i++){
-    if(sn[i]!==sn[i-1]){
-      const x=xOf(i);
-      ctx.setLineDash([3,3]);ctx.strokeStyle="rgba(255,255,255,0.15)";ctx.lineWidth=1;
-      ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();ctx.setLineDash([]);
-      ctx.font="9px Helvetica,Arial,sans-serif";ctx.fillStyle="rgba(255,255,255,0.25)";ctx.fillText(sl[sn[i-1]],Math.max(0,x-30),H-2);
-    }
-  }
-  // Fill and line — break where smooth===null (out of stock)
-  const grad=ctx.createLinearGradient(0,0,0,H);
-  grad.addColorStop(0,lineColor.replace(/,[\s]*[\d.]+\)$/,",0.2)"));grad.addColorStop(1,lineColor.replace(/,[\s]*[\d.]+\)$/,",0)"));
-  let inSeg=false;ctx.beginPath();
-  for(let i=0;i<n;i++){
-    const v=smooth[i];const x=xOf(i);
-    if(v===null){if(inSeg){ctx.lineTo(x,H);ctx.closePath();ctx.fillStyle=grad;ctx.fill();inSeg=false;ctx.beginPath();}}
-    else{const y=toY(v);if(!inSeg){ctx.moveTo(x,H);ctx.lineTo(x,y);inSeg=true;}else ctx.lineTo(x,y);}
-  }
-  if(inSeg){ctx.lineTo(xOf(n-1),H);ctx.closePath();ctx.fillStyle=grad;ctx.fill();}
-  ctx.beginPath();ctx.strokeStyle=lineColor;ctx.lineWidth=1.5;ctx.lineJoin="round";
-  let started=false;
-  for(let i=0;i<n;i++){
-    const v=smooth[i];const x=xOf(i);
-    if(v===null)started=false;
-    else{const y=toY(v);if(!started){ctx.moveTo(x,y);started=true;}else ctx.lineTo(x,y);}
-  }
-  ctx.stroke();
-}
 
 // CSV upload
 document.getElementById("si").addEventListener("change",async e=>{
