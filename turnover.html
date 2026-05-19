@@ -533,8 +533,8 @@ function render() {
         sztr.innerHTML = `
           <td>↳ ${szLabel}</td>
           <td class="nb">${sd.dis}</td>
-          <td>—</td>
-          <td>—</td>
+          <td class="nb">${sd.ap>0?fmt(sd.ap)+' ₽':'—'}</td>
+          <td class="nb nbig">${sd.nr>0?fmt(sd.turn):'—'}</td>
           <td>—</td><td>—</td><td>—</td><td>—</td>
           <td class="nb nbig">${sd.cs}</td>
           <td class="nb">${sd.sup!==null?sd.sup+" дн":"—"}</td>
@@ -589,29 +589,39 @@ function drawMultiChart(canvas,series){
   ctx.clearRect(0,0,W,H);
   const n=series[0].chart.length; if(!n) return;
   const pad=12;
-  const allSmooth=series.map(s=>s.chart.map((v,i)=>{let sum=0,cnt=0;for(let j=Math.max(0,i-1);j<=Math.min(s.chart.length-1,i+1);j++){if(s.chart[j]>0){sum+=s.chart[j];cnt++;}}return cnt>0?sum/cnt:0;}));
-  const maxV=Math.max(...allSmooth.flat(),5000);
+
+  // Convert each series to ₽/day, null when out of stock
+  const allSmooth=series.map(s=>{
+    const dm=stockData[s.sku]||{};
+    const inSt=CHART_DATES.map(d=>(dm[d]!==undefined?dm[d]:0)>=3);
+    const tpd=s.chart.map((rev,i)=>inSt[i]?Math.max(0,rev)/7:null);
+    return tpd.map((v,i)=>{
+      if(v===null) return null;
+      let sum=0,cnt=0;
+      for(let j=Math.max(0,i-3);j<=Math.min(n-1,i+3);j++){if(tpd[j]!==null){sum+=tpd[j];cnt++;}}
+      return cnt>0?sum/cnt:0;
+    });
+  });
+
+  const maxV=Math.max(...allSmooth.flat().filter(v=>v!==null&&v>0),700);
   function toY(v){return H-pad-Math.max(0,v)/maxV*(H-pad*2);}
   function xOf(i){return(i/(n-1))*W;}
-  for(const [mn,mx,col] of [[0,1000,"rgba(239,68,68,0.12)"],[1000,2000,"rgba(251,146,60,0.12)"],[2000,5000,"rgba(134,239,172,0.15)"],[5000,maxV+1,"rgba(34,197,94,0.15)"]]){ctx.fillStyle=col;ctx.fillRect(0,mx>maxV?pad:toY(mx),W,Math.max(0,toY(mn)-(mx>maxV?pad:toY(mx))));}
+  for(const [mn,mx,col] of [[0,143,"rgba(239,68,68,0.12)"],[143,286,"rgba(251,146,60,0.12)"],[286,714,"rgba(134,239,172,0.15)"],[714,maxV+1,"rgba(34,197,94,0.15)"]]){ctx.fillStyle=col;ctx.fillRect(0,mx>maxV?pad:toY(mx),W,Math.max(0,toY(mn)-(mx>maxV?pad:toY(mx))));}
   ctx.font="9px Helvetica,Arial,sans-serif";ctx.fillStyle="rgba(255,255,255,0.25)";
-  for(const [v,l] of [[1000,"1k"],[2000,"2k"],[5000,"5k"]]){if(v<maxV)ctx.fillText(l,2,toY(v)-2);}
+  for(const [v,l] of [[143,"1k/нед"],[286,"2k/нед"],[714,"5k/нед"]]){if(v<maxV)ctx.fillText(l,2,toY(v)-2);}
   const sn=CHART_DATES.map(d=>getSeason(d)),sl={winter:"Зима",spring:"Весна",summer:"Лето",autumn:"Осень"};
   for(let i=1;i<sn.length;i++){if(sn[i]!==sn[i-1]){const x=xOf(i);ctx.setLineDash([3,3]);ctx.strokeStyle="rgba(255,255,255,0.15)";ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();ctx.setLineDash([]);ctx.font="9px Helvetica,Arial,sans-serif";ctx.fillStyle="rgba(255,255,255,0.25)";ctx.fillText(sl[sn[i-1]],Math.max(0,x-30),H-2);}}
-  series.forEach((s,si)=>{
-    const smooth=allSmooth[si];
-    const dm=stockData[s.sku]||{};
-    const inStock=CHART_DATES.map(d=>(dm[d]!==undefined?dm[d]:0)>=3);
-    const rgb=s.color.match(/[\d.]+/g);
+  allSmooth.forEach((smooth,si)=>{
+    const rgb=series[si].color.match(/[\d.]+/g);
     const grad=ctx.createLinearGradient(0,0,0,H);
     grad.addColorStop(0,`rgba(${rgb[0]},${rgb[1]},${rgb[2]},0.15)`);
     grad.addColorStop(1,`rgba(${rgb[0]},${rgb[1]},${rgb[2]},0)`);
     let inSeg=false;ctx.beginPath();
-    for(let i=0;i<n;i++){const has=inStock[i],x=xOf(i),y=toY(smooth[i]);if(!has){if(inSeg){ctx.lineTo(x,H);ctx.closePath();ctx.fillStyle=grad;ctx.fill();inSeg=false;ctx.beginPath();}}else{if(!inSeg){ctx.moveTo(x,H);ctx.lineTo(x,y);inSeg=true;}else ctx.lineTo(x,y);}}
+    for(let i=0;i<n;i++){const v=smooth[i],x=xOf(i);if(v===null){if(inSeg){ctx.lineTo(x,H);ctx.closePath();ctx.fillStyle=grad;ctx.fill();inSeg=false;ctx.beginPath();}}else{const y=toY(v);if(!inSeg){ctx.moveTo(x,H);ctx.lineTo(x,y);inSeg=true;}else ctx.lineTo(x,y);}}
     if(inSeg){ctx.lineTo(xOf(n-1),H);ctx.closePath();ctx.fillStyle=grad;ctx.fill();}
-    ctx.beginPath();ctx.strokeStyle=s.color;ctx.lineWidth=1.8;ctx.lineJoin="round";
+    ctx.beginPath();ctx.strokeStyle=series[si].color;ctx.lineWidth=1.8;ctx.lineJoin="round";
     let started=false;
-    for(let i=0;i<n;i++){const has=inStock[i],x=xOf(i),y=toY(smooth[i]);if(!has)started=false;else{if(!started){ctx.moveTo(x,y);started=true;}else ctx.lineTo(x,y);}}
+    for(let i=0;i<n;i++){const v=smooth[i],x=xOf(i);if(v===null)started=false;else{const y=toY(v);if(!started){ctx.moveTo(x,y);started=true;}else ctx.lineTo(x,y);}}
     ctx.stroke();
   });
 }
@@ -624,26 +634,45 @@ function drawChart(base,canvas,chartData,lineColor) {
   const ctx=canvas.getContext("2d");
   ctx.clearRect(0,0,W,H);
   const n=chartData.length;
-  // 14-day rolling average (±1 week, non-zero only)
-  const smooth=chartData.map((v,i)=>{
+
+  // Stock data for this SKU
+  const dm=stockData[base]||{};
+
+  // For each week: compute days in stock (qty>=3) and revenue
+  // CHART_DATES are weekly snapshots — each represents ~7 days
+  // We approximate days-in-stock per week as 7 if stock>=3, else 0
+  const inStock=CHART_DATES.map(d=>(dm[d]!==undefined?dm[d]:0)>=3);
+
+  // turnover[i] = revenue[i] / 7 when in stock, null when not
+  // This gives ₽/day for that week
+  const turnPerDay = chartData.map((rev,i)=>{
+    if(!inStock[i]) return null;
+    // revenue can be negative (returns) — clamp to 0 for display
+    return Math.max(0, rev) / 7;
+  });
+
+  // 4-week rolling average of ₽/day (skip nulls = out-of-stock gaps)
+  const smooth = turnPerDay.map((v,i)=>{
+    if(v===null) return null;
     let sum=0,cnt=0;
-    for(let j=Math.max(0,i-1);j<=Math.min(n-1,i+1);j++){if(chartData[j]>0){sum+=chartData[j];cnt++;}}
+    for(let j=Math.max(0,i-3);j<=Math.min(n-1,i+3);j++){
+      if(turnPerDay[j]!==null){sum+=turnPerDay[j];cnt++;}
+    }
     return cnt>0?sum/cnt:0;
   });
-  // Gap when stock < 3 (lone items in slow stores don't count)
-  const dm=stockData[base]||{};
-  const inStock=CHART_DATES.map(d=>(dm[d]!==undefined?dm[d]:0)>=3);
-  const maxV=Math.max(...smooth.filter((_,i)=>inStock[i]),5000);
+
+  const validVals=smooth.filter(v=>v!==null&&v>0);
+  const maxV=Math.max(...validVals,700);
   const pad=12;
   function toY(v){return H-pad-Math.max(0,v)/maxV*(H-pad*2);}
   function xOf(i){return (i/(n-1))*W;}
-  // Zones
-  for(const [min,max,color] of [[0,1000,"rgba(239,68,68,0.12)"],[1000,2000,"rgba(251,146,60,0.12)"],[2000,5000,"rgba(134,239,172,0.15)"],[5000,maxV+1,"rgba(34,197,94,0.15)"]]){
+  // Zones (₽/day thresholds)
+  for(const [min,max,color] of [[0,143,"rgba(239,68,68,0.12)"],[143,286,"rgba(251,146,60,0.12)"],[286,714,"rgba(134,239,172,0.15)"],[714,maxV+1,"rgba(34,197,94,0.15)"]]){
     const y1=max>maxV?pad:toY(max);const y2=toY(min);
     ctx.fillStyle=color;ctx.fillRect(0,y1,W,Math.max(0,y2-y1));
   }
   ctx.font="9px Helvetica,Arial,sans-serif";ctx.fillStyle="rgba(255,255,255,0.25)";
-  for(const [v,l] of [[1000,"1k"],[2000,"2k"],[5000,"5k"]]){if(v<maxV)ctx.fillText(l,2,toY(v)-2);}
+  for(const [v,l] of [[143,"1k/нед"],[286,"2k/нед"],[714,"5k/нед"]]){if(v<maxV)ctx.fillText(l,2,toY(v)-2);}
   // Season dividers
   const sn=CHART_DATES.map(d=>getSeason(d));
   const sl={winter:"Зима",spring:"Весна",summer:"Лето",autumn:"Осень"};
@@ -655,23 +684,22 @@ function drawChart(base,canvas,chartData,lineColor) {
       ctx.font="9px Helvetica,Arial,sans-serif";ctx.fillStyle="rgba(255,255,255,0.25)";ctx.fillText(sl[sn[i-1]],Math.max(0,x-30),H-2);
     }
   }
-  // Fill
+  // Fill and line — break where smooth===null (out of stock)
   const grad=ctx.createLinearGradient(0,0,0,H);
   grad.addColorStop(0,lineColor.replace(/,[\s]*[\d.]+\)$/,",0.2)"));grad.addColorStop(1,lineColor.replace(/,[\s]*[\d.]+\)$/,",0)"));
   let inSeg=false;ctx.beginPath();
   for(let i=0;i<n;i++){
-    const has=inStock[i];const x=xOf(i);const y=toY(smooth[i]);
-    if(!has){if(inSeg){ctx.lineTo(x,H);ctx.closePath();ctx.fillStyle=grad;ctx.fill();inSeg=false;ctx.beginPath();}}
-    else{if(!inSeg){ctx.moveTo(x,H);ctx.lineTo(x,y);inSeg=true;}else ctx.lineTo(x,y);}
+    const v=smooth[i];const x=xOf(i);
+    if(v===null){if(inSeg){ctx.lineTo(x,H);ctx.closePath();ctx.fillStyle=grad;ctx.fill();inSeg=false;ctx.beginPath();}}
+    else{const y=toY(v);if(!inSeg){ctx.moveTo(x,H);ctx.lineTo(x,y);inSeg=true;}else ctx.lineTo(x,y);}
   }
   if(inSeg){ctx.lineTo(xOf(n-1),H);ctx.closePath();ctx.fillStyle=grad;ctx.fill();}
-  // Line
   ctx.beginPath();ctx.strokeStyle=lineColor;ctx.lineWidth=1.5;ctx.lineJoin="round";
   let started=false;
   for(let i=0;i<n;i++){
-    const has=inStock[i];const x=xOf(i);const y=toY(smooth[i]);
-    if(!has)started=false;
-    else{if(!started){ctx.moveTo(x,y);started=true;}else ctx.lineTo(x,y);}
+    const v=smooth[i];const x=xOf(i);
+    if(v===null)started=false;
+    else{const y=toY(v);if(!started){ctx.moveTo(x,y);started=true;}else ctx.lineTo(x,y);}
   }
   ctx.stroke();
 }
