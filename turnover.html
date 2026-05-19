@@ -487,7 +487,7 @@ function render() {
       const dtd=document.createElement("td"); dtd.colSpan=16;
       const SIZE_COLORS=["rgba(251,191,36,0.9)","rgba(239,68,68,0.9)","rgba(167,139,250,0.9)","rgba(56,189,248,0.9)","rgba(251,113,133,0.9)"];
       const szKeys=Object.keys(stockData).filter(k=>stripSize(k)===base&&k!==base);
-      const szHtml=szKeys.length?`<div class="size-sel"><span class="size-sel-lbl">Размер</span>${szKeys.map((s,i)=>{const m=s.match(/\(([^)]+)\)$/);const c=SIZE_COLORS[i%SIZE_COLORS.length];return m?`<button class="sz-btn active" data-sku="${s}" data-idx="${i}" style="--sc:${c}"><span class="sz-dot"></span>${m[1]}</button>`:""}).join("")}</div>`:"";
+      const szHtml=szKeys.length?`<div class="size-sel"><span class="size-sel-lbl">Размер</span>${szKeys.map((s,i)=>{const m=s.match(/\(([^)]+)\)$/);const c=SIZE_COLORS[i%SIZE_COLORS.length];const esc=s.replace(/"/g,'&quot;');return m?`<button class="sz-btn active" data-sku="${esc}" data-idx="${i}" style="--sc:${c}"><span class="sz-dot"></span>${m[1]}</button>`:""}).join("")}</div>`:"";
       dtd.innerHTML=`<div class="dp" id="dp_${sid}">
         <div class="cc">
           ${szHtml}
