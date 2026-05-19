@@ -155,6 +155,13 @@
     .og { display:grid; grid-template-columns:1fr 1fr; gap:5px }
     .oi { background:rgba(255,255,255,0.07); border-radius:6px; padding:6px 8px; text-align:center }
     .ois { font-size:10px; color:rgba(255,255,255,0.4); font-weight:600 }
+    .size-sel { display:flex; align-items:center; gap:5px; margin-bottom:10px; flex-wrap:wrap }
+    .size-sel-lbl { font-size:10px; font-weight:600; color:rgba(255,255,255,0.3); letter-spacing:.06em; text-transform:uppercase; margin-right:2px }
+    .sz-btn { font-size:11px; font-weight:600; padding:2px 9px 2px 7px; border-radius:12px; border:1px solid rgba(255,255,255,0.15); background:rgba(255,255,255,0.06); color:rgba(255,255,255,0.45); cursor:pointer; transition:all .15s; font-family:inherit; display:inline-flex; align-items:center; gap:4px }
+    .sz-btn:hover { background:rgba(255,255,255,0.12); color:rgba(255,255,255,0.75) }
+    .sz-btn.active { color:rgba(255,255,255,0.9); border-color:var(--sc,rgba(255,255,255,0.35)) }
+    .sz-dot { width:6px; height:6px; border-radius:50%; background:var(--sc,rgba(255,255,255,0.5)); flex-shrink:0; opacity:0.45; transition:opacity .15s }
+    .sz-btn.active .sz-dot { opacity:1 }
     .oiv { font-size:15px; font-weight:700; color:rgba(255,255,255,0.9) }
     .loading { text-align:center; padding:60px; color:rgba(255,255,255,0.3); font-size:13px }
   </style>
@@ -401,8 +408,12 @@ function render() {
       // Detail row
       const dtr=document.createElement("tr"); dtr.className="dr"; dtr.style.display="none";
       const dtd=document.createElement("td"); dtd.colSpan=16;
+      const SIZE_COLORS=["rgba(251,191,36,0.9)","rgba(239,68,68,0.9)","rgba(167,139,250,0.9)","rgba(56,189,248,0.9)","rgba(251,113,133,0.9)"];
+      const szKeys=Object.keys(stockData).filter(k=>stripSize(k)===base&&k!==base);
+      const szHtml=szKeys.length?`<div class="size-sel"><span class="size-sel-lbl">Размер</span>${szKeys.map((s,i)=>{const m=s.match(/\(([^)]+)\)$/);const c=SIZE_COLORS[i%SIZE_COLORS.length];return m?`<button class="sz-btn active" data-sku="${s}" data-idx="${i}" style="--sc:${c}"><span class="sz-dot"></span>${m[1]}</button>`:""}).join("")}</div>`:"";
       dtd.innerHTML=`<div class="dp" id="dp_${sid}">
         <div class="cc">
+          ${szHtml}
           <div class="ctitle">Динамика оборачиваемости — 14-дневное скользящее среднее (₽/день)</div>
           <canvas id="cv_${sid}" style="width:100%;height:160px;display:block"></canvas>
         </div>
@@ -437,13 +448,65 @@ function render() {
         const ei=tr.querySelector(".ei");
         dp.classList.toggle("open",!open);
         ei.classList.toggle("open",!open);
-        if(!open) drawChart(base,dtd.querySelector("canvas"),d.chart);
+        if(!open){
+          const cv=dtd.querySelector("canvas");
+          const redraw=()=>{
+            const active=[...dtd.querySelectorAll(".sz-btn.active")];
+            if(!szKeys.length||!active.length){ drawChart(base,cv,d.chart,"rgba(180,255,150,0.85)"); return; }
+            const series=active.map(b=>({sku:b.dataset.sku,chart:SKUS[b.dataset.sku]?SKUS[b.dataset.sku].chart:[],color:SIZE_COLORS[+b.dataset.idx%SIZE_COLORS.length]}));
+            if(series.length===1){ drawChart(series[0].sku,cv,series[0].chart,series[0].color); return; }
+            drawMultiChart(cv,series);
+          };
+          redraw();
+          dtd.querySelectorAll(".sz-btn").forEach(btn=>btn.addEventListener("click",()=>{btn.classList.toggle("active");redraw();}));
+        }
       });
     }
   }
 }
 
-function drawChart(base,canvas,chartData) {
+function drawMultiChart(canvas,series){
+  if(!canvas||!series.length) return;
+  const W=canvas.offsetWidth||800,H=160;
+  canvas.width=W; canvas.height=H;
+  const ctx=canvas.getContext("2d");
+  ctx.clearRect(0,0,W,H);
+  const n=series[0].chart.length; if(!n) return;
+  const pad=12;
+  const allSmooth=series.map(s=>s.chart.map((v,i)=>{let sum=0,cnt=0;for(let j=Math.max(0,i-1);j<=Math.min(s.chart.length-1,i+1);j++){if(s.chart[j]>0){sum+=s.chart[j];cnt++;}}return cnt>0?sum/cnt:0;}));
+  const maxV=Math.max(...allSmooth.flat(),5000);
+  function toY(v){return H-pad-Math.max(0,v)/maxV*(H-pad*2);}
+  function xOf(i){return(i/(n-1))*W;}
+  // zones
+  for(const [mn,mx,col] of [[0,1000,"rgba(239,68,68,0.12)"],[1000,2000,"rgba(251,146,60,0.12)"],[2000,5000,"rgba(134,239,172,0.15)"],[5000,maxV+1,"rgba(34,197,94,0.15)"]]){ctx.fillStyle=col;ctx.fillRect(0,mx>maxV?pad:toY(mx),W,Math.max(0,toY(mn)-(mx>maxV?pad:toY(mx))));}
+  ctx.font="9px Helvetica,Arial,sans-serif";ctx.fillStyle="rgba(255,255,255,0.25)";
+  for(const [v,l] of [[1000,"1k"],[2000,"2k"],[5000,"5k"]]){if(v<maxV)ctx.fillText(l,2,toY(v)-2);}
+  // season dividers
+  const sn=CHART_DATES.map(d=>getSeason(d)),sl={winter:"Зима",spring:"Весна",summer:"Лето",autumn:"Осень"};
+  for(let i=1;i<sn.length;i++){if(sn[i]!==sn[i-1]){const x=xOf(i);ctx.setLineDash([3,3]);ctx.strokeStyle="rgba(255,255,255,0.15)";ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();ctx.setLineDash([]);ctx.font="9px Helvetica,Arial,sans-serif";ctx.fillStyle="rgba(255,255,255,0.25)";ctx.fillText(sl[sn[i-1]],Math.max(0,x-30),H-2);}}
+  // draw each line
+  series.forEach((s,si)=>{
+    const smooth=allSmooth[si];
+    const dm=stockData[s.sku]||{};
+    const inStock=CHART_DATES.map(d=>(dm[d]!==undefined?dm[d]:0)>=3);
+    // fill
+    const rgb=s.color.match(/[\d.]+/g);
+    const grad=ctx.createLinearGradient(0,0,0,H);
+    grad.addColorStop(0,`rgba(${rgb[0]},${rgb[1]},${rgb[2]},0.15)`);
+    grad.addColorStop(1,`rgba(${rgb[0]},${rgb[1]},${rgb[2]},0)`);
+    let inSeg=false;ctx.beginPath();
+    for(let i=0;i<n;i++){const has=inStock[i],x=xOf(i),y=toY(smooth[i]);if(!has){if(inSeg){ctx.lineTo(x,H);ctx.closePath();ctx.fillStyle=grad;ctx.fill();inSeg=false;ctx.beginPath();}}else{if(!inSeg){ctx.moveTo(x,H);ctx.lineTo(x,y);inSeg=true;}else ctx.lineTo(x,y);}}
+    if(inSeg){ctx.lineTo(xOf(n-1),H);ctx.closePath();ctx.fillStyle=grad;ctx.fill();}
+    // line
+    ctx.beginPath();ctx.strokeStyle=s.color;ctx.lineWidth=1.8;ctx.lineJoin="round";
+    let started=false;
+    for(let i=0;i<n;i++){const has=inStock[i],x=xOf(i),y=toY(smooth[i]);if(!has)started=false;else{if(!started){ctx.moveTo(x,y);started=true;}else ctx.lineTo(x,y);}}
+    ctx.stroke();
+  });
+}
+
+function drawChart(base,canvas,chartData,lineColor) {
+  lineColor=lineColor||"rgba(180,255,150,0.85)";
   if(!canvas||!chartData||!chartData.length) return;
   const W=canvas.offsetWidth||800; const H=160;
   canvas.width=W; canvas.height=H;
@@ -483,7 +546,7 @@ function drawChart(base,canvas,chartData) {
   }
   // Fill
   const grad=ctx.createLinearGradient(0,0,0,H);
-  grad.addColorStop(0,"rgba(200,255,180,0.2)");grad.addColorStop(1,"rgba(200,255,180,0)");
+  grad.addColorStop(0,lineColor.replace(/,\s*[\d.]+\)$/,",0.2)"));grad.addColorStop(1,lineColor.replace(/,\s*[\d.]+\)$/,",0)"));
   let inSeg=false;ctx.beginPath();
   for(let i=0;i<n;i++){
     const has=inStock[i];const x=xOf(i);const y=toY(smooth[i]);
@@ -492,7 +555,7 @@ function drawChart(base,canvas,chartData) {
   }
   if(inSeg){ctx.lineTo(xOf(n-1),H);ctx.closePath();ctx.fillStyle=grad;ctx.fill();}
   // Line
-  ctx.beginPath();ctx.strokeStyle="rgba(180,255,150,0.75)";ctx.lineWidth=1.5;ctx.lineJoin="round";
+  ctx.beginPath();ctx.strokeStyle=lineColor;ctx.lineWidth=1.5;ctx.lineJoin="round";
   let started=false;
   for(let i=0;i<n;i++){
     const has=inStock[i];const x=xOf(i);const y=toY(smooth[i]);
