@@ -588,19 +588,17 @@ function drawMultiChart(canvas,series){
   ctx.clearRect(0,0,W,H);
   const n=series[0].chart.length; if(!n) return;
   const pad=12;
-  const WIN=8;
 
   const allTurn=series.map(s=>{
     const dm=stockData[s.sku]||{};
     const inSt=CHART_DATES.map(d=>(dm[d]!==undefined?dm[d]:0)>=3);
-    return s.chart.map((_,i)=>{
-      if(!inSt[i]) return null;
-      let rev=0,days=0;
-      for(let j=Math.max(0,i-WIN+1);j<=i;j++){
-        if(inSt[j]){rev+=Math.max(0,s.chart[j]);days+=7;}
-      }
-      return days>0?rev/days:null;
-    });
+    const vals=[];
+    let cumRev=0,cumDays=0;
+    for(let i=0;i<n;i++){
+      if(!inSt[i]){vals.push(null);cumRev=0;cumDays=0;}
+      else{cumRev+=Math.max(0,s.chart[i]);cumDays+=7;vals.push(cumDays>0?cumRev/cumDays:null);}
+    }
+    return vals;
   });
 
   const maxV=Math.max(...allTurn.flat().filter(v=>v!==null&&v>0),700);
@@ -638,18 +636,24 @@ function drawChart(base,canvas,chartData,lineColor) {
   const dm=stockData[base]||{};
   const inStock=CHART_DATES.map(d=>(dm[d]!==undefined?dm[d]:0)>=3);
 
-  // Rolling window: sum(revenue) / days_in_stock over last W weeks
-  // Each chartData point = weekly revenue delta
-  // Window = 8 weeks
-  const WIN=8;
-  const turnVals = chartData.map((_,i)=>{
-    if(!inStock[i]) return null;
-    let rev=0, days=0;
-    for(let j=Math.max(0,i-WIN+1);j<=i;j++){
-      if(inStock[j]){ rev+=Math.max(0,chartData[j]); days+=7; }
+  // Cumulative turnover: total_revenue_so_far / total_days_in_stock_so_far
+  // This never hits zero — it only decays slowly when no sales
+  // Reset accumulator when out of stock (gap in availability)
+  const turnVals = [];
+  let cumRev=0, cumDays=0;
+  let wasOut=false;
+  for(let i=0;i<n;i++){
+    if(!inStock[i]){
+      // Out of stock — break the line, reset accumulator
+      turnVals.push(null);
+      cumRev=0; cumDays=0; wasOut=true;
+    } else {
+      cumRev += Math.max(0, chartData[i]);
+      cumDays += 7;
+      turnVals.push(cumDays>0 ? cumRev/cumDays : null);
+      wasOut=false;
     }
-    return days>0 ? rev/days : null;
-  });
+  }
 
   const validVals=turnVals.filter(v=>v!==null&&v>0);
   const maxV=Math.max(...validVals,700);
