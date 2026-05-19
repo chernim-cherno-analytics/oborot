@@ -304,11 +304,14 @@ function compute() {
     if (base !== base.replace(/\s*\([^)]*\)\s*$/, "").trim()) continue;
     const dm=stockData[base]||{};
     const sk=SKUS[base]||{nq:0,nr:0,ap:0,sea:{},chart:[]};
+    const skNq = sk.nq || 0;
+    const skNr = sk.nr || 0;
+    const skAp = sk.ap || 0;
     const skSea = sk.sea || {};
     // Days in stock last 365
     let dis=0,prev=0;
     for(const d of last365){const s=dm[d]!==undefined?dm[d]:prev;if(s>=3)dis++;prev=s;}
-    const turn=dis>0?sk.nr/dis:0;
+    const turn=dis>0?skNr/dis:0;
     // Seasonal turnover
     const sea={};
     for(const s of["winter","spring","summer","autumn"]){
@@ -321,7 +324,7 @@ function compute() {
     let cs=0;
     for(let i=allDates.length-1;i>=0;i--){if(dm[allDates[i]]!==undefined){cs=dm[allDates[i]];break;}}
     // Daily sales qty rate
-    const dsq=dis>0?sk.nq/dis:0;
+    const dsq=dis>0?skNq/dis:0;
     const sup=dsq>0?Math.round(cs/dsq):null;
     const zat=sup!==null?Math.round(sup/90*100):null;
     const needed=Math.round(dsq*90);
@@ -333,10 +336,10 @@ function compute() {
       const sd=last365.filter(d=>getSeason(d)===s);
       let si=0,p2=0;
       for(const d of sd){const q=dm[d]!==undefined?dm[d]:p2;if(q>=3)si++;p2=q;}
-      const sqty=sk.nq>0&&sk.nr>0?sk.nq*(skSea[s]||0)/sk.nr:0;
+      const sqty=skNq>0&&skNr>0?skNq*(skSea[s]||0)/skNr:0;
       ord[s]=si>0?Math.round(sqty/si*SEASON_DAYS[s]):0;
     }
-    computed[base]={dis,turn,sea,cs,sup,zat,defq,defp,ord,ap:sk.ap,nr:sk.nr,chart:sk.chart||[]};
+    computed[base]={dis,turn,sea,cs,sup,zat,defq,defp,ord,ap:skAp,nr:skNr,chart:sk.chart||[]};
   }
 }
 
@@ -428,14 +431,9 @@ function computeSize(szKey, baseData) {
 
 function render() {
   const tb=document.getElementById("tb"); tb.innerHTML="";
-  const allKeys = Object.keys(computed);
-  console.log("render() keys:", allKeys.length, "cat:", currentCat);
-  const sample = allKeys[0];
-  if(sample) console.log("sample:", sample, "getCat:", getCat(sample), JSON.stringify(computed[sample]).slice(0,150));
   const items=Object.entries(computed)
     .filter(([b])=>getCat(b)===currentCat&&!hiddenItems.has(b))
     .sort((a,b)=>(b[1].turn||0)-(a[1].turn||0));
-  console.log("items after filter:", items.length);
   if(!items.length){tb.innerHTML=`<tr><td colspan="16" class="loading">Нет данных</td></tr>`;return;}
 
   const withS=items.filter(([,d])=>d.nr>0);
