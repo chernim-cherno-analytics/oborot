@@ -428,9 +428,14 @@ function computeSize(szKey, baseData) {
 
 function render() {
   const tb=document.getElementById("tb"); tb.innerHTML="";
+  const allKeys = Object.keys(computed);
+  console.log("render() keys:", allKeys.length, "cat:", currentCat);
+  const sample = allKeys[0];
+  if(sample) console.log("sample:", sample, "getCat:", getCat(sample), JSON.stringify(computed[sample]).slice(0,150));
   const items=Object.entries(computed)
     .filter(([b])=>getCat(b)===currentCat&&!hiddenItems.has(b))
     .sort((a,b)=>(b[1].turn||0)-(a[1].turn||0));
+  console.log("items after filter:", items.length);
   if(!items.length){tb.innerHTML=`<tr><td colspan="16" class="loading">Нет данных</td></tr>`;return;}
 
   const withS=items.filter(([,d])=>d.nr>0);
