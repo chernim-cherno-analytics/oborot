@@ -164,6 +164,10 @@
     .sz-btn.active .sz-dot { opacity:1 }
     .oiv { font-size:15px; font-weight:700; color:rgba(255,255,255,0.9) }
     .loading { text-align:center; padding:60px; color:rgba(255,255,255,0.3); font-size:13px }
+    /* size sub-rows */
+    tbody tr.sr td { padding: 5px 10px; border-bottom: 1px solid rgba(255,255,255,0.05); font-size:11px; text-align:center; color: rgba(255,255,255,0.6) }
+    tbody tr.sr td:first-child { padding-left: 32px; color: rgba(255,255,255,0.35); text-align:left; font-style:italic }
+    tbody tr.sr:hover td { background: rgba(255,255,255,0.05) }
   </style>
 </head>
 <body>
@@ -362,6 +366,42 @@ function selCat(c){
   render();
 }
 
+const SIZE_ORDER = ["xxs","xs","s","m","l","xl","xxl","2xl","3xl","4xl","one size","os"];
+function sortSizes(keys) {
+  return [...keys].sort((a,b) => {
+    const ma = a.match(/\(([^)]+)\)$/); const mb = b.match(/\(([^)]+)\)$/);
+    if (!ma||!mb) return 0;
+    const ia = SIZE_ORDER.indexOf(ma[1].toLowerCase()), ib = SIZE_ORDER.indexOf(mb[1].toLowerCase());
+    if (ia===-1&&ib===-1) return ma[1].localeCompare(mb[1]);
+    if (ia===-1) return 1; if (ib===-1) return -1;
+    return ia-ib;
+  });
+}
+
+function computeSize(szKey) {
+  const dm = stockData[szKey] || {};
+  const sk = SKUS[szKey] || {nq:0,nr:0,ap:0,sea:{},chart:[]};
+  const last365 = allDates.filter(d=>new Date(d)>=new Date(Date.now()-365*24*3600*1000));
+  let dis=0, prev=0;
+  for(const d of last365){const s=dm[d]!==undefined?dm[d]:prev;if(s>=1)dis++;prev=s;}
+  let cs=0;
+  for(let i=allDates.length-1;i>=0;i--){if(dm[allDates[i]]!==undefined){cs=dm[allDates[i]];break;}}
+  const dsq = dis>0 ? sk.nq/dis : 0;
+  const sup = dsq>0 ? Math.round(cs/dsq) : null;
+  const zat = sup!==null ? Math.round(sup/90*100) : null;
+  const needed = Math.round(dsq*90);
+  const defq = Math.max(0, needed-cs);
+  const ord = {};
+  for(const s of ["winter","spring","summer","autumn"]){
+    const sd=last365.filter(d=>getSeason(d)===s);
+    let si=0,p2=0;
+    for(const d of sd){const q=dm[d]!==undefined?dm[d]:p2;if(q>=1)si++;p2=q;}
+    const sqty=sk.nq>0&&sk.nr>0?sk.nq*(sk.sea[s]||0)/sk.nr:0;
+    ord[s]=si>0?Math.round(sqty/si*SEASON_DAYS[s]):0;
+  }
+  return {dis, cs, sup, zat, defq, ord};
+}
+
 function render() {
   const tb=document.getElementById("tb"); tb.innerHTML="";
   const items=Object.entries(computed)
@@ -441,8 +481,40 @@ function render() {
       </div>`;
       dtr.appendChild(dtd); tb.appendChild(dtr);
 
+      // Size sub-rows
+      const sortedSzKeys = sortSizes(szKeys);
+      const sid2 = base.replace(/[^a-zа-яё0-9]/gi,"_");
+      for (const szKey of sortedSzKeys) {
+        const sd = computeSize(szKey);
+        const szMatch = szKey.match(/\(([^)]+)\)$/);
+        const szLabel = szMatch ? szMatch[1] : szKey;
+        const [szc,szl,szt] = zatStyle(sd.zat);
+        const sztr = document.createElement("tr");
+        sztr.className = `sr szrow-${sid2}`;
+        sztr.style.display = "none";
+        sztr.innerHTML = `
+          <td>↳ ${szLabel}</td>
+          <td class="nb">${sd.dis}</td>
+          <td>—</td>
+          <td>—</td>
+          <td>—</td><td>—</td><td>—</td><td>—</td>
+          <td class="nb nbig">${sd.cs}</td>
+          <td class="nb">${sd.sup!==null?sd.sup+" дн":"—"}</td>
+          <td><div class="zbar" style="width:52px;height:16px"><div class="zfill" style="width:${Math.min(sd.zat||0,100)}%;background:${szc}"></div><div class="ztxt" style="color:${szt};font-size:9px">${szl}</div></div></td>
+          <td class="nb"><span style="font-size:11px;font-weight:600">${sd.defq}</span></td>
+          <td><span class="oc" style="font-size:10px;padding:1px 5px">${sd.ord.spring}</span></td>
+          <td><span class="oc" style="font-size:10px;padding:1px 5px">${sd.ord.summer}</span></td>
+          <td><span class="oc" style="font-size:10px;padding:1px 5px">${sd.ord.autumn}</span></td>
+          <td><span class="oc" style="font-size:10px;padding:1px 5px">${sd.ord.winter}</span></td>`;
+        tb.appendChild(sztr);
+      }
+
       tr.querySelector("td:first-child").addEventListener("click",()=>{
         const open=dtr.style.display!=="none";
+        // toggle size rows
+        const sid2=base.replace(/[^a-zа-яё0-9]/gi,"_");
+        const szRows=document.querySelectorAll(`.szrow-${sid2}`);
+        szRows.forEach(r=>r.style.display=open?"none":"");
         dtr.style.display=open?"none":"";
         const dp=dtd.querySelector(".dp");
         const ei=tr.querySelector(".ei");
