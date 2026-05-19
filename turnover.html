@@ -298,7 +298,6 @@ async function loadStock() {
 }
 
 function compute() {
-  const last365 = allDates.filter(d=>new Date(d)>=new Date(Date.now()-365*24*3600*1000));
   for (const base of Object.keys(stockData)) {
     // Skip size variants — only compute for base names
     if (base !== base.replace(/\s*\([^)]*\)\s*$/, "").trim()) continue;
@@ -308,14 +307,14 @@ function compute() {
     const skNr = sk.nr || 0;
     const skAp = sk.ap || 0;
     const skSea = sk.sea || {};
-    // Days in stock last 365
+    // Days in stock over ALL dates (sales data covers all time too)
     let dis=0,prev=0;
-    for(const d of last365){const s=dm[d]!==undefined?dm[d]:prev;if(s>=3)dis++;prev=s;}
+    for(const d of allDates){const s=dm[d]!==undefined?dm[d]:prev;if(s>=3)dis++;prev=s;}
     const turn=dis>0?skNr/dis:0;
-    // Seasonal turnover
+    // Seasonal turnover — days in stock per season over all time
     const sea={};
     for(const s of["winter","spring","summer","autumn"]){
-      const sd=last365.filter(d=>getSeason(d)===s);
+      const sd=allDates.filter(d=>getSeason(d)===s);
       let si=0,p2=0;
       for(const d of sd){const q=dm[d]!==undefined?dm[d]:p2;if(q>=3)si++;p2=q;}
       sea[s]=si>0?(skSea[s]||0)/si:0;
@@ -323,17 +322,17 @@ function compute() {
     // Current stock
     let cs=0;
     for(let i=allDates.length-1;i>=0;i--){if(dm[allDates[i]]!==undefined){cs=dm[allDates[i]];break;}}
-    // Daily sales qty rate
+    // Daily sales qty rate (over all time)
     const dsq=dis>0?skNq/dis:0;
     const sup=dsq>0?Math.round(cs/dsq):null;
     const zat=sup!==null?Math.round(sup/90*100):null;
     const needed=Math.round(dsq*90);
     const defq=Math.max(0,needed-cs);
     const defp=needed>0?Math.round(defq/needed*100):0;
-    // Orders per season (qty for 3 months at seasonal rate)
+    // Orders per season
     const ord={};
     for(const s of["winter","spring","summer","autumn"]){
-      const sd=last365.filter(d=>getSeason(d)===s);
+      const sd=allDates.filter(d=>getSeason(d)===s);
       let si=0,p2=0;
       for(const d of sd){const q=dm[d]!==undefined?dm[d]:p2;if(q>=3)si++;p2=q;}
       const sqty=skNq>0&&skNr>0?skNq*(skSea[s]||0)/skNr:0;

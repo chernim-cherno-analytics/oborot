@@ -277,10 +277,10 @@ def rebuild_analytics_json(conn):
             af.write(json.dumps(base, ensure_ascii=False))
             af.write(":")
             af.write(json.dumps(dm, ensure_ascii=False, separators=(",", ":")))
-            # Turnover stats on the aggregate
+            # Turnover stats on the aggregate — use ALL dates (sales cover all time)
             dis = 0; prev = 0
             sea = {"winter":0,"spring":0,"summer":0,"autumn":0}
-            for d in recent:
+            for d in dates:
                 q = dm.get(d, prev)
                 if q >= 3: dis += 1; sea[season(d)] += 1
                 prev = q
@@ -303,7 +303,7 @@ def rebuild_analytics_json(conn):
             sz_chart_map = chart_by_sku.get(sku_name, {})
             sz_chart = [sz_chart_map.get(d, 0) for d in dates]
             sz_dis = 0; sz_prev = 0
-            for d in recent:
+            for d in dates:
                 q = dm.get(d, sz_prev)
                 if q >= 3: sz_dis += 1
                 sz_prev = q
