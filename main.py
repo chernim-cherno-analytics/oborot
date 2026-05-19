@@ -211,11 +211,40 @@ def rebuild_analytics_json(conn):
     for r in chart_rows:
         chart_by_sku.setdefault(r["sku_name"], {})[r["date"]] = r["rev"]
 
-    def get_sales(sku_name):
-        """Aggregate sales for a base SKU (sum size variants if needed)."""
-        s = sales_by_sku.get(sku_name, {"nq":0,"nr":0,"ap":0})
-        sea = sea_by_sku.get(sku_name, {"winter":0,"spring":0,"summer":0,"autumn":0})
-        chart_map = chart_by_sku.get(sku_name, {})
+    # Pre-aggregate sales by base name (stripping size suffixes)
+    sales_by_base = {}
+    sea_by_base = {}
+    chart_by_base = {}
+    for sku_name, s in sales_by_sku.items():
+        base = _strip_size(sku_name)
+        if base not in sales_by_base:
+            sales_by_base[base] = {"nq": 0, "nr": 0}
+        sales_by_base[base]["nq"] += s["nq"]
+        sales_by_base[base]["nr"] += s["nr"]
+    for base in sales_by_base:
+        nq = sales_by_base[base]["nq"]
+        nr = sales_by_base[base]["nr"]
+        sales_by_base[base]["ap"] = nr / nq if nq > 0 else 0
+
+    for sku_name, sea in sea_by_sku.items():
+        base = _strip_size(sku_name)
+        if base not in sea_by_base:
+            sea_by_base[base] = {"winter":0,"spring":0,"summer":0,"autumn":0}
+        for s in ("winter","spring","summer","autumn"):
+            sea_by_base[base][s] += sea[s]
+
+    for sku_name, chart_map in chart_by_sku.items():
+        base = _strip_size(sku_name)
+        if base not in chart_by_base:
+            chart_by_base[base] = {}
+        for d, v in chart_map.items():
+            chart_by_base[base][d] = chart_by_base[base].get(d, 0) + v
+
+    def get_sales(base_name):
+        """Aggregate sales for a base SKU."""
+        s = sales_by_base.get(base_name, {"nq":0,"nr":0,"ap":0})
+        sea = sea_by_base.get(base_name, {"winter":0,"spring":0,"summer":0,"autumn":0})
+        chart_map = chart_by_base.get(base_name, {})
         chart = [chart_map.get(d, 0) for d in dates]
         return s["nq"], s["nr"], s["ap"], sea, chart
 
