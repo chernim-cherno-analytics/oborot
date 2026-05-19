@@ -620,15 +620,15 @@ function drawChart(canvas, dateMap, dates, small, large) {
     ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, pts[i+1].x, pts[i+1].y);
   }
 
-  // ── Gradient fill: light washed-green → dark red ──
+  // ── Gradient fill ──
   const grad = ctx.createLinearGradient(0, 0, 0, H);
   if (small) {
-    grad.addColorStop(0, 'rgba(180,210,160,0.18)');
-    grad.addColorStop(1, 'rgba(120,40,40,0.12)');
+    grad.addColorStop(0, 'rgba(160,220,140,0.45)');
+    grad.addColorStop(1, 'rgba(120,40,40,0.18)');
   } else {
-    grad.addColorStop(0, 'rgba(200,230,180,0.38)');
-    grad.addColorStop(0.6, 'rgba(160,190,130,0.28)');
-    grad.addColorStop(1, 'rgba(100,30,30,0.35)');
+    grad.addColorStop(0, 'rgba(180,230,150,0.55)');
+    grad.addColorStop(0.6, 'rgba(140,190,110,0.35)');
+    grad.addColorStop(1, 'rgba(100,30,30,0.45)');
   }
 
   // Fill under the curve
@@ -637,6 +637,29 @@ function drawChart(canvas, dateMap, dates, small, large) {
   ctx.closePath();
   ctx.fillStyle = grad;
   ctx.fill();
+
+  // ── Bright edge line on top ──
+  ctx.beginPath();
+  ctx.moveTo(pts[0].x, pts[0].y);
+  for (let i = 0; i < pts.length - 1; i++) {
+    const cp1x = pts[i].x + (pts[i+1].x - pts[i].x) * 0.45;
+    const cp1y = pts[i].y;
+    const cp2x = pts[i+1].x - (pts[i+1].x - pts[i].x) * 0.45;
+    const cp2y = pts[i+1].y;
+    ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, pts[i+1].x, pts[i+1].y);
+  }
+  if (small) {
+    ctx.strokeStyle = 'rgba(200,255,160,0.75)';
+    ctx.lineWidth = 1.2;
+  } else if (large) {
+    ctx.strokeStyle = 'rgba(180,255,140,0.9)';
+    ctx.lineWidth = 2;
+  } else {
+    ctx.strokeStyle = 'rgba(190,255,150,0.85)';
+    ctx.lineWidth = 1.5;
+  }
+  ctx.lineJoin = 'round';
+  ctx.stroke();
 }
 
 window.addEventListener('resize', () => renderCategory(currentCat));
