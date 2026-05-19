@@ -567,7 +567,7 @@ function render() {
               cv.width=W; cv.height=160;
               const active=[...dtd.querySelectorAll(".sz-btn.active")];
               if(!szKeys.length||!active.length){drawChart(base,cv,d.chart,"rgba(180,255,150,0.85)");return;}
-              const series=active.map(b=>({sku:b.dataset.sku,chart:SKUS[b.dataset.sku]?SKUS[b.dataset.sku].chart:[],color:SIZE_COLORS[+b.dataset.idx%SIZE_COLORS.length]}));
+              const series=active.map(b=>({sku:b.dataset.sku,chart:SKUS[b.dataset.sku]&&SKUS[b.dataset.sku].chart&&SKUS[b.dataset.sku].chart.length===d.chart.length?SKUS[b.dataset.sku].chart:d.chart,color:SIZE_COLORS[+b.dataset.idx%SIZE_COLORS.length]}));
               if(series.length===1){drawChart(series[0].sku,cv,series[0].chart,series[0].color);return;}
               drawMultiChart(cv,series);
             },50);
