@@ -567,15 +567,9 @@ function render() {
               cv.width=W; cv.height=160;
               const active=[...dtd.querySelectorAll(".sz-btn.active")];
               if(!szKeys.length||!active.length){drawChart(base,cv,d.chart,"rgba(180,255,150,0.85)");return;}
-              // For single size with valid chart data — show size-specific chart
-              // For multiple or missing data — show base chart
-              if(active.length===1){
-                const b=active[0];
-                const szChart=SKUS[b.dataset.sku]&&SKUS[b.dataset.sku].chart&&SKUS[b.dataset.sku].chart.length===d.chart.length&&SKUS[b.dataset.sku].chart.some(v=>v!==0)?SKUS[b.dataset.sku].chart:d.chart;
-                drawChart(b.dataset.sku,cv,szChart,SIZE_COLORS[+b.dataset.idx%SIZE_COLORS.length]);return;
-              }
-              // Multiple sizes — show base chart (aggregate)
-              drawChart(base,cv,d.chart,"rgba(180,255,150,0.85)");
+              const series=active.map(b=>({sku:b.dataset.sku,chart:SKUS[b.dataset.sku]?SKUS[b.dataset.sku].chart:[],color:SIZE_COLORS[+b.dataset.idx%SIZE_COLORS.length]}));
+              if(series.length===1){drawChart(series[0].sku,cv,series[0].chart,series[0].color);return;}
+              drawMultiChart(cv,series);
             },50);
           };
           redraw();
