@@ -200,6 +200,37 @@ def rebuild_analytics_json(conn):
         for d, q in dm.items():
             base_agg[base][d] = base_agg[base].get(d, 0) + q
 
+    # Load sales data per sku_name (includes size suffixes)
+    cutoff_sales = (_dt.today() - timedelta(days=365)).isoformat()
+    sales_rows = conn.execute("""
+        SELECT sku_name,
+               SUM(CASE WHEN doc_type='sale' THEN qty ELSE 0 END) as nq,
+               SUM(CASE WHEN doc_type='sale' THEN revenue ELSE 0 END) as nr,
+               SUM(CASE WHEN doc_type='sale' AND strftime('%m',date) IN ('12','01','02') THEN revenue ELSE 0 END) as w,
+               SUM(CASE WHEN doc_type='sale' AND strftime('%m',date) IN ('03','04','05') THEN revenue ELSE 0 END) as sp,
+               SUM(CASE WHEN doc_type='sale' AND strftime('%m',date) IN ('06','07','08') THEN revenue ELSE 0 END) as su,
+               SUM(CASE WHEN doc_type='sale' AND strftime('%m',date) IN ('09','10','11') THEN revenue ELSE 0 END) as au
+        FROM sales_data
+        WHERE date >= ? AND doc_type='sale'
+        GROUP BY sku_name
+    """, (cutoff_sales,)).fetchall()
+
+    sales_map = {}  # sku_name -> {nq, nr, sea}
+    for r in sales_rows:
+        sales_map[r["sku_name"]] = {
+            "nq": r["nq"] or 0,
+            "nr": r["nr"] or 0,
+            "sea": {"winter": r["w"] or 0, "spring": r["sp"] or 0,
+                    "summer": r["su"] or 0, "autumn": r["au"] or 0}
+        }
+
+    # Helper: get sales for a sku, falling back to base aggregate if no size-level data
+    def get_sales(sku_name):
+        if sku_name in sales_map:
+            return sales_map[sku_name]
+        base = _strip_size(sku_name)
+        return sales_map.get(base, {"nq": 0, "nr": 0, "sea": {"winter":0,"spring":0,"summer":0,"autumn":0}})
+
     with open(atmp, "w", encoding="utf-8") as af:
         af.write('{"dates":'); af.write(dates_json); af.write(',"stock":{')
         first = True
@@ -217,7 +248,11 @@ def rebuild_analytics_json(conn):
                 q = dm.get(d, prev)
                 if q >= 3: dis += 1; sea[season(d)] += 1
                 prev = q
-            skus_turnover[base] = {"dis": dis, "cs": int(dm.get(latest, 0)), "sea_days": sea}
+            s = get_sales(base)
+            skus_turnover[base] = {
+                "dis": dis, "cs": int(dm.get(latest, 0)), "sea_days": sea,
+                "nq": s["nq"], "nr": s["nr"], "sea": s["sea"]
+            }
         # Write per-size keys only where sku_name differs from base
         for sku_name, dm in sku_data.items():
             base = _strip_size(sku_name)
@@ -227,6 +262,18 @@ def rebuild_analytics_json(conn):
             af.write(json.dumps(sku_name, ensure_ascii=False))
             af.write(":")
             af.write(json.dumps(dm, ensure_ascii=False, separators=(",", ":")))
+            # Also add size-level entry to turnover
+            dis = 0; prev = 0
+            sea_days = {"winter":0,"spring":0,"summer":0,"autumn":0}
+            for d in recent:
+                q = dm.get(d, prev)
+                if q >= 1: dis += 1; sea_days[season(d)] += 1
+                prev = q
+            s = get_sales(sku_name)
+            skus_turnover[sku_name] = {
+                "dis": dis, "cs": int(dm.get(latest, 0)), "sea_days": sea_days,
+                "nq": s["nq"], "nr": s["nr"], "sea": s["sea"]
+            }
         af.write("}}")
     os.replace(atmp, ANALYTICS_JSON_PATH)
 

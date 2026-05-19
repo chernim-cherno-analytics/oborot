@@ -250,6 +250,8 @@ const CAT_ORDER = ["Верхняя одежда","Костюмы","Брюки","
 const SEASON_DAYS = {winter:90,spring:92,summer:92,autumn:91};
 
 let stockData = {}, allDates = [], hiddenItems = new Set(), currentCat = "Верхняя одежда", computed = {};
+let SKUS = SD.skus || {};
+let CHART_DATES = SD.dates || [];
 
 function getCat(n) {
   const nl = n.toLowerCase();
@@ -277,10 +279,18 @@ async function loadHidden() {
 async function loadStock() {
   document.getElementById("tb").innerHTML=`<tr><td colspan="16" class="loading">Загружаю данные с сервера...</td></tr>`;
   try {
-    const res = await fetch("/api/analytics-data");
-    const data = await res.json();
-    allDates = data.dates || [];
-    stockData = data.stock || {};
+    const [analyticsRes, turnoverRes] = await Promise.all([
+      fetch("/api/analytics-data"),
+      fetch("/api/turnover-data")
+    ]);
+    const analyticsData = await analyticsRes.json();
+    const turnoverData = await turnoverRes.json();
+    allDates = analyticsData.dates || [];
+    stockData = analyticsData.stock || {};
+    if (turnoverData.skus) {
+      SKUS = turnoverData.skus;
+      CHART_DATES = turnoverData.dates || allDates;
+    }
   } catch(e) {
     document.getElementById("tb").innerHTML=`<tr><td colspan="16" class="loading">Ошибка загрузки</td></tr>`;
   }
@@ -378,28 +388,33 @@ function sortSizes(keys) {
   });
 }
 
-function computeSize(szKey) {
+function computeSize(szKey, baseData) {
   const dm = stockData[szKey] || {};
   const sk = SKUS[szKey] || {nq:0,nr:0,ap:0,sea:{},chart:[]};
   const last365 = allDates.filter(d=>new Date(d)>=new Date(Date.now()-365*24*3600*1000));
-  let dis=0, prev=0;
-  for(const d of last365){const s=dm[d]!==undefined?dm[d]:prev;if(s>=1)dis++;prev=s;}
+
   let cs=0;
   for(let i=allDates.length-1;i>=0;i--){if(dm[allDates[i]]!==undefined){cs=dm[allDates[i]];break;}}
-  const dsq = dis>0 ? sk.nq/dis : 0;
-  const sup = dsq>0 ? Math.round(cs/dsq) : null;
-  const zat = sup!==null ? Math.round(sup/90*100) : null;
-  const needed = Math.round(dsq*90);
-  const defq = Math.max(0, needed-cs);
+
+  let dis=0, prev=0;
+  for(const d of last365){const s=dm[d]!==undefined?dm[d]:prev;if(s>=1)dis++;prev=s;}
+
+  const ap = sk.nq > 0 ? sk.nr / sk.nq : (baseData.ap || 0);
+  const dsq = dis > 0 ? sk.nq / dis : 0;
+  const sup = dsq > 0 ? Math.round(cs / dsq) : null;
+  const zat = sup !== null ? Math.round(sup/90*100) : null;
+  const needed = Math.round(dsq * 90);
+  const defq = Math.max(0, needed - cs);
+
   const ord = {};
   for(const s of ["winter","spring","summer","autumn"]){
     const sd=last365.filter(d=>getSeason(d)===s);
     let si=0,p2=0;
     for(const d of sd){const q=dm[d]!==undefined?dm[d]:p2;if(q>=1)si++;p2=q;}
-    const sqty=sk.nq>0&&sk.nr>0?sk.nq*(sk.sea[s]||0)/sk.nr:0;
-    ord[s]=si>0?Math.round(sqty/si*SEASON_DAYS[s]):0;
+    const sqty = sk.nq>0 && sk.nr>0 ? sk.nq*(sk.sea[s]||0)/sk.nr : 0;
+    ord[s] = si>0 ? Math.round(sqty/si*SEASON_DAYS[s]) : 0;
   }
-  return {dis, cs, sup, zat, defq, ord};
+  return {dis, cs, sup, zat, defq, ord, ap};
 }
 
 function render() {
@@ -523,14 +538,17 @@ function render() {
         if(!open){
           const cv=dtd.querySelector("canvas");
           const redraw=()=>{
-            // wait for layout so offsetWidth is correct
-            requestAnimationFrame(()=>{
+            setTimeout(()=>{
+              // force canvas to inherit container width if offsetWidth is 0
+              if(!cv.offsetWidth) cv.style.width="100%";
+              const W=cv.parentElement?.offsetWidth||cv.closest(".cc")?.offsetWidth||800;
+              cv.width=W; cv.height=160;
               const active=[...dtd.querySelectorAll(".sz-btn.active")];
               if(!szKeys.length||!active.length){drawChart(base,cv,d.chart,"rgba(180,255,150,0.85)");return;}
               const series=active.map(b=>({sku:b.dataset.sku,chart:SKUS[b.dataset.sku]?SKUS[b.dataset.sku].chart:[],color:SIZE_COLORS[+b.dataset.idx%SIZE_COLORS.length]}));
               if(series.length===1){drawChart(series[0].sku,cv,series[0].chart,series[0].color);return;}
               drawMultiChart(cv,series);
-            });
+            },50);
           };
           redraw();
           dtd.querySelectorAll(".sz-btn").forEach(btn=>btn.addEventListener("click",()=>{btn.classList.toggle("active");redraw();}));
@@ -542,7 +560,7 @@ function render() {
 
 function drawMultiChart(canvas,series){
   if(!canvas||!series.length) return;
-  const W=canvas.offsetWidth||800,H=160;
+  const W=canvas.offsetWidth||canvas.width||800,H=160;
   canvas.width=W; canvas.height=H;
   const ctx=canvas.getContext("2d");
   ctx.clearRect(0,0,W,H);
@@ -578,7 +596,7 @@ function drawMultiChart(canvas,series){
 function drawChart(base,canvas,chartData,lineColor) {
   lineColor=lineColor||"rgba(180,255,150,0.85)";
   if(!canvas||!chartData||!chartData.length) return;
-  const W=canvas.offsetWidth||800; const H=160;
+  const W=canvas.offsetWidth||canvas.width||800; const H=160;
   canvas.width=W; canvas.height=H;
   const ctx=canvas.getContext("2d");
   ctx.clearRect(0,0,W,H);
