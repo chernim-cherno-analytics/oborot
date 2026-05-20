@@ -193,12 +193,21 @@
     .size-chip {
       display: inline-flex; align-items: center; gap: 3px;
       background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.18);
-      border-radius: 6px; padding: 3px 6px 3px 8px; font-size: 11px; font-weight: 500; color: rgba(255,255,255,0.85);
+      border-radius: 7px; padding: 4px 6px 4px 8px; font-size: 11px; font-weight: 500; color: rgba(255,255,255,0.85);
+      position: relative;
     }
-    .size-chip .sz-lbl { color: rgba(255,255,255,0.45); font-size: 9px; font-weight: 600; letter-spacing:.05em; min-width: 14px; }
+    .size-chip-nodata { opacity: 0.6; }
+    .size-chip .sz-lbl {
+      color: rgba(255,255,255,0.9); font-size: 11px; font-weight: 700;
+      letter-spacing:.04em; min-width: 16px;
+    }
+    .size-chip .sz-turn {
+      font-size: 9px; color: rgba(255,255,255,0.4); font-weight: 500;
+      white-space: nowrap; margin-right: 2px;
+    }
     .size-chip input.sz-inp {
-      width: 40px; background: rgba(255,255,255,0.18); border: 1px solid rgba(255,255,255,0.22);
-      border-radius: 4px; color: white; font-size: 12px; font-weight: 700;
+      width: 42px; background: rgba(255,255,255,0.18); border: 1px solid rgba(255,255,255,0.22);
+      border-radius: 4px; color: white; font-size: 13px; font-weight: 700;
       text-align: center; padding: 2px 4px; outline: none;
       font-family: Helvetica, 'Helvetica Neue', Arial, sans-serif;
       -moz-appearance: textfield;
@@ -206,6 +215,12 @@
     .size-chip input.sz-inp::-webkit-outer-spin-button,
     .size-chip input.sz-inp::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
     .size-chip input.sz-inp:focus { background: rgba(255,255,255,0.35); border-color: rgba(255,255,255,0.6); }
+    .sz-delta {
+      font-size: 8px; font-weight: 700; padding: 1px 3px;
+      border-radius: 3px; white-space: nowrap;
+    }
+    .sz-delta.sz-pos { color: rgba(34,197,94,0.9); background: rgba(34,197,94,0.12); }
+    .sz-delta.sz-neg { color: rgba(239,68,68,0.85); background: rgba(239,68,68,0.1); }
     .size-total-badge {
       font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.5);
       padding: 2px 8px; border-radius: 10px; background: rgba(255,255,255,0.08);
@@ -813,31 +828,71 @@ function computeOrder(base){
 }
 
 // ─── Size breakdown ────────────────────────────────────────────────────────────
-// SIZE_DB[name] = ['S','M','L',...] — from xlsx Характеристика:Размер
-function getSizesForBase(base){
-  return SIZE_DB[base] || [];
+// Returns array of {label, szKey, turn, calcQty} sorted by SIZE_ORDER
+// szKey = "ProductName (S)" — the key used in stockData and SKUS
+
+const SIZE_ORDER_ARR = ["xxs","xs","s","m","l","xl","xxl","2xl","3xl","4xl","one size","os"];
+
+function getSizeEntries(base){
+  // Find stockData keys that are size variants of this base
+  const result = [];
+  for(const key of Object.keys(stockData)){
+    if(key === base) continue;
+    const m = key.match(/^(.+?)\s*\(([^)]+)\)\s*$/);
+    if(m && m[1].trim() === base){
+      result.push({ label: m[2], szKey: key });
+    }
+  }
+  if(!result.length){
+    // Fallback: use SIZE_DB labels only (no stockData keys)
+    const labels = SIZE_DB[base] || [];
+    labels.forEach(l => result.push({ label: l, szKey: null }));
+  }
+  // Sort by standard size order
+  result.sort((a,b)=>{
+    const ia = SIZE_ORDER_ARR.indexOf(a.label.toLowerCase());
+    const ib = SIZE_ORDER_ARR.indexOf(b.label.toLowerCase());
+    if(ia===-1&&ib===-1){ const na=parseFloat(a.label),nb=parseFloat(b.label); return isNaN(na)||isNaN(nb)?a.label.localeCompare(b.label):na-nb; }
+    if(ia===-1) return 1; if(ib===-1) return -1;
+    return ia-ib;
+  });
+  return result;
 }
 
-// Distribute totalQty proportionally across sizes
-// For clothing: equal distribution by default (no per-size turnover data)
-function getSizeQtys(base, totalQty, savedOverrides){
-  const sizes=getSizesForBase(base);
-  if(!sizes.length) return [];
-  const n=sizes.length;
-  let result=[];
-  // If saved overrides exist, use them
-  if(savedOverrides && Object.keys(savedOverrides).length){
-    result=sizes.map(s=>({
-      label:s,
-      qty: savedOverrides[s]!==undefined ? savedOverrides[s] : Math.round(totalQty/n)
-    }));
-  } else {
-    // Equal split, last size gets remainder
-    const base_qty=Math.floor(totalQty/n);
-    const remainder=totalQty - base_qty*(n-1);
-    result=sizes.map((s,i)=>({label:s, qty: i===n-1 ? remainder : base_qty}));
-  }
-  return result;
+// Compute per-size order quantities using real turnover
+function getSizeQtys(base, totalOrderQty, savedOverrides){
+  const entries = getSizeEntries(base);
+  if(!entries.length) return [];
+
+  // Compute turn for each size that has a real szKey
+  const withTurn = entries.map(e => {
+    const t = e.szKey ? getTurnover(e.szKey) : 0;
+    const dq = e.szKey ? getDailyQty(e.szKey) : 0;
+    return { ...e, turn: t, dq };
+  });
+
+  const totalTurn = withTurn.reduce((s,e) => s + e.turn, 0);
+
+  return withTurn.map((e,i) => {
+    let calcQty;
+    if(totalTurn > 0){
+      // Proportional to turnover, last size gets remainder
+      if(i === withTurn.length - 1){
+        const allocated = withTurn.slice(0,i).reduce((s,_,j) => {
+          return s + Math.round(totalOrderQty * (withTurn[j].turn / totalTurn));
+        },0);
+        calcQty = Math.max(0, totalOrderQty - allocated);
+      } else {
+        calcQty = Math.round(totalOrderQty * (e.turn / totalTurn));
+      }
+    } else {
+      // Equal distribution if no turnover data
+      const n = withTurn.length;
+      calcQty = i === n-1 ? Math.max(0, totalOrderQty - Math.floor(totalOrderQty/n)*(n-1)) : Math.floor(totalOrderQty/n);
+    }
+    const qty = (savedOverrides && savedOverrides[e.label] !== undefined) ? savedOverrides[e.label] : calcQty;
+    return { ...e, calcQty, qty };
+  });
 }
 
 function rowCls(t){
@@ -903,7 +958,7 @@ function render(){
     }
 
     // Has sizes? Use SIZE_DB
-    const hasSizes=(SIZE_DB[base]||[]).length>1; // only show if 2+ sizes
+    const hasSizes=getSizeEntries(base).length>0;
     const expandId="sz-"+base.replace(/[^a-zA-Z0-9]/g,"_");
 
     const salePriceStr=cd.salePrice>0?fmt(cd.salePrice)+" ₽":"—";
@@ -1012,23 +1067,38 @@ function toggleSizeRow(expandId, base, totalQty){
   sizeRow.className="size-row";
   sizeRow.id=expandId;
 
-  const currentTotal=sizeQtys.reduce((a,s)=>a+s.qty,0);
-  const mismatch=currentTotal!==totalQty;
+  const totalSaved=sizeQtys.reduce((a,s)=>a+s.qty,0);
+  const mismatch=totalSaved!==totalQty;
 
-  let chipsHtml=sizeQtys.map(s=>`<span class="size-chip"><span class="sz-lbl">${s.label}</span><input class="sz-inp" type="number" min="0" value="${s.qty}" data-base="${base.replace(/"/g,'&quot;')}" data-size="${s.label}" onchange="setSizeQty(this)" onblur="setSizeQty(this)"/></span>`).join("");
+  // Build per-size chips with turnover data
+  const chipsHtml=sizeQtys.map(s=>{
+    const turnStr=s.turn>0?fmt(s.turn)+" ₽/д":"—";
+    const hasRealData=s.szKey&&s.turn>0;
+    return `<span class="size-chip${hasRealData?"":" size-chip-nodata"}">
+      <span class="sz-lbl">${s.label}</span>
+      ${hasRealData?`<span class="sz-turn">${turnStr}</span>`:""}
+      <input class="sz-inp" type="number" min="0" value="${s.qty}"
+        data-base="${base.replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/'/g,"&#39;")}"
+        data-size="${s.label}"
+        onchange="setSizeQty(this)" onblur="setSizeQty(this)"/>
+      ${s.calcQty!==s.qty?`<span class="sz-delta ${s.qty>s.calcQty?"sz-pos":"sz-neg"}">${s.qty>s.calcQty?"+":""}${s.qty-s.calcQty}</span>`:""}
+    </span>`;
+  }).join("");
 
+  const resetId=expandId.replace(/[^a-zA-Z0-9]/g,"_");
   sizeRow.innerHTML=`<td colspan="16" style="padding:0"><div class="size-row-inner"><div class="size-chips">
-    <span class="size-section-lbl">РАЗМЕРЫ:</span>${chipsHtml}
-    <span class="size-total-badge${mismatch?" size-total-mismatch":""}" id="${expandId}-total">∑ ${currentTotal} шт</span>
-    ${mismatch?`<span class="size-calc-hint">заказ: ${totalQty} шт</span>`:""}
-    <button class="btn-size-reset" data-reid="${expandId}" data-rbase="${base.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}" data-rqty="${totalQty}" title="Равномерно перераспределить">↺</button>
+    <span class="size-section-lbl">РАЗМЕРЫ:</span>
+    ${chipsHtml}
+    <span class="size-total-badge${mismatch?" size-total-mismatch":""}" id="${expandId}-total">∑ ${totalSaved} шт</span>
+    ${mismatch?`<span class="size-calc-hint">заказ: ${totalQty}</span>`:""}
+    <button class="btn-size-reset" data-reid="${expandId}" data-rbase="${base.replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/'/g,"&#39;")}" data-rqty="${totalQty}" title="Сбросить к расчёту по оборачиваемости">↺</button>
   </div></div></td>`;
   mainRow.after(sizeRow);
 }
 
 function resetSizeDistrib(expandId, base, totalQty){
   base=decodeBase(base);
-  if(sizeOverrides[base]) delete sizeOverrides[base];
+  delete sizeOverrides[base]; // clear all manual overrides for this product
   const row=document.getElementById(expandId);
   if(row) row.remove();
   const mainRow=findRowByBase(base);
@@ -1043,7 +1113,27 @@ function setSizeQty(inp){
   inp.value=val;
   if(!sizeOverrides[base]) sizeOverrides[base]={};
   sizeOverrides[base][size]=val;
-  // update total badge
+
+  // Update per-size delta badge
+  const chip=inp.closest(".size-chip");
+  if(chip){
+    // Get the total order qty for this product to recalculate calcQty
+    const mainRow4delta=findRowByBase(base);
+    const orderInp4delta=mainRow4delta?mainRow4delta.querySelector(".order-input"):null;
+    const totalOrderQty=orderInp4delta?parseInt(orderInp4delta.value)||0:0;
+    const sizeQtys=getSizeQtys(base, totalOrderQty, {}); // no overrides → pure calc
+    const entry=sizeQtys.find(e=>e.label===size);
+    const calcQty=entry?entry.calcQty:0;
+    let deltaEl=chip.querySelector(".sz-delta");
+    if(val!==calcQty){
+      if(!deltaEl){deltaEl=document.createElement("span");chip.appendChild(deltaEl);}
+      const diff=val-calcQty;
+      deltaEl.className="sz-delta "+(diff>0?"sz-pos":"sz-neg");
+      deltaEl.textContent=(diff>0?"+":"")+diff;
+    } else if(deltaEl) deltaEl.remove();
+  }
+
+  // Update total badge
   const expandId="sz-"+base.replace(/[^a-zA-Z0-9]/g,"_");
   const totalEl=document.getElementById(expandId+"-total");
   const sizeRowEl=document.getElementById(expandId);
@@ -1051,21 +1141,16 @@ function setSizeQty(inp){
     const all=sizeRowEl.querySelectorAll("input.sz-inp");
     let sum=0; all.forEach(i=>sum+=parseInt(i.value)||0);
     totalEl.textContent="∑ "+sum+" шт";
-    // get order qty from main row
     const mainRow=findRowByBase(base);
     const orderInp=mainRow?mainRow.querySelector(".order-input"):null;
     const orderQty=orderInp?parseInt(orderInp.value)||0:0;
-    const mismatch=sum!==orderQty && orderQty>0;
+    const mismatch=sum!==orderQty&&orderQty>0;
     totalEl.className="size-total-badge"+(mismatch?" size-total-mismatch":"");
-    // show/hide hint
-    const sizeRow=document.getElementById(expandId);
-    if(sizeRow){
-      let hint=sizeRow.querySelector(".size-calc-hint");
-      if(mismatch&&orderQty>0){
-        if(!hint){hint=document.createElement("span");hint.className="size-calc-hint";totalEl.after(hint);}
-        hint.textContent="заказ: "+orderQty+" шт";
-      } else if(hint){hint.remove();}
-    }
+    let hint=sizeRowEl.querySelector(".size-calc-hint");
+    if(mismatch&&orderQty>0){
+      if(!hint){hint=document.createElement("span");hint.className="size-calc-hint";totalEl.after(hint);}
+      hint.textContent="заказ: "+orderQty;
+    } else if(hint) hint.remove();
   }
 }
 
@@ -1093,32 +1178,15 @@ function setOrderQty(inp){
   // Recalc row costs
   _updateRowCosts(base);
   _updateTotals();
-  // Update size row if open
+  // Update open size row
   const expandId="sz-"+base.replace(/[^a-zA-Z0-9]/g,"_");
   const sizeRow=document.getElementById(expandId);
   if(sizeRow){
-    // If no manual overrides, re-distribute; if overrides exist, just update mismatch badge
-    if(!sizeOverrides[base]||!Object.keys(sizeOverrides[base]).length){
-      sizeRow.remove();
-      const btn=inp.closest("tr").querySelector(".size-expand-btn");
-      if(btn) btn.textContent="▸ размеры";
-      setTimeout(()=>toggleSizeRow(expandId,base,val),0);
-    } else {
-      // just recalc total badge mismatch
-      const all=sizeRow.querySelectorAll("input.sz-inp");
-      let sum=0; all.forEach(i=>sum+=parseInt(i.value)||0);
-      const totalEl=document.getElementById(expandId+"-total");
-      if(totalEl){
-        totalEl.textContent="∑ "+sum+" шт";
-        const mismatch=sum!==val&&val>0;
-        totalEl.className="size-total-badge"+(mismatch?" size-total-mismatch":"");
-        let hint=sizeRow.querySelector(".size-calc-hint");
-        if(mismatch){
-          if(!hint){hint=document.createElement("span");hint.className="size-calc-hint";totalEl.after(hint);}
-          hint.textContent="заказ: "+val+" шт";
-        } else if(hint) hint.remove();
-      }
-    }
+    // Always re-render: recalculates distribution by turnover with new totalQty
+    sizeRow.remove();
+    const btn=inp.closest("tr").querySelector(".size-expand-btn");
+    if(btn) btn.textContent="▸ размеры";
+    setTimeout(()=>toggleSizeRow(expandId,base,val),0);
   }
 }
 
