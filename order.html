@@ -858,11 +858,12 @@ function render(){
     items.push({base,cat,order,sk});
   }
 
-  // Sort by seasonal turnover so order changes when season changes
+  // Sort by ANNUAL turnover always — order stays fixed when switching seasons
+  const annualTurn=(base)=>{ const sk=SKUS[base]; if(!sk)return 0; const dis=getDaysInStock(base); return dis?sk.nr/dis:0; };
   const active=items.filter(x=>(x.order.turn>=2000&&x.order.qty>=5)||addedToOrder.has(x.base))
-    .sort((a,b)=>b.order.turn-a.order.turn);
+    .sort((a,b)=>annualTurn(b.base)-annualTurn(a.base));
   const possible=items.filter(x=>x.order.turn>=1000&&x.order.turn<2000&&x.order.qty>=5&&!addedToOrder.has(x.base))
-    .sort((a,b)=>b.order.turn-a.order.turn);
+    .sort((a,b)=>annualTurn(b.base)-annualTurn(a.base));
 
   // Totals
   const totalItems=active.length;
@@ -911,7 +912,7 @@ function render(){
       <td>
         <span class="pname" title="${base}">${base}</span>
         <span class="cat-badge">${cat}</span>
-        ${hasSizes?`<button class="size-expand-btn" onclick="toggleSizeRow('${expandId}','${base.replace(/'/g,"\\'")}',${order.qty})" title="Разбивка по размерам">▸ размеры</button>`:""}
+        ${hasSizes?`<button class="size-expand-btn" data-eid="${expandId}" data-base="${base.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}" data-qty="${order.qty}">▸ размеры</button>`:""}
       </td>
       <td class="nb">${order.cur}</td>
       <td>
@@ -976,15 +977,29 @@ function render(){
 }
 
 // ─── Size row toggle ──────────────────────────────────────────────────────────
+
+
+// Safe tr lookup by base name
+function findRowByBase(base){
+  for(const tr of document.querySelectorAll("tbody tr[data-base]")){
+    if(tr.dataset.base===base) return tr;
+  }
+  return null;
+}
+// Decode HTML entities in base names from data attributes
+function decodeBase(s){
+  return s.replace(/&amp;/g,'&').replace(/&quot;/g,'"').replace(/&#39;/g,"'").replace(/&lt;/g,'<').replace(/&gt;/g,'>');
+}
 function toggleSizeRow(expandId, base, totalQty){
+  base=decodeBase(base);
   const existingRow=document.getElementById(expandId);
   if(existingRow){
     existingRow.remove();
-    const mainRow=document.querySelector(`tr[data-base="${base.replace(/"/g,'\"')}"]`);
+    const mainRow=findRowByBase(base);
     if(mainRow){const btn=mainRow.querySelector(".size-expand-btn");if(btn)btn.textContent="▸ размеры";}
     return;
   }
-  const mainRow=document.querySelector(`tr[data-base="${base.replace(/"/g,'\"')}"]`);
+  const mainRow=findRowByBase(base);
   if(!mainRow)return;
   const btn=mainRow.querySelector(".size-expand-btn");
   if(btn) btn.textContent="▾ размеры";
@@ -1006,16 +1021,17 @@ function toggleSizeRow(expandId, base, totalQty){
     <span class="size-section-lbl">РАЗМЕРЫ:</span>${chipsHtml}
     <span class="size-total-badge${mismatch?" size-total-mismatch":""}" id="${expandId}-total">∑ ${currentTotal} шт</span>
     ${mismatch?`<span class="size-calc-hint">заказ: ${totalQty} шт</span>`:""}
-    <button class="btn-size-reset" onclick="resetSizeDistrib('${expandId}','${base.replace(/'/g,"\'")}',${totalQty})" title="Равномерно перераспределить">↺</button>
+    <button class="btn-size-reset" data-reid="${expandId}" data-rbase="${base.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}" data-rqty="${totalQty}" title="Равномерно перераспределить">↺</button>
   </div></div></td>`;
   mainRow.after(sizeRow);
 }
 
 function resetSizeDistrib(expandId, base, totalQty){
+  base=decodeBase(base);
   if(sizeOverrides[base]) delete sizeOverrides[base];
   const row=document.getElementById(expandId);
   if(row) row.remove();
-  const mainRow=document.querySelector(`tr[data-base="${base.replace(/"/g,'\"')}"]`);
+  const mainRow=findRowByBase(base);
   if(mainRow){const btn=mainRow.querySelector(".size-expand-btn");if(btn)btn.textContent="▸ размеры";}
   setTimeout(()=>toggleSizeRow(expandId, base, totalQty),10);
 }
@@ -1030,12 +1046,13 @@ function setSizeQty(inp){
   // update total badge
   const expandId="sz-"+base.replace(/[^a-zA-Z0-9]/g,"_");
   const totalEl=document.getElementById(expandId+"-total");
-  if(totalEl){
-    const all=document.querySelectorAll(`input.sz-inp[data-base="${base.replace(/"/g,'\"')}"]`);
+  const sizeRowEl=document.getElementById(expandId);
+  if(totalEl && sizeRowEl){
+    const all=sizeRowEl.querySelectorAll("input.sz-inp");
     let sum=0; all.forEach(i=>sum+=parseInt(i.value)||0);
     totalEl.textContent="∑ "+sum+" шт";
     // get order qty from main row
-    const mainRow=document.querySelector(`tr[data-base="${base.replace(/"/g,'\"')}"]`);
+    const mainRow=findRowByBase(base);
     const orderInp=mainRow?mainRow.querySelector(".order-input"):null;
     const orderQty=orderInp?parseInt(orderInp.value)||0:0;
     const mismatch=sum!==orderQty && orderQty>0;
@@ -1128,7 +1145,7 @@ function setCost(inp){
 function _updateRowCosts(base){
   const order=computeOrder(base);
   if(!order)return;
-  const tr=document.querySelector(`tr[data-base="${base.replace(/"/g,'\\"')}"]`);
+  const tr=findRowByBase(base);
   if(!tr)return;
   tr.querySelector(".fabric-cost-cell").textContent=order.fabricCost>0?fmtM(order.fabricCost)+" ₽":"—";
   tr.querySelector(".sewing-cost-cell").textContent=order.sewingCost>0?fmtM(order.sewingCost)+" ₽":"—";
@@ -1216,9 +1233,28 @@ function _buildStockFromSKUS(){
 document.body.addEventListener("click",function(e){
   const excl=e.target.closest(".btn-exclude");
   if(excl){ const tr=excl.closest("tr[data-base]"); if(tr) exclude(tr.dataset.base); return; }
+
   const add=e.target.closest(".btn-add-order");
   if(add){ const tr=add.closest("tr[data-base]"); if(tr){
     addedToOrder.add(tr.dataset.base); render(); } return; }
+
+  const sizeBtn=e.target.closest(".size-expand-btn");
+  if(sizeBtn){
+    const eid=sizeBtn.dataset.eid;
+    const base=sizeBtn.dataset.base;
+    const qty=parseInt(sizeBtn.dataset.qty)||0;
+    if(eid && base) toggleSizeRow(eid, base, qty);
+    return;
+  }
+
+  const resetBtn=e.target.closest(".btn-size-reset");
+  if(resetBtn){
+    const eid=resetBtn.dataset.reid;
+    const base=resetBtn.dataset.rbase;
+    const qty=parseInt(resetBtn.dataset.rqty)||0;
+    if(eid && base) resetSizeDistrib(eid, base, qty);
+    return;
+  }
 });
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
