@@ -545,13 +545,18 @@ function currentPid(){ return currentProject ? currentProject.id : ""; }
 // ── Projects (stored on server) ──
 async function loadProjects(){
   allProjects=[];
-  // Try server
+  let fromServer=false;
   try{
     const r=await fetch("/api/projects");
-    if(r.ok) allProjects=await r.json();
+    if(r.ok){
+      allProjects=await r.json();
+      fromServer=true;
+      // Server is source of truth — sync localStorage
+      try{ localStorage.setItem("cc_projects", JSON.stringify(allProjects)); }catch(e){}
+    }
   }catch(e){}
-  // Merge with localStorage projects (in case server unavailable)
-  if(!allProjects.length){
+  if(!fromServer){
+    // Fallback to localStorage only when server unavailable
     try{
       const ls=localStorage.getItem("cc_projects");
       if(ls) allProjects=JSON.parse(ls);
@@ -559,26 +564,46 @@ async function loadProjects(){
   }
 }
 async function createProject(name, date){
-  const id="proj_"+Date.now()+"_"+Math.random().toString(36).slice(2,7);
-  let p={id, name, date};
-  // Try server
+  const localId="proj_"+Date.now()+"_"+Math.random().toString(36).slice(2,7);
+  let p={id:localId, name, date};
+  let fromServer=false;
   try{
     const r=await fetch("/api/projects",{method:"POST",headers:{"Content-Type":"application/json"},
       body:JSON.stringify({name,date})});
-    if(r.ok) p=await r.json();
+    if(r.ok){ p=await r.json(); fromServer=true; }
   }catch(e){}
-  // Save to allProjects and localStorage
-  allProjects.push(p);
-  try{ localStorage.setItem("cc_projects", JSON.stringify(allProjects)); }catch(e){}
+  // Re-fetch full list from server to avoid duplicates
+  if(fromServer){
+    await loadProjects();
+    // Ensure our new project is in the list
+    if(!allProjects.find(x=>x.id===p.id)) allProjects.push(p);
+  } else {
+    allProjects.push(p);
+    try{ localStorage.setItem("cc_projects", JSON.stringify(allProjects)); }catch(e){}
+  }
   return p;
 }
 async function deleteProjectFromServer(id){
   try{ await fetch("/api/projects/"+id,{method:"DELETE"}); }catch(e){}
+  // Remove from localStorage immediately
   try{
     const ls=localStorage.getItem("cc_projects");
     if(ls){
       const projs=JSON.parse(ls).filter(p=>p.id!==id);
       localStorage.setItem("cc_projects", JSON.stringify(projs));
+    }
+  }catch(e){}
+  // Sync with server
+  try{
+    const r=await fetch("/api/projects");
+    if(r.ok){
+      const serverProjects=await r.json();
+      // Double-check deletion took effect
+      const stillExists=serverProjects.find(p=>p.id===id);
+      if(!stillExists){
+        allProjects=serverProjects;
+        localStorage.setItem("cc_projects", JSON.stringify(allProjects));
+      }
     }
   }catch(e){}
 }
@@ -693,6 +718,24 @@ async function loadProject(id){
   openWithProject();
 }
 
+// Seed order column with annual calcQty for items not yet manually adjusted.
+// Priority: user adjustment > annual calcQty default
+function seedAnnualAdjustments(){
+  if(!arrivalDate) return;
+  const savedSeason=currentSeason;
+  currentSeason="year";
+  const allBaseKeys=new Set();
+  for(const k of Object.keys(stockData)){ if(!isSizeVariant(k)) allBaseKeys.add(k); }
+  for(const k of Object.keys(SKUS)){ if(!isSizeVariant(k)) allBaseKeys.add(k); }
+  for(const base of allBaseKeys){
+    if(adjustments[base]!==undefined) continue; // keep user value
+    if(excludedItems.has(base)) continue;
+    const order=computeOrder(base);
+    if(order && order.calcQty>=0) adjustments[base]=order.calcQty;
+  }
+  currentSeason=savedSeason;
+}
+
 function openWithProject(){
   const proj=currentProject;
   if(!proj) return;
@@ -709,7 +752,7 @@ function openWithProject(){
   document.getElementById("btn-delete-project").style.display="inline-flex";
   document.getElementById("btn-save").style.display="inline-flex";
   refreshProjectSelect();
-  if(stockLoaded) render();
+  if(stockLoaded){ seedAnnualAdjustments(); render(); }
 }
 
 async function saveProject(){
@@ -1539,7 +1582,6 @@ async function init(){
   stockLoaded=true;
   // If stockData loaded from SD inline, use it
   if(Object.keys(stockData).length===0 && Object.keys(SKUS).length>0){
-    // Build stockData from SD
     stockData=SD.stock||{};
     allDates=SD.dates||[];
   }
@@ -1551,6 +1593,8 @@ async function init(){
       await loadProject(lastPid);
     }
   }catch(e){}
+  // If a project is already open (from loadProject above), re-seed if needed
+  if(currentProject) seedAnnualAdjustments();
 }
 init();
 </script>
