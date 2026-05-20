@@ -500,6 +500,24 @@ const CATEGORIES = {
   "Очки":["очки"],
   "Прочее":[]
 };
+// Returns true if this key is a size variant like "ProductName (S)"
+// Size variants are sub-rows, not main table entries
+function isSizeVariant(key){
+  // Check if key ends with (SizeLabel) AND the base without size exists in stockData or SKUS
+  const m = key.match(/^(.+?)\s*\(([^)]+)\)\s*$/);
+  if(!m) return false;
+  const base = m[1].trim();
+  const label = m[2].trim().toLowerCase();
+  // Must be a clothing size label (not product descriptor like "3 шт" or "бело-синяя")
+  const sizeLabels = ["xxs","xs","s","m","l","xl","xxl","2xl","3xl","4xl","one size","os",
+    "44","46","48","50","52","54","56","58","36","38","40","42",
+    "17.5","18","18.5","19","19.5","20","20.5","21","21.5",
+    "xs/s","s/m","m/l","l/xl"];
+  if(!sizeLabels.includes(label)) return false;
+  // Parent must exist in stockData or SKUS
+  return !!(stockData[base] || SKUS[base]);
+}
+
 function getCat(n){
   const nl=n.toLowerCase();
   if(nl.includes("сертификат")||nl.includes("кошелек"))return null;
@@ -837,17 +855,20 @@ function computeOrder(base){
 const SIZE_ORDER_ARR = ["xxs","xs","s","m","l","xl","xxl","2xl","3xl","4xl","one size","os"];
 
 function getSizeEntries(base){
-  // Find stockData keys that are size variants of this base
+  // Find stockData/SKUS keys that are size variants of this base
+  const seen = new Set();
   const result = [];
-  for(const key of Object.keys(stockData)){
-    if(key === base) continue;
+  const allKeys = new Set([...Object.keys(stockData), ...Object.keys(SKUS)]);
+  for(const key of allKeys){
+    if(key === base || seen.has(key)) continue;
     const m = key.match(/^(.+?)\s*\(([^)]+)\)\s*$/);
-    if(m && m[1].trim() === base){
+    if(m && m[1].trim() === base && isSizeVariant(key)){
+      seen.add(key);
       result.push({ label: m[2], szKey: key });
     }
   }
   if(!result.length){
-    // Fallback: use SIZE_DB labels only (no stockData keys)
+    // Fallback: use SIZE_DB labels only (no live data)
     const labels = SIZE_DB[base] || [];
     labels.forEach(l => result.push({ label: l, szKey: null }));
   }
@@ -907,8 +928,13 @@ function render(){
   if(!arrivalDate)return;
   const tb=document.getElementById("tb"); tb.innerHTML="";
 
+  // Collect all base product keys (stockData + SKUS inline, minus size variants)
+  const allBaseKeys=new Set();
+  for(const k of Object.keys(stockData)){ if(!isSizeVariant(k)) allBaseKeys.add(k); }
+  for(const k of Object.keys(SKUS)){ if(!isSizeVariant(k)) allBaseKeys.add(k); }
+
   const items=[];
-  for(const base of Object.keys(stockData)){
+  for(const base of allBaseKeys){
     if(excludedItems.has(base))continue;
     const cat=getCat(base); if(!cat)continue;
     const sk=SKUS[base];
@@ -961,7 +987,7 @@ function render(){
     }
 
     // Has sizes? Use SIZE_DB
-    const hasSizes=getSizeEntries(base).length>0;
+    const hasSizes=getSizeEntries(base).length>0||(SIZE_DB[base]||[]).length>1;
     const expandId="sz-"+base.replace(/[^a-zA-Z0-9]/g,"_");
 
     const salePriceStr=cd.salePrice>0?fmt(cd.salePrice)+" ₽":"—";
