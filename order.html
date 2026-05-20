@@ -1195,8 +1195,8 @@ function toggleSizeRow(expandId, base, totalQty){
     const days=Math.max(0,Math.round((arrival-now)/86400000));
 
     const cur=szKey?getCurrentStock(szKey):0;
-    const sold=Math.min(cur,(dq||0)*days);
-    const atArrival=Math.max(0,cur-sold);
+    const sold=Math.round(Math.min(cur,(dq||0)*days));
+    const atArrival=Math.round(Math.max(0,cur-sold));
 
     const fabricCost=qty*cd.fabric;
     const sewingCost=qty*cd.sewing;
@@ -1218,7 +1218,7 @@ function toggleSizeRow(expandId, base, totalQty){
       </td>
       <td class="nb">${cur}</td>
       <td>
-        <span class="nb">${atArrival}</span>
+        <span class="nb">${Math.round(atArrival)}</span>
         ${sold>0?`<div style="font-size:9px;color:rgba(26,42,58,0.4)">↓${Math.round(sold)}за${days}д</div>`:""}
       </td>
       <td class="nb" style="color:rgba(26,42,58,0.4)">${calcQty}</td>
