@@ -882,9 +882,20 @@ function computeOrder(base){
   const now=new Date(); now.setHours(0,0,0,0);
   const arrival=new Date(arrivalDate); arrival.setHours(0,0,0,0);
   const days=Math.max(0,Math.round((arrival-now)/86400000));
-  const cur=getCurrentStock(base);
-  const dq=getDailyQty(base);
-  const turn=getTurnover(base);
+  // Use size-summed stock if base has size variants
+  const szEntries=getSizeEntries(base);
+  const hasSzData=szEntries.some(e=>e.szKey&&(stockData[e.szKey]||SKUS[e.szKey]));
+  let cur, dq, turn;
+  if(hasSzData){
+    // Sum stock across all sizes
+    cur=szEntries.reduce((s,e)=>s+(e.szKey?getCurrentStock(e.szKey):0),0);
+    dq=szEntries.reduce((s,e)=>s+(e.szKey?getDailyQty(e.szKey):0),0);
+    turn=szEntries.reduce((s,e)=>s+(e.szKey?getTurnover(e.szKey):0),0);
+  } else {
+    cur=getCurrentStock(base);
+    dq=getDailyQty(base);
+    turn=getTurnover(base);
+  }
   const sold=Math.min(cur,dq*days);
   const atArrival=Math.max(0,cur-sold);
   const needed=Math.ceil(dq*90);
