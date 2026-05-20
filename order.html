@@ -543,23 +543,32 @@ let sizeOverrides={};
 function currentPid(){ return currentProject ? currentProject.id : ""; }
 
 // ── Projects (stored on server) ──
+function getDeletedIds(){
+  try{ return new Set(JSON.parse(localStorage.getItem("cc_deleted_ids")||"[]")); }catch(e){ return new Set(); }
+}
+function addDeletedId(id){
+  const ids=getDeletedIds(); ids.add(id);
+  try{ localStorage.setItem("cc_deleted_ids", JSON.stringify([...ids])); }catch(e){}
+}
+
 async function loadProjects(){
   allProjects=[];
+  const deletedIds=getDeletedIds();
   let fromServer=false;
   try{
     const r=await fetch("/api/projects");
     if(r.ok){
-      allProjects=await r.json();
+      const all=await r.json();
+      // Filter out locally-deleted projects even if server still has them
+      allProjects=all.filter(p=>!deletedIds.has(p.id));
       fromServer=true;
-      // Server is source of truth — sync localStorage
       try{ localStorage.setItem("cc_projects", JSON.stringify(allProjects)); }catch(e){}
     }
   }catch(e){}
   if(!fromServer){
-    // Fallback to localStorage only when server unavailable
     try{
       const ls=localStorage.getItem("cc_projects");
-      if(ls) allProjects=JSON.parse(ls);
+      if(ls) allProjects=JSON.parse(ls).filter(p=>!deletedIds.has(p.id));
     }catch(e){}
   }
 }
@@ -637,9 +646,11 @@ async function deleteCurrentProject(){
   if(!currentProject)return;
   if(!confirm("Удалить проект «"+currentProject.name+"»?"))return;
   const pid=currentProject.id;
+  // Record as deleted — persists across reloads
+  addDeletedId(pid);
   // Try server
   try{ await deleteProjectFromServer(pid); }catch(e){}
-  // Also clear localStorage
+  // Clear project data from localStorage
   try{ localStorage.removeItem("cc_proj_"+pid); }catch(e){}
   currentProject=null; arrivalDate=null;
   excludedItems=new Set(); adjustments={}; addedToOrder=new Set(); sizeOverrides={};
@@ -1262,6 +1273,31 @@ function toggleSizeRow(expandId, base, totalQty){
     <button class="btn-size-reset" data-reid="${expandId}" data-rbase="${base.replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/'/g,"&#39;")}" data-rqty="${totalQty}" title="Сбросить по оборачиваемости">↺ сброс</button>
   </td><td colspan="12"></td>`;
   prevRow.after(sumRow);
+
+  // If saved overrides exist, sync parent order-input to their sum
+  if(Object.keys(savedOverrides).length>0){
+    let savedSum=0;
+    entries.forEach(e=>{
+      if(savedOverrides[e.label]!==undefined) savedSum+=savedOverrides[e.label];
+    });
+    if(savedSum>0 && savedSum!==totalQty){
+      const mainRow=findRowByBase(base);
+      const mainInp=mainRow?mainRow.querySelector(".order-input"):null;
+      if(mainInp){
+        mainInp.value=savedSum;
+        adjustments[base]=savedSum;
+        const calcQtyMain=parseInt(mainInp.dataset.calc)||0;
+        const parentWrap=mainInp.closest(".order-input-wrap");
+        let parentDelta=parentWrap?parentWrap.querySelector(".order-delta"):null;
+        const diff=savedSum-calcQtyMain;
+        if(diff!==0){
+          if(!parentDelta&&parentWrap){parentDelta=document.createElement("span");parentDelta.className="order-delta";parentWrap.appendChild(parentDelta);}
+          if(parentDelta){parentDelta.className="order-delta "+(diff>0?"pos":"neg");parentDelta.textContent=(diff>0?"+":"")+diff;}
+        } else if(parentDelta) parentDelta.remove();
+        _updateRowCosts(base);
+      }
+    }
+  }
 }
 
 function resetSizeDistrib(expandId, base, totalQty){
@@ -1311,28 +1347,39 @@ function setSizeOrderQty(inp){
     const revEl=cells[14].querySelector(".highlight-green");
     if(revEl) revEl.textContent=val*cd.salePrice>0?fmtM(val*cd.salePrice)+" ₽":"—";
   }
-  // Update sum badge
+  // Sum all size sub-rows and update parent order-input
   const expandId="sz-"+base.replace(/[^a-zA-Z0-9]/g,"_");
+  const allInps=document.querySelectorAll(`input.sz-order-inp[data-base="${CSS.escape(base)}"]`);
+  let sum=0; allInps.forEach(i=>sum+=parseInt(i.value)||0);
+
+  // Update parent order-input and adjustments
+  const mainRow=findRowByBase(base);
+  const mainInp=mainRow?mainRow.querySelector(".order-input"):null;
+  if(mainInp){
+    const oldMainQty=parseInt(mainInp.value)||0;
+    mainInp.value=sum;
+    adjustments[base]=sum;
+    // Update parent delta vs calc
+    const calcQtyMain=parseInt(mainInp.dataset.calc)||0;
+    const parentWrap=mainInp.closest(".order-input-wrap");
+    let parentDelta=parentWrap?parentWrap.querySelector(".order-delta"):null;
+    const diff=sum-calcQtyMain;
+    if(diff!==0){
+      if(!parentDelta&&parentWrap){parentDelta=document.createElement("span");parentDelta.className="order-delta";parentWrap.appendChild(parentDelta);}
+      if(parentDelta){parentDelta.className="order-delta "+(diff>0?"pos":"neg");parentDelta.textContent=(diff>0?"+":"")+diff;}
+    } else if(parentDelta) parentDelta.remove();
+    // Update parent cost cells
+    _updateRowCosts(base);
+    _updateTotals();
+  }
+
+  // Update sum badge — no mismatch since parent now equals sum
   const totalEl=document.getElementById(expandId+"-total");
   if(totalEl){
-    // Sum all sz-order-inp for this base
-    const allInps=document.querySelectorAll(`input.sz-order-inp[data-base="${CSS.escape(base)}"]`);
-    let sum=0; allInps.forEach(i=>sum+=parseInt(i.value)||0);
-    // Get main order qty
-    const mainRow=findRowByBase(base);
-    const mainInp=mainRow?mainRow.querySelector(".order-input"):null;
-    const mainQty=mainInp?parseInt(mainInp.value)||0:0;
-    const mismatch=sum!==mainQty&&mainQty>0;
     totalEl.textContent="∑ "+sum+" шт";
-    totalEl.className="size-total-badge"+(mismatch?" size-total-mismatch":"");
-    let hint=totalEl.nextElementSibling;
-    if(hint&&hint.classList.contains("size-calc-hint")){
-      if(mismatch) hint.textContent=" заказ: "+mainQty;
-      else hint.remove();
-    } else if(mismatch){
-      const h=document.createElement("span"); h.className="size-calc-hint"; h.textContent=" заказ: "+mainQty;
-      totalEl.after(h);
-    }
+    totalEl.className="size-total-badge";
+    const hint=totalEl.nextElementSibling;
+    if(hint&&hint.classList.contains("size-calc-hint")) hint.remove();
   }
 }
 
