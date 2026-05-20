@@ -188,6 +188,9 @@
       border-bottom: 1px solid rgba(255,255,255,0.1);
       padding: 7px 10px 9px 22px;
     }
+    .size-subrow td { background: rgba(0,0,0,0.18); border-bottom: 1px solid rgba(255,255,255,0.06); }
+    .size-subrow:hover td { background: rgba(255,255,255,0.06) !important; }
+    .size-sum-row td { background: rgba(0,0,0,0.22); border-bottom: 2px solid rgba(255,255,255,0.12); padding: 4px 8px; }
     .size-chips { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
     .size-section-lbl { font-size: 9px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: rgba(255,255,255,0.3); margin-right: 4px; white-space: nowrap; }
     .size-chip {
@@ -1047,63 +1050,221 @@ function decodeBase(s){
 }
 function toggleSizeRow(expandId, base, totalQty){
   base=decodeBase(base);
-  const existingRow=document.getElementById(expandId);
-  if(existingRow){
-    existingRow.remove();
+  const existing=document.getElementById(expandId+"-group");
+  if(existing){
+    // Remove all size rows for this product
     const mainRow=findRowByBase(base);
-    if(mainRow){const btn=mainRow.querySelector(".size-expand-btn");if(btn)btn.textContent="▸ размеры";}
+    const allSzRows=[];
+    let next=mainRow?mainRow.nextSibling:null;
+    while(next){
+      const nr=next.nextSibling;
+      if(next.dataset&&next.dataset.sizeOf===base) allSzRows.push(next);
+      else break;
+      next=nr;
+    }
+    allSzRows.forEach(r=>r.remove());
+    const mainBtn=mainRow?mainRow.querySelector(".size-expand-btn"):null;
+    if(mainBtn) mainBtn.textContent="▸ размеры";
     return;
   }
+
   const mainRow=findRowByBase(base);
-  if(!mainRow)return;
-  const btn=mainRow.querySelector(".size-expand-btn");
-  if(btn) btn.textContent="▾ размеры";
+  if(!mainRow) return;
+  const mainBtn=mainRow.querySelector(".size-expand-btn");
+  if(mainBtn) mainBtn.textContent="▾ размеры";
 
   const savedOverrides=sizeOverrides[base]||{};
-  const sizeQtys=getSizeQtys(base, totalQty, savedOverrides);
-  if(!sizeQtys.length) return;
+  const entries=getSizeEntries(base);
+  if(!entries.length) return;
 
-  const sizeRow=document.createElement("tr");
-  sizeRow.className="size-row";
-  sizeRow.id=expandId;
+  const totalTurn=entries.reduce((s,e)=>s+(e.szKey?getTurnover(e.szKey):0),0);
+  const cd=getCostData(base);
 
-  const totalSaved=sizeQtys.reduce((a,s)=>a+s.qty,0);
-  const mismatch=totalSaved!==totalQty;
+  // Marker row (invisible, used to find the group)
+  const marker=document.createElement("tr");
+  marker.id=expandId+"-group";
+  marker.dataset.sizeOf=base;
+  marker.style.display="none";
+  mainRow.after(marker);
 
-  // Build per-size chips with turnover data
-  const chipsHtml=sizeQtys.map(s=>{
-    const turnStr=s.turn>0?fmt(s.turn)+" ₽/д":"—";
-    const hasRealData=s.szKey&&s.turn>0;
-    return `<span class="size-chip${hasRealData?"":" size-chip-nodata"}">
-      <span class="sz-lbl">${s.label}</span>
-      ${hasRealData?`<span class="sz-turn">${turnStr}</span>`:""}
-      <input class="sz-inp" type="number" min="0" value="${s.qty}"
-        data-base="${base.replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/'/g,"&#39;")}"
-        data-size="${s.label}"
-        onchange="setSizeQty(this)" onblur="setSizeQty(this)"/>
-      ${s.calcQty!==s.qty?`<span class="sz-delta ${s.qty>s.calcQty?"sz-pos":"sz-neg"}">${s.qty>s.calcQty?"+":""}${s.qty-s.calcQty}</span>`:""}
-    </span>`;
-  }).join("");
+  let prevRow=marker;
+  entries.forEach((e,idx2)=>{
+    const szKey=e.szKey;
+    const label=e.label;
 
-  const resetId=expandId.replace(/[^a-zA-Z0-9]/g,"_");
-  sizeRow.innerHTML=`<td colspan="16" style="padding:0"><div class="size-row-inner"><div class="size-chips">
-    <span class="size-section-lbl">РАЗМЕРЫ:</span>
-    ${chipsHtml}
-    <span class="size-total-badge${mismatch?" size-total-mismatch":""}" id="${expandId}-total">∑ ${totalSaved} шт</span>
-    ${mismatch?`<span class="size-calc-hint">заказ: ${totalQty}</span>`:""}
-    <button class="btn-size-reset" data-reid="${expandId}" data-rbase="${base.replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/'/g,"&#39;")}" data-rqty="${totalQty}" title="Сбросить к расчёту по оборачиваемости">↺</button>
-  </div></div></td>`;
-  mainRow.after(sizeRow);
+    // Compute order qty for this size
+    const turn=szKey?getTurnover(szKey):0;
+    const dq=szKey?getDailyQty(szKey):0;
+    let calcQty=0;
+    if(totalTurn>0){
+      calcQty=Math.round(totalQty*(turn/totalTurn));
+      if(idx2===entries.length-1){
+        const allocated=entries.slice(0,-1).reduce((s,e2)=>s+(totalTurn>0?Math.round(totalQty*(( e2.szKey?getTurnover(e2.szKey):0)/totalTurn)):Math.floor(totalQty/entries.length)),0);
+        calcQty=Math.max(0,totalQty-allocated);
+      }
+    } else {
+      const n=entries.length;
+      calcQty=idx2===n-1?Math.max(0,totalQty-Math.floor(totalQty/n)*(n-1)):Math.floor(totalQty/n);
+    }
+    const qty=savedOverrides[label]!==undefined?savedOverrides[label]:calcQty;
+    const delta=qty-calcQty;
+
+    // Arrival days (same as parent)
+    const now=new Date(); now.setHours(0,0,0,0);
+    const arrival=new Date(arrivalDate); arrival.setHours(0,0,0,0);
+    const days=Math.max(0,Math.round((arrival-now)/86400000));
+
+    const cur=szKey?getCurrentStock(szKey):0;
+    const sold=Math.min(cur,(dq||0)*days);
+    const atArrival=Math.max(0,cur-sold);
+
+    const fabricCost=qty*cd.fabric;
+    const sewingCost=qty*cd.sewing;
+    const orderCost=qty*cd.total;
+    const revPotential=qty*cd.salePrice;
+
+    const deltaHtml=delta!==0?`<span class="order-delta ${delta>0?"pos":"neg"}">${delta>0?"+":""}${delta}</span>`:"";
+
+    const tr=document.createElement("tr");
+    tr.className="size-subrow";
+    tr.dataset.sizeOf=base;
+    tr.dataset.sizeLabel=label;
+
+    tr.innerHTML=`
+      <td class="rank" style="color:rgba(255,255,255,0.2)">↳</td>
+      <td style="padding-left:18px">
+        <span style="font-size:12px;font-weight:700;color:rgba(255,255,255,0.9)">${label}</span>
+        ${turn>0?`<span style="font-size:10px;color:rgba(255,255,255,0.35);margin-left:5px">${fmt(turn)} ₽/д</span>`:""}
+      </td>
+      <td class="nb">${cur}</td>
+      <td>
+        <span class="nb">${atArrival}</span>
+        ${sold>0?`<div style="font-size:9px;color:rgba(26,42,58,0.4)">↓${Math.round(sold)}за${days}д</div>`:""}
+      </td>
+      <td class="nb" style="color:rgba(26,42,58,0.4)">${calcQty}</td>
+      <td>
+        <div class="order-input-wrap">
+          <input class="order-input sz-order-inp" type="number" min="0" value="${qty}"
+            style="width:52px;font-size:12px"
+            data-base="${base.replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/'/g,"&#39;")}"
+            data-size="${label}" data-calc="${calcQty}"
+            onchange="setSizeOrderQty(this)" onblur="setSizeOrderQty(this)"/>
+          ${deltaHtml}
+        </div>
+      </td>
+      <td class="nb" style="font-size:11px;color:rgba(255,255,255,0.4)">${turn>0?fmt(turn)+" ₽":"—"}</td>
+      <td class="nb" style="color:rgba(255,255,255,0.4);font-size:11px">${cd.fabric>0?fmt(cd.fabric):"0"}</td>
+      <td class="nb" style="color:rgba(255,255,255,0.4);font-size:11px">${cd.sewing>0?fmt(cd.sewing):"—"}</td>
+      <td><span style="font-size:11px;color:rgba(255,255,255,0.4)">${cd.total>0?fmt(cd.total):"—"}</span></td>
+      <td class="nb" style="font-size:11px">${fabricCost>0?fmtM(fabricCost)+" ₽":"—"}</td>
+      <td class="nb" style="font-size:11px">${sewingCost>0?fmtM(sewingCost)+" ₽":"—"}</td>
+      <td class="nb" style="font-size:11px">${orderCost>0?fmtM(orderCost)+" ₽":"—"}</td>
+      <td class="nb" style="font-size:11px;color:rgba(255,255,255,0.5)">${cd.salePrice>0?fmt(cd.salePrice)+" ₽":"—"}</td>
+      <td>
+        <div style="display:flex;align-items:center;gap:4px;justify-content:center">
+          ${turn>0?`<div style="width:24px;height:3px;background:rgba(26,42,58,0.08);border-radius:2px;overflow:hidden"><div style="height:100%;width:${Math.min(100,Math.round((turn/(getTurnover(base)||1))*100))}%;background:rgba(26,42,58,0.25);border-radius:2px"></div></div>`:""}
+          <span class="nb highlight-green" style="font-size:11px">${revPotential>0?fmtM(revPotential)+" ₽":"—"}</span>
+        </div>
+      </td>
+      <td></td>`;
+
+    prevRow.after(tr);
+    prevRow=tr;
+  });
+
+  // Summary row
+  const totalQtyUsed=entries.reduce((s,e)=>{
+    const lbl=e.label;
+    const ov=savedOverrides[lbl];
+    const turn=e.szKey?getTurnover(e.szKey):0;
+    const totalT=entries.reduce((a,x)=>a+(x.szKey?getTurnover(x.szKey):0),0);
+    const calc=totalT>0?Math.round(totalQty*(turn/totalT)):Math.floor(totalQty/entries.length);
+    return s+(ov!==undefined?ov:calc);
+  },0);
+  const mismatch=totalQtyUsed!==totalQty;
+
+  const sumRow=document.createElement("tr");
+  sumRow.className="size-sum-row";
+  sumRow.dataset.sizeOf=base;
+  sumRow.id=expandId+"-sum";
+  sumRow.innerHTML=`<td colspan="4" style="padding:4px 8px 6px 28px">
+    <span class="size-total-badge${mismatch?" size-total-mismatch":""}" id="${expandId}-total">∑ ${totalQtyUsed} шт</span>
+    ${mismatch?`<span class="size-calc-hint"> заказ: ${totalQty}</span>`:""}
+    <button class="btn-size-reset" data-reid="${expandId}" data-rbase="${base.replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/'/g,"&#39;")}" data-rqty="${totalQty}" title="Сбросить по оборачиваемости">↺ сброс</button>
+  </td><td colspan="12"></td>`;
+  prevRow.after(sumRow);
 }
 
 function resetSizeDistrib(expandId, base, totalQty){
   base=decodeBase(base);
-  delete sizeOverrides[base]; // clear all manual overrides for this product
-  const row=document.getElementById(expandId);
-  if(row) row.remove();
+  delete sizeOverrides[base];
+  // Close size rows
   const mainRow=findRowByBase(base);
   if(mainRow){const btn=mainRow.querySelector(".size-expand-btn");if(btn)btn.textContent="▸ размеры";}
+  // Remove all size sub-rows for this base
+  document.querySelectorAll(`tr[data-size-of]`).forEach(tr=>{
+    if(tr.dataset.sizeOf===base) tr.remove();
+  });
+  const grp=document.getElementById(expandId+"-group");
+  const sum=document.getElementById(expandId+"-sum");
+  if(grp) grp.remove();
+  if(sum) sum.remove();
   setTimeout(()=>toggleSizeRow(expandId, base, totalQty),10);
+}
+
+// Handle order qty change in size sub-row
+function setSizeOrderQty(inp){
+  const base=inp.dataset.base;
+  const label=inp.dataset.size;
+  const calcQty=parseInt(inp.dataset.calc)||0;
+  const val=Math.max(0,parseInt(inp.value)||0);
+  inp.value=val;
+  if(!sizeOverrides[base]) sizeOverrides[base]={};
+  sizeOverrides[base][label]=val;
+  const delta=val-calcQty;
+  // Update delta badge
+  const wrap=inp.closest(".order-input-wrap");
+  let deltaEl=wrap.querySelector(".order-delta");
+  if(delta!==0){
+    if(!deltaEl){deltaEl=document.createElement("span");deltaEl.className="order-delta";wrap.appendChild(deltaEl);}
+    deltaEl.className="order-delta "+(delta>0?"pos":"neg");
+    deltaEl.textContent=(delta>0?"+":"")+delta;
+  } else if(deltaEl) deltaEl.remove();
+  // Update cost cells in the same sub-row
+  const tr=inp.closest("tr");
+  const cd=getCostData(base);
+  const cells=tr.querySelectorAll("td");
+  // fabric cost=col10, sewing=col11, order=col12, rev=col14 (0-indexed)
+  if(cells[10]) cells[10].textContent=val*cd.fabric>0?fmtM(val*cd.fabric)+" ₽":"—";
+  if(cells[11]) cells[11].textContent=val*cd.sewing>0?fmtM(val*cd.sewing)+" ₽":"—";
+  if(cells[12]) cells[12].textContent=val*cd.total>0?fmtM(val*cd.total)+" ₽":"—";
+  if(cells[14]){
+    const revEl=cells[14].querySelector(".highlight-green");
+    if(revEl) revEl.textContent=val*cd.salePrice>0?fmtM(val*cd.salePrice)+" ₽":"—";
+  }
+  // Update sum badge
+  const expandId="sz-"+base.replace(/[^a-zA-Z0-9]/g,"_");
+  const totalEl=document.getElementById(expandId+"-total");
+  if(totalEl){
+    // Sum all sz-order-inp for this base
+    const allInps=document.querySelectorAll(`input.sz-order-inp[data-base="${CSS.escape(base)}"]`);
+    let sum=0; allInps.forEach(i=>sum+=parseInt(i.value)||0);
+    // Get main order qty
+    const mainRow=findRowByBase(base);
+    const mainInp=mainRow?mainRow.querySelector(".order-input"):null;
+    const mainQty=mainInp?parseInt(mainInp.value)||0:0;
+    const mismatch=sum!==mainQty&&mainQty>0;
+    totalEl.textContent="∑ "+sum+" шт";
+    totalEl.className="size-total-badge"+(mismatch?" size-total-mismatch":"");
+    let hint=totalEl.nextElementSibling;
+    if(hint&&hint.classList.contains("size-calc-hint")){
+      if(mismatch) hint.textContent=" заказ: "+mainQty;
+      else hint.remove();
+    } else if(mismatch){
+      const h=document.createElement("span"); h.className="size-calc-hint"; h.textContent=" заказ: "+mainQty;
+      totalEl.after(h);
+    }
+  }
 }
 
 function setSizeQty(inp){
@@ -1178,14 +1339,18 @@ function setOrderQty(inp){
   // Recalc row costs
   _updateRowCosts(base);
   _updateTotals();
-  // Update open size row
+  // Update open size rows when main order qty changes
   const expandId="sz-"+base.replace(/[^a-zA-Z0-9]/g,"_");
-  const sizeRow=document.getElementById(expandId);
-  if(sizeRow){
-    // Always re-render: recalculates distribution by turnover with new totalQty
-    sizeRow.remove();
-    const btn=inp.closest("tr").querySelector(".size-expand-btn");
-    if(btn) btn.textContent="▸ размеры";
+  const grpRow=document.getElementById(expandId+"-group");
+  if(grpRow){
+    // Re-render size sub-rows with new total qty
+    // Remove all existing size rows
+    document.querySelectorAll("tr[data-size-of]").forEach(tr=>{if(tr.dataset.sizeOf===base)tr.remove();});
+    const grp2=document.getElementById(expandId+"-group");
+    const sum2=document.getElementById(expandId+"-sum");
+    if(grp2) grp2.remove(); if(sum2) sum2.remove();
+    const btn2=inp.closest("tr").querySelector(".size-expand-btn");
+    if(btn2) btn2.textContent="▸ размеры";
     setTimeout(()=>toggleSizeRow(expandId,base,val),0);
   }
 }
@@ -1269,22 +1434,32 @@ function exportCSV(){
 
 // ─── Load stock data ──────────────────────────────────────────────────────────
 async function loadStock(){
-  // Use inline SD data first (always available)
   allDates=SD.dates||[];
   stockData=SD.stock||{};
-  // Also try to get fresh data from server (optional)
   try{
-    const r=await fetch("/api/stocks/all");
-    if(r.ok){
-      const d=await r.json();
+    const [stockRes, turnoverRes, analyticsRes] = await Promise.allSettled([
+      fetch("/api/stocks/all"),
+      fetch("/api/turnover-data"),
+      fetch("/api/analytics-data")
+    ]);
+    if(stockRes.status==="fulfilled"&&stockRes.value.ok){
+      const d=await stockRes.value.json();
       allDates=d.dates||allDates;
       stockData=d.stock||stockData;
     }
+    if(analyticsRes.status==="fulfilled"&&analyticsRes.value.ok){
+      const d=await analyticsRes.value.json();
+      if(d.dates&&d.dates.length>allDates.length) allDates=d.dates;
+      if(d.stock) Object.assign(stockData, d.stock);
+    }
+    if(turnoverRes.status==="fulfilled"&&turnoverRes.value.ok){
+      const td=await turnoverRes.value.json();
+      // Merge per-size SKUS (size variants not in inline SD.skus)
+      if(td&&td.skus) Object.assign(SKUS, td.skus);
+      if(td&&td.stock) Object.assign(stockData, td.stock);
+      if(td&&td.dates&&td.dates.length>allDates.length) allDates=td.dates;
+    }
   }catch(e){}
-  // Build stockData from SKUS chart data if needed
-  if(Object.keys(stockData).length===0){
-    _buildStockFromSKUS();
-  }
 }
 
 function _buildStockFromSKUS(){
