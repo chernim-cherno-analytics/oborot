@@ -4,12 +4,9 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>Chernim Cherno · Перемещения</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 body{font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;min-height:100vh;background:#272b08;color:white}
-
-/* BACKGROUND — same style as order.html */
 .gradient-bg{position:fixed;inset:0;z-index:0;overflow:hidden;background:#272b08}
 .gradient-bg::before,.gradient-bg::after,.b1,.b2,.b3{position:absolute;border-radius:50%;filter:blur(90px);opacity:.9}
 .gradient-bg::before{content:'';width:70vw;height:70vw;background:radial-gradient(circle,#60886a,transparent 70%);top:-20%;left:-10%;animation:blob1 11s ease-in-out infinite alternate}
@@ -18,221 +15,166 @@ body{font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;min-height:100vh;ba
 .b2{width:45vw;height:45vw;background:radial-gradient(circle,#9ad5c8,transparent 70%);top:-10%;right:10%;animation:blob4 13s ease-in-out infinite alternate}
 .b3{width:50vw;height:50vw;background:radial-gradient(circle,#1a2008,transparent 70%);bottom:10%;left:20%;animation:blob5 16s ease-in-out infinite alternate}
 .vignette{position:fixed;inset:0;z-index:1;pointer-events:none;background:radial-gradient(ellipse at center,transparent 40%,rgba(10,12,4,.55) 100%)}
-@keyframes blob1{0%{transform:translate(0,0) scale(1)}33%{transform:translate(8vw,5vh) scale(1.1)}66%{transform:translate(-5vw,10vh) scale(.95)}100%{transform:translate(10vw,-8vh) scale(1.05)}}
-@keyframes blob2{0%{transform:translate(0,0) scale(1)}33%{transform:translate(-10vw,-6vh) scale(1.08)}66%{transform:translate(6vw,-12vh) scale(1.12)}100%{transform:translate(-8vw,5vh) scale(.92)}}
-@keyframes blob3{0%{transform:translate(0,0) scale(1)}50%{transform:translate(-12vw,8vh) scale(1.15)}100%{transform:translate(8vw,-10vh) scale(.9)}}
-@keyframes blob4{0%{transform:translate(0,0) scale(.9)}50%{transform:translate(10vw,12vh) scale(1.1)}100%{transform:translate(-6vw,6vh) scale(1)}}
-@keyframes blob5{0%{transform:translate(0,0) scale(1.1)}50%{transform:translate(14vw,-8vh) scale(.9)}100%{transform:translate(-10vw,-12vh) scale(1.05)}}
+@keyframes blob1{0%{transform:translate(0,0) scale(1)}33%{transform:translate(8vw,5vh) scale(1.1)}100%{transform:translate(10vw,-8vh) scale(1.05)}}
+@keyframes blob2{0%{transform:translate(0,0) scale(1)}100%{transform:translate(-8vw,5vh) scale(.92)}}
+@keyframes blob3{0%{transform:translate(0,0) scale(1)}100%{transform:translate(8vw,-10vh) scale(.9)}}
+@keyframes blob4{0%{transform:translate(0,0) scale(.9)}100%{transform:translate(-6vw,6vh) scale(1)}}
+@keyframes blob5{0%{transform:translate(0,0) scale(1.1)}100%{transform:translate(-10vw,-12vh) scale(1.05)}}
 
 /* NAV */
-.header{position:sticky;top:0;z-index:200;padding:0 28px;height:56px;display:flex;align-items:center;justify-content:space-between}
+.header{position:sticky;top:0;z-index:200;padding:0 28px;height:56px;display:flex;align-items:center;justify-content:space-between;background:rgba(0,0,0,.2);backdrop-filter:blur(12px)}
 .logo{font-size:15px;font-weight:400;letter-spacing:.12em;color:rgba(255,255,255,.88);text-decoration:none}
 .nav{display:flex;gap:20px}
-.nav a{font-size:13px;font-weight:400;letter-spacing:.05em;color:rgba(255,255,255,.3);text-decoration:none;transition:color .2s}
+.nav a{font-size:13px;color:rgba(255,255,255,.3);text-decoration:none;transition:color .2s}
 .nav a:hover{color:rgba(255,255,255,.7)}
 .nav a.active{color:rgba(255,255,255,.92);font-weight:500}
 
-/* UPLOAD ZONE */
-.upload-section{position:relative;z-index:3;padding:18px 28px 0}
-.upload-row{display:flex;gap:12px;flex-wrap:wrap;align-items:stretch}
-.upload-slot{
-  flex:1;min-width:220px;
-  background:rgba(255,255,255,.12);
-  border:2px dashed rgba(255,255,255,.2);
-  border-radius:12px;padding:14px 18px;
-  cursor:pointer;transition:all .2s;position:relative;
-  display:flex;flex-direction:column;gap:6px;
-}
-.upload-slot:hover,.upload-slot.drag-over{background:rgba(255,255,255,.2);border-color:rgba(255,255,255,.5)}
-.upload-slot.loaded{border-style:solid;border-color:rgba(255,255,255,.35);background:rgba(255,255,255,.18)}
-.upload-slot input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
-.slot-label{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.4)}
-.slot-name{font-size:13px;font-weight:600;color:rgba(255,255,255,.85)}
-.slot-sub{font-size:11px;color:rgba(255,255,255,.35)}
-.slot-wh{font-size:14px;font-weight:700;color:white;margin-top:2px}
-.wh-dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px}
+/* TOP AREA */
+.top-area{position:relative;z-index:3;padding:16px 28px 0;display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap}
 
-/* STATS BAR */
-.stats-bar{position:relative;z-index:3;padding:12px 28px;display:flex;gap:10px;flex-wrap:wrap}
-.stat-chip{
-  background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);
-  border-radius:8px;padding:8px 14px;display:flex;flex-direction:column;gap:2px;
+/* DROP ZONE — single big zone */
+.drop-zone{
+  flex:0 0 320px;
+  background:rgba(255,255,255,.1);border:2px dashed rgba(255,255,255,.25);
+  border-radius:14px;padding:20px;cursor:pointer;transition:all .2s;position:relative;
+  min-height:110px;
 }
-.stat-n{font-size:18px;font-weight:700;color:white}
-.stat-l{font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:rgba(255,255,255,.45)}
-.stat-n.only1{color:#fbbf24}
-.stat-n.only2{color:#86efac}
-.stat-n.all3{color:rgba(255,255,255,.7)}
+.drop-zone:hover,.drop-zone.drag-over{background:rgba(255,255,255,.18);border-color:rgba(255,255,255,.5)}
+.drop-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.dz-title{font-size:13px;font-weight:700;color:rgba(255,255,255,.7);margin-bottom:6px}
+.dz-sub{font-size:11px;color:rgba(255,255,255,.35);margin-bottom:12px}
+.dz-slots{display:flex;flex-direction:column;gap:5px}
+.dz-slot{
+  display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:8px;
+  background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);
+  font-size:11px;transition:all .2s;
+}
+.dz-slot.loaded{background:rgba(255,255,255,.14);border-color:rgba(255,255,255,.3)}
+.dz-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;background:rgba(255,255,255,.2)}
+.dz-slot.loaded .dz-dot{background:var(--dot-color,#60a5fa)}
+.dz-slot-name{font-weight:600;color:rgba(255,255,255,.5);flex:1}
+.dz-slot.loaded .dz-slot-name{color:rgba(255,255,255,.9)}
+.dz-slot-qty{font-size:10px;color:rgba(255,255,255,.3)}
+.dz-slot.loaded .dz-slot-qty{color:rgba(255,255,255,.45)}
+
+/* HISTORY PANEL */
+.history-panel{
+  flex:1;min-width:300px;
+  background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);
+  border-radius:14px;padding:16px 18px;
+}
+.hp-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.hp-title{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.4)}
+.save-badge{
+  font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;
+  background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.3);color:rgba(34,197,94,.9);
+  transition:opacity .4s;white-space:nowrap;
+}
+.save-badge.hidden{opacity:0;pointer-events:none}
+.hp-chips{display:flex;gap:8px;flex-wrap:wrap;align-items:stretch}
+.history-chip{
+  display:flex;flex-direction:column;gap:3px;
+  padding:8px 14px 8px 12px;border-radius:10px;cursor:pointer;
+  border:1.5px solid rgba(255,255,255,.15);background:rgba(255,255,255,.07);
+  transition:all .15s;position:relative;
+}
+.history-chip:hover{background:rgba(255,255,255,.16);border-color:rgba(255,255,255,.3)}
+.history-chip.active{background:rgba(255,255,255,.92);border-color:white}
+.history-chip.active .hc-date{color:#1a2a10}
+.history-chip.active .hc-whs{color:rgba(0,0,0,.4)}
+.hc-date{font-size:15px;font-weight:700;color:rgba(255,255,255,.88);line-height:1.1}
+.hc-whs{font-size:9px;color:rgba(255,255,255,.3);letter-spacing:.03em;line-height:1.4}
+.hc-del{
+  position:absolute;top:4px;right:5px;
+  font-size:10px;line-height:1;padding:1px 3px;border-radius:3px;
+  color:rgba(239,68,68,.35);cursor:pointer;transition:all .15s;
+}
+.hc-del:hover{color:rgba(239,68,68,.9);background:rgba(239,68,68,.12)}
+.hp-empty{font-size:12px;color:rgba(255,255,255,.25);font-style:italic;padding:6px 0}
+
+/* STATS */
+.stats-row{position:relative;z-index:3;padding:12px 28px 0;display:flex;gap:10px;flex-wrap:wrap}
+.stat-chip{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);border-radius:8px;padding:7px 14px}
+.stat-n{font-size:17px;font-weight:700}
+.stat-n.c1{color:#fbbf24}.stat-n.c2{color:#86efac}.stat-n.c3{color:rgba(255,255,255,.7)}
+.stat-l{font-size:9px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:rgba(255,255,255,.35)}
 
 /* CONTROLS */
-.controls{position:sticky;top:56px;z-index:100;
+.controls{
+  position:sticky;top:56px;z-index:100;
   background:rgba(0,0,0,.4);backdrop-filter:blur(16px);
-  border-bottom:1px solid rgba(255,255,255,.15);
-  padding:10px 28px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.filter-btn{
-  padding:6px 16px;border-radius:20px;
-  border:1.5px solid rgba(255,255,255,.25);
-  background:rgba(255,255,255,.08);color:rgba(255,255,255,.65);
-  font-size:12px;font-weight:600;cursor:pointer;
-  font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;transition:all .15s;
+  border-bottom:1px solid rgba(255,255,255,.12);
+  padding:10px 28px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;
 }
-.filter-btn:hover{background:rgba(255,255,255,.18);color:white}
+.filter-btn{
+  padding:6px 16px;border-radius:20px;border:1.5px solid rgba(255,255,255,.2);
+  background:rgba(255,255,255,.07);color:rgba(255,255,255,.6);
+  font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s;
+}
+.filter-btn:hover{background:rgba(255,255,255,.16);color:white}
 .filter-btn.active{background:white;color:#2a3210;border-color:white}
 .search-inp{
-  padding:6px 12px;border-radius:20px;
-  border:1.5px solid rgba(255,255,255,.2);
-  background:rgba(255,255,255,.1);color:white;
-  font-size:12px;outline:none;
-  font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;width:200px;
+  padding:6px 12px;border-radius:20px;border:1.5px solid rgba(255,255,255,.18);
+  background:rgba(255,255,255,.09);color:white;font-size:12px;outline:none;
+  font-family:inherit;width:200px;
 }
-.search-inp::placeholder{color:rgba(255,255,255,.35)}
-.search-inp:focus{border-color:rgba(255,255,255,.4);background:rgba(255,255,255,.18)}
-.controls-right{margin-left:auto;display:flex;gap:8px;align-items:center}
-.legend{display:flex;gap:10px;align-items:center}
-.legend-item{display:flex;align-items:center;gap:4px;font-size:11px;color:rgba(255,255,255,.5)}
-.legend-dot{width:8px;height:8px;border-radius:2px}
+.search-inp::placeholder{color:rgba(255,255,255,.3)}
+.search-inp:focus{border-color:rgba(255,255,255,.4);background:rgba(255,255,255,.16)}
+.ctrl-right{margin-left:auto;display:flex;gap:12px;align-items:center}
+.legend{display:flex;gap:10px}
+.leg-item{display:flex;align-items:center;gap:4px;font-size:10px;color:rgba(255,255,255,.4)}
+.leg-dot{width:8px;height:8px;border-radius:2px}
 
 /* TABLE */
-.main{position:relative;z-index:3;padding:16px 28px 40px}
+.main{position:relative;z-index:3;padding:14px 28px 40px}
 .table-outer{
-  background:rgba(255,255,255,.12);backdrop-filter:blur(16px);
-  border:1px solid rgba(255,255,255,.25);border-radius:12px;
-  overflow:auto;max-height:calc(100vh - 260px);
+  background:rgba(255,255,255,.1);backdrop-filter:blur(16px);
+  border:1px solid rgba(255,255,255,.22);border-radius:12px;
+  overflow:auto;max-height:calc(100vh - 300px);
 }
 table{width:100%;border-collapse:collapse;font-size:12px}
 thead th{
-  background:rgba(0,0,0,.2);padding:9px 12px;
+  background:rgba(0,0,0,.22);padding:9px 12px;
   font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;
-  color:rgba(255,255,255,.45);border-bottom:1px solid rgba(255,255,255,.18);
+  color:rgba(255,255,255,.4);border-bottom:1px solid rgba(255,255,255,.15);
   position:sticky;top:0;z-index:10;white-space:nowrap;
 }
 thead th:first-child{text-align:left;min-width:220px}
-thead th.wh-header{min-width:90px;text-align:center}
-
-/* SECTION dividers */
+thead th.wh-h{min-width:100px;text-align:center}
 .section-row td{
   background:rgba(0,0,0,.15);padding:5px 12px;
-  font-size:9px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
-  color:rgba(255,255,255,.3);border-top:2px solid rgba(255,255,255,.12);
+  font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+  color:rgba(255,255,255,.28);border-top:2px solid rgba(255,255,255,.1);
 }
-
-/* PRODUCT ROW */
-.prod-row td{
-  padding:7px 12px;border-bottom:1px solid rgba(255,255,255,.07);
-  vertical-align:middle;
+.prod-row td{padding:7px 12px;border-bottom:1px solid rgba(255,255,255,.06);vertical-align:middle}
+.prod-row:hover td{background:rgba(255,255,255,.06)!important}
+.prod-name{font-size:12px;font-weight:500;color:rgba(255,255,255,.88)}
+.size-toggle{
+  font-size:9px;color:rgba(255,255,255,.3);padding:1px 6px;border-radius:3px;
+  background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);
+  cursor:pointer;margin-left:6px;vertical-align:middle;white-space:nowrap;transition:all .15s;
 }
-.prod-row:hover td{background:rgba(255,255,255,.07)!important}
-.prod-row td:first-child{text-align:left}
-.prod-name{font-size:12px;font-weight:500;color:rgba(255,255,255,.9);cursor:pointer;user-select:none}
-.prod-name:hover{color:white}
-.size-toggle{font-size:9px;color:rgba(255,255,255,.3);padding:1px 5px;border-radius:3px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);cursor:pointer;margin-left:6px;vertical-align:middle;white-space:nowrap}
-
-/* QTY CELLS */
-.qty-cell{text-align:center;position:relative}
+.size-toggle:hover{background:rgba(255,255,255,.15);color:rgba(255,255,255,.7)}
+.qty-cell{text-align:center}
 .qty-badge{
   display:inline-flex;align-items:center;justify-content:center;
   min-width:36px;height:26px;border-radius:6px;padding:0 8px;
   font-size:13px;font-weight:700;
 }
-.qty-zero{color:rgba(255,255,255,.12)}
-.qty-normal{background:rgba(255,255,255,.12);color:rgba(255,255,255,.8)}
-
-/* QTY coloring by coverage */
-/* Only this warehouse has it — AMBER alert */
-.qty-exclusive{background:rgba(251,191,36,.25);color:#fbbf24;border:1px solid rgba(251,191,36,.3)}
-/* 2 of 3 warehouses — light green */
-.qty-partial{background:rgba(134,239,172,.15);color:#86efac;border:1px solid rgba(134,239,172,.2)}
-/* All 3 — white/neutral */
-.qty-full{background:rgba(255,255,255,.1);color:rgba(255,255,255,.85);border:1px solid rgba(255,255,255,.12)}
-/* Missing from this warehouse but exists elsewhere — red dash */
-.qty-missing{color:rgba(239,68,68,.5)}
-
-/* SIZE SUB-ROW */
+.q-excl{background:rgba(251,191,36,.22);color:#fbbf24;border:1px solid rgba(251,191,36,.3)}
+.q-part{background:rgba(134,239,172,.14);color:#86efac;border:1px solid rgba(134,239,172,.2)}
+.q-full{background:rgba(255,255,255,.1);color:rgba(255,255,255,.82);border:1px solid rgba(255,255,255,.1)}
+.q-miss{color:rgba(239,68,68,.55);font-size:16px;font-weight:300}
+.q-zero{color:rgba(255,255,255,.1)}
 .size-row td{
   padding:4px 12px 4px 28px;border-bottom:1px solid rgba(255,255,255,.04);
-  background:rgba(0,0,0,.12);
+  background:rgba(0,0,0,.14);
 }
-.size-row:hover td{background:rgba(0,0,0,.18)!important}
-.size-label{font-size:11px;color:rgba(255,255,255,.45);font-weight:500}
-
-/* IMBALANCE indicator */
-.imbalance-bar{
-  display:flex;gap:2px;align-items:center;justify-content:center;margin-top:2px;
-}
-.imbalance-seg{height:3px;border-radius:1px;min-width:4px}
-
-/* Empty state */
+.size-row:hover td{background:rgba(0,0,0,.2)!important}
+.sz-label{font-size:11px;color:rgba(255,255,255,.4);font-weight:500}
 .empty{text-align:center;padding:80px 20px;color:rgba(255,255,255,.3);font-size:14px}
-.empty-icon{font-size:48px;margin-bottom:16px;opacity:.4}
-.empty-title{font-size:16px;font-weight:600;margin-bottom:8px;color:rgba(255,255,255,.5)}
-
-/* Highlight filter mode */
-.highlight-missing .qty-missing{background:rgba(239,68,68,.15);color:rgba(239,68,68,.8);border-radius:6px;padding:2px 6px}
-
-    /* HISTORY PANEL */
-    .history-section {
-      position: relative; z-index: 3;
-      margin: 0 28px 12px;
-      background: rgba(255,255,255,.1); backdrop-filter: blur(12px);
-      border: 1px solid rgba(255,255,255,.2); border-radius: 12px;
-      padding: 12px 16px 14px;
-    }
-    .history-header {
-      display: flex; align-items: center; gap: 10px; margin-bottom: 10px;
-    }
-    .history-title {
-      font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
-      color: rgba(255,255,255,.5);
-    }
-    .history-chips-row {
-      display: flex; gap: 8px; flex-wrap: wrap; align-items: stretch;
-    }
-    .history-chip {
-      display: flex; flex-direction: column; gap: 2px;
-      padding: 8px 14px; border-radius: 10px; cursor: pointer;
-      border: 1.5px solid rgba(255,255,255,.18); background: rgba(255,255,255,.08);
-      transition: all .15s; font-family: Helvetica,'Helvetica Neue',Arial,sans-serif;
-      position: relative; min-width: 90px;
-    }
-    .history-chip:hover { background: rgba(255,255,255,.18); border-color: rgba(255,255,255,.35); }
-    .history-chip.active {
-      background: rgba(255,255,255,.95); border-color: white;
-      box-shadow: 0 2px 12px rgba(0,0,0,.25);
-    }
-    .history-chip.active .chip-date { color: #1a2a10; }
-    .history-chip.active .chip-whs { color: rgba(0,0,0,.45); }
-    .chip-date {
-      font-size: 14px; font-weight: 700; color: rgba(255,255,255,.9); line-height: 1;
-    }
-    .chip-whs {
-      font-size: 9px; font-weight: 500; color: rgba(255,255,255,.35);
-      letter-spacing: .04em; line-height: 1.3;
-    }
-    .chip-del {
-      position: absolute; top: 4px; right: 5px;
-      font-size: 10px; color: rgba(255,100,100,.4); cursor: pointer;
-      padding: 1px 3px; border-radius: 3px; line-height: 1;
-      transition: all .15s;
-    }
-    .chip-del:hover { color: rgba(239,68,68,.9); background: rgba(239,68,68,.12); }
-    .history-empty {
-      font-size: 12px; color: rgba(255,255,255,.25); font-style: italic; padding: 4px 0;
-    }
-    .save-indicator {
-      margin-left: auto; font-size: 11px; padding: 4px 12px; border-radius: 20px;
-      background: rgba(34,197,94,.15); border: 1px solid rgba(34,197,94,.35);
-      color: rgba(34,197,94,.9); font-weight: 600; white-space: nowrap;
-      transition: opacity .4s;
-    }
-    .save-indicator.hidden { opacity: 0; pointer-events: none; }
-    .chip-live {
-      display: flex; flex-direction: column; gap: 2px;
-      padding: 8px 14px; border-radius: 10px;
-      border: 1.5px dashed rgba(255,255,255,.2); background: transparent;
-      font-family: Helvetica,'Helvetica Neue',Arial,sans-serif;
-      font-size: 11px; color: rgba(255,255,255,.3); cursor: default;
-      min-width: 80px; justify-content: center; align-items: center;
-    }
+.empty-icon{font-size:48px;margin-bottom:14px;opacity:.35}
+.empty-title{font-size:16px;font-weight:600;color:rgba(255,255,255,.45);margin-bottom:6px}
 </style>
 </head>
 <body>
@@ -250,491 +192,366 @@ thead th.wh-header{min-width:90px;text-align:center}
   </nav>
 </header>
 
-<!-- Upload slots -->
-<div class="upload-section">
-  <div class="upload-row" id="upload-row">
-    <div class="upload-slot" id="slot-0">
-      <input type="file" accept=".xls,.xlsx,.csv" onchange="loadFile(0, this)"/>
-      <span class="slot-label">Склад 1</span>
-      <span class="slot-name" id="slot-name-0">Загрузить отчёт остатков</span>
-      <span class="slot-sub" id="slot-sub-0">XLS / CSV файл</span>
+<div class="top-area">
+  <!-- Single drop zone for all 3 files -->
+  <div class="drop-zone" id="drop-zone">
+    <input type="file" accept=".xls,.xlsx,.csv" multiple id="file-input" onchange="handleFiles(this.files)"/>
+    <div class="dz-title">Загрузить отчёты остатков</div>
+    <div class="dz-sub">Перетащите или выберите до 3 файлов XLS/CSV</div>
+    <div class="dz-slots" id="dz-slots">
+      <!-- Slots filled dynamically, Интернет-магазин first -->
     </div>
-    <div class="upload-slot" id="slot-1">
-      <input type="file" accept=".xls,.xlsx,.csv" onchange="loadFile(1, this)"/>
-      <span class="slot-label">Склад 2</span>
-      <span class="slot-name" id="slot-name-1">Загрузить отчёт остатков</span>
-      <span class="slot-sub" id="slot-sub-1">XLS / CSV файл</span>
+  </div>
+
+  <!-- History panel -->
+  <div class="history-panel">
+    <div class="hp-header">
+      <span class="hp-title">📅 Сохранённые даты</span>
+      <span class="save-badge hidden" id="save-badge">✓ Сохранено</span>
     </div>
-    <div class="upload-slot" id="slot-2">
-      <input type="file" accept=".xls,.xlsx,.csv" onchange="loadFile(2, this)"/>
-      <span class="slot-label">Склад 3</span>
-      <span class="slot-name" id="slot-name-2">Загрузить отчёт остатков</span>
-      <span class="slot-sub" id="slot-sub-2">XLS / CSV файл</span>
+    <div class="hp-chips" id="hp-chips">
+      <span class="hp-empty">загружаю…</span>
     </div>
   </div>
 </div>
 
 <!-- Stats -->
-<div class="stats-bar" id="stats-bar" style="display:none">
-  <div class="stat-chip"><div class="stat-n only1" id="st-1">0</div><div class="stat-l">только на 1 складе</div></div>
-  <div class="stat-chip"><div class="stat-n only2" id="st-2">0</div><div class="stat-l">на 2 складах</div></div>
-  <div class="stat-chip"><div class="stat-n all3" id="st-3">0</div><div class="stat-l">на всех складах</div></div>
-  <div class="stat-chip"><div class="stat-n" id="st-total">0</div><div class="stat-l">позиций всего</div></div>
-</div>
-
-<!-- History bar -->
-<div class="history-section" id="history-section">
-  <div class="history-header">
-    <span class="history-title">📅 Сохранённые даты</span>
-    <span class="save-indicator hidden" id="save-indicator">✓ Сохранено</span>
-  </div>
-  <div id="history-chips" class="history-chips-row"></div>
+<div class="stats-row" id="stats-row" style="display:none">
+  <div class="stat-chip"><div class="stat-n c1" id="st1">0</div><div class="stat-l">только на 1 складе</div></div>
+  <div class="stat-chip"><div class="stat-n c2" id="st2">0</div><div class="stat-l">на 2 складах</div></div>
+  <div class="stat-chip"><div class="stat-n c3" id="st3">0</div><div class="stat-l">на всех</div></div>
+  <div class="stat-chip"><div class="stat-n" id="stTotal">0</div><div class="stat-l">позиций всего</div></div>
 </div>
 
 <!-- Controls -->
-<div class="controls" id="controls-bar" style="display:none">
+<div class="controls" id="controls" style="display:none">
   <button class="filter-btn active" onclick="setFilter('all',this)">Все</button>
   <button class="filter-btn" onclick="setFilter('1',this)" style="color:#fbbf24;border-color:rgba(251,191,36,.3)">Только на 1</button>
   <button class="filter-btn" onclick="setFilter('2',this)" style="color:#86efac;border-color:rgba(134,239,172,.25)">На 2 складах</button>
   <button class="filter-btn" onclick="setFilter('3',this)">На всех 3</button>
-  <input class="search-inp" type="text" placeholder="Поиск по названию..." oninput="setSearch(this.value)" id="search-inp"/>
-  <div class="controls-right">
+  <input class="search-inp" type="text" placeholder="Поиск…" oninput="setSearch(this.value)"/>
+  <div class="ctrl-right">
     <div class="legend">
-      <div class="legend-item"><div class="legend-dot" style="background:#fbbf24"></div>только на этом складе</div>
-      <div class="legend-item"><div class="legend-dot" style="background:#86efac"></div>на 2 из 3</div>
-      <div class="legend-item"><div class="legend-dot" style="background:rgba(255,255,255,.5)"></div>на всех</div>
-      <div class="legend-item"><div class="legend-dot" style="background:rgba(239,68,68,.5)"></div>отсутствует</div>
+      <div class="leg-item"><div class="leg-dot" style="background:#fbbf24"></div>только тут</div>
+      <div class="leg-item"><div class="leg-dot" style="background:#86efac"></div>на 2 из 3</div>
+      <div class="leg-item"><div class="leg-dot" style="background:rgba(255,255,255,.5)"></div>везде</div>
+      <div class="leg-item" style="gap:6px"><span style="color:rgba(239,68,68,.6);font-size:14px">—</span>отсутствует</div>
     </div>
   </div>
 </div>
 
 <!-- Table -->
-<div class="main" id="main-area">
+<div class="main">
   <div class="table-outer" id="table-outer">
     <div class="empty">
       <div class="empty-icon">📦</div>
-      <div class="empty-title">Загрузите отчёты по складам</div>
-      <div>Поддерживаются CSV-отчёты из системы управления остатками</div>
+      <div class="empty-title">Загрузите отчёты или выберите дату из истории</div>
     </div>
   </div>
 </div>
 
 <script>
+// ─── Config ───────────────────────────────────────────────────────────────────
+// Default warehouse order — Интернет-магазин first
+const WH_PRIORITY = ['Интернет-магазин','Гороховая','Мясницкая'];
+const WH_COLORS   = ['#f472b6','#60a5fa','#34d399'];
+
 // ─── State ────────────────────────────────────────────────────────────────────
-let warehouseData = [null, null, null]; // [{name, items, report_date}]
-let currentFilter = 'all';
-let currentSearch = '';
-let currentSnapshotDate = null; // date of currently viewed snapshot (null = live)
-let reportDates = [null, null, null]; // report_date from each loaded file
+let warehouseData    = []; // [{name, items, report_date}, ...]
+let activeWhs        = []; // [{idx, name}]  — ordered by WH_PRIORITY
+let currentFilter    = 'all';
+let currentSearch    = '';
+let currentSnapDate  = null;
 
-// Warehouse accent colors
-const WH_COLORS = ['#60a5fa','#f472b6','#34d399'];
-const WH_NAMES_DEFAULT = ['Склад 1','Склад 2','Склад 3'];
-
-// ─── File loading — via server API ───────────────────────────────────────────
-async function loadFile(slotIdx, input) {
-  const file = input.files[0];
-  if (!file) return;
-
-  const slot = document.getElementById('slot-'+slotIdx);
-  const nameEl = document.getElementById('slot-name-'+slotIdx);
-  const subEl = document.getElementById('slot-sub-'+slotIdx);
-
-  nameEl.textContent = 'Загружаю...';
-  subEl.textContent = file.name;
-  slot.style.opacity = '0.7';
-
-  try {
-    const formData = new FormData();
-    formData.append('file', file);
-    const resp = await fetch('/api/parse-stock', { method: 'POST', body: formData });
-    if (!resp.ok) {
-      const err = await resp.json().catch(() => ({}));
-      throw new Error(err.detail || resp.statusText);
-    }
-    const data = await resp.json();
-    warehouseData[slotIdx] = { name: data.warehouse, items: data.items, report_date: data.report_date };
-    reportDates[slotIdx] = data.report_date;
-    currentSnapshotDate = null; // viewing live data
-
-    slot.classList.add('loaded');
-    slot.style.opacity = '1';
-    nameEl.textContent = data.warehouse;
-    const dateLabel = data.report_date ? ' · ' + formatDate(data.report_date) : '';
-    subEl.textContent = Object.keys(data.items).length + ' позиций' + dateLabel;
-    document.getElementById('slot-label-'+slotIdx).style.color = WH_COLORS[slotIdx];
-
-    if (warehouseData.some(d => d !== null)) render();
-
-    // Auto-save when all 3 loaded
-    const allLoaded = warehouseData.every(d => d !== null);
-    if (allLoaded) autoSave();
-  } catch(e) {
-    slot.style.opacity = '1';
-    nameEl.textContent = 'Ошибка загрузки';
-    subEl.textContent = String(e.message || e);
-    console.error('parse-stock error:', e);
-  }
-}
-
-// ─── Strip size ───────────────────────────────────────────────────────────────
-function stripSize(name) {
-  return name.replace(/\s*\([^)]*\)\s*$/, '').trim();
-}
-
-// ─── Build dataset ────────────────────────────────────────────────────────────
-function buildDataset() {
-  const loaded = warehouseData.filter(d => d !== null);
-  if (!loaded.length) return null;
-
-  // Collect all SKUs across all warehouses
-  const allSkus = new Set();
-  for (const d of loaded) {
-    if (d) Object.keys(d.items).forEach(k => allSkus.add(k));
-  }
-
-  // Group SKUs by base product name
-  const baseMap = {}; // base -> [{sku, size}]
-  for (const sku of allSkus) {
-    const base = stripSize(sku);
-    if (!baseMap[base]) baseMap[base] = [];
-    // Extract size label
-    const m = sku.match(/\(([^)]+)\)\s*$/);
-    const size = m ? m[1] : null;
-    baseMap[base].push({ sku, size });
-  }
-
-  // Build product entries
-  const products = [];
-  for (const [base, variants] of Object.entries(baseMap)) {
-    // For each variant, get qty per warehouse
-    const variantData = variants.map(({ sku, size }) => {
-      const qtyByWh = warehouseData.map(d => d ? (d.items[sku] || 0) : null);
-      return { sku, size, qtyByWh };
-    });
-
-    // Sort variants by size order
-    variantData.sort((a, b) => {
-      const sizeOrder = ['xxs','xs','s','m','l','xl','xxl','2xl','3xl','4xl','one size','os'];
-      const ai = sizeOrder.indexOf((a.size||'').toLowerCase());
-      const bi = sizeOrder.indexOf((b.size||'').toLowerCase());
-      if (ai === -1 && bi === -1) return (a.size||'').localeCompare(b.size||'');
-      if (ai === -1) return 1; if (bi === -1) return -1;
-      return ai - bi;
-    });
-
-    // Compute base totals per warehouse
-    const totalByWh = warehouseData.map((d, i) => {
-      if (!d) return null;
-      return variants.reduce((s, v) => s + (d.items[v.sku] || 0), 0);
-    });
-
-    // Coverage: how many loaded warehouses have this product?
-    const loadedCount = warehouseData.filter(d => d !== null).length;
-    const presentCount = totalByWh.filter((q, i) => warehouseData[i] !== null && q > 0).length;
-
-    products.push({
-      base, variants: variantData, totalByWh,
-      presentCount, loadedCount,
-      hasMultipleVariants: variants.length > 1 && variants.some(v => v.size !== null)
-    });
-  }
-
-  // Sort: 1-warehouse first, then 2, then 3
-  products.sort((a, b) => a.presentCount - b.presentCount || a.base.localeCompare(b.base));
-
-  return products;
-}
-
-// ─── Render ───────────────────────────────────────────────────────────────────
-function render() {
-  const products = buildDataset();
-  const outer = document.getElementById('table-outer');
-
-  if (!products || !products.length) {
-    outer.innerHTML = '<div class="empty"><div class="empty-icon">📦</div><div class="empty-title">Нет данных</div></div>';
-    return;
-  }
-
-  // Show stats & controls
-  document.getElementById('stats-bar').style.display = 'flex';
-  document.getElementById('controls-bar').style.display = 'flex';
-
-  // Filter
-  let filtered = products;
-  if (currentFilter !== 'all') {
-    filtered = products.filter(p => p.presentCount === parseInt(currentFilter));
-  }
-  if (currentSearch) {
-    const q = currentSearch.toLowerCase();
-    filtered = filtered.filter(p => p.base.toLowerCase().includes(q));
-  }
-
-  // Stats
-  document.getElementById('st-1').textContent = products.filter(p=>p.presentCount===1).length;
-  document.getElementById('st-2').textContent = products.filter(p=>p.presentCount===2).length;
-  document.getElementById('st-3').textContent = products.filter(p=>p.presentCount===3).length;
-  document.getElementById('st-total').textContent = products.length;
-
-  // Get active warehouses
-  const activeWhs = warehouseData.map((d,i) => d ? {idx:i, name:d.name} : null).filter(Boolean);
-
-  // Build table
-  let html = `<table>
-    <thead><tr>
-      <th>Название</th>
-      ${activeWhs.map(w => `<th class="wh-header"><span style="color:${WH_COLORS[w.idx]}">${w.name}</span></th>`).join('')}
-    </tr></thead><tbody>`;
-
-  let lastSection = -1;
-  const sectionLabels = {
-    1: '⚡ Только на одном складе — кандидаты на переброс',
-    2: '✦ На двух складах',
-    3: '● На всех складах'
-  };
-
-  for (const [pidx, p] of filtered.entries()) {
-    // Section divider
-    if (p.presentCount !== lastSection) {
-      lastSection = p.presentCount;
-      const label = sectionLabels[p.presentCount] || '';
-      html += `<tr class="section-row"><td colspan="${1 + activeWhs.length}">${label}</td></tr>`;
-    }
-
-    const rowId = 'prod-'+pidx;
-    const hasMulti = p.hasMultipleVariants;
-
-    html += `<tr class="prod-row" id="${rowId}">
-      <td>
-        <span class="prod-name" onclick="${hasMulti ? `toggleSizes('${rowId}')` : ''}">${p.base}</span>
-        ${hasMulti ? `<span class="size-toggle" onclick="toggleSizes('${rowId}')" id="${rowId}-toggle">▸ размеры</span>` : ''}
-      </td>`;
-
-    // Qty cells for each active warehouse
-    for (const w of activeWhs) {
-      const qty = p.totalByWh[w.idx];
-      if (qty === null) { html += `<td class="qty-cell"><span style="color:rgba(255,255,255,.15)">—</span></td>`; continue; }
-
-      let cls, display;
-      if (qty === 0) {
-        // Missing from this warehouse — show dash with red tint if present elsewhere
-        const presentElsewhere = activeWhs.some(ow => ow.idx !== w.idx && (p.totalByWh[ow.idx]||0) > 0);
-        cls = presentElsewhere ? 'qty-missing' : 'qty-zero';
-        display = presentElsewhere ? '—' : '';
-      } else {
-        // Color by coverage
-        cls = p.presentCount === 1 ? 'qty-exclusive' :
-              p.presentCount === 2 ? 'qty-partial' : 'qty-full';
-        display = qty;
-      }
-
-      html += `<td class="qty-cell"><span class="qty-badge ${cls}">${display}</span></td>`;
-    }
-
-    html += `</tr>`;
-
-    // Size rows — direct sibling rows, hidden by default, grouped by rowId
-    if (hasMulti) {
-      // Invisible sentinel row used by toggleSizes to find/hide all size rows
-      html += `<tr id="${rowId}-sizes" data-size-group="${rowId}" style="display:none;height:0"><td colspan="${1 + activeWhs.length}" style="padding:0;border:none"></td></tr>`;
-
-      for (const v of p.variants) {
-        const sizePresentCount = activeWhs.filter(ow => (v.qtyByWh[ow.idx]||0) > 0).length;
-        html += `<tr class="size-row" data-size-group="${rowId}" style="display:none">
-          <td style="padding:5px 12px 5px 26px"><span class="size-label">↳ ${v.size || '—'}</span></td>`;
-
-        for (const w of activeWhs) {
-          const qty = v.qtyByWh[w.idx];
-          if (qty === null) { html += `<td class="qty-cell"><span style="color:rgba(255,255,255,.1)">—</span></td>`; continue; }
-
-          let cls, display;
-          if (qty === 0) {
-            const presentElsewhere = activeWhs.some(ow => ow.idx !== w.idx && (v.qtyByWh[ow.idx]||0) > 0);
-            cls = presentElsewhere ? 'qty-missing' : 'qty-zero';
-            display = presentElsewhere ? '—' : '';
-          } else {
-            cls = sizePresentCount === 1 ? 'qty-exclusive' :
-                  sizePresentCount === 2 ? 'qty-partial' : 'qty-full';
-            display = qty;
-          }
-          html += `<td class="qty-cell"><span class="qty-badge ${cls}" style="font-size:11px;height:22px;min-width:32px">${display}</span></td>`;
-        }
-        html += `</tr>`;
-      }
-    }
-  }
-
-  html += '</tbody></table>';
-  outer.innerHTML = html;
-}
-
-// ─── Toggles ──────────────────────────────────────────────────────────────────
-function toggleSizes(rowId) {
-  const toggle = document.getElementById(rowId+'-toggle');
-  const sizeRows = document.querySelectorAll(`tr[data-size-group="${rowId}"]`);
-  if (!sizeRows.length) return;
-  // Check current state from first size-row (skip sentinel)
-  const actualRows = [...sizeRows].filter(r => r.classList.contains('size-row'));
-  const isHidden = !actualRows.length || actualRows[0].style.display === 'none';
-  sizeRows.forEach(r => {
-    r.style.display = isHidden ? 'table-row' : 'none';
-  });
-  if (toggle) toggle.textContent = isHidden ? '▾ размеры' : '▸ размеры';
-}
-
-function setFilter(f, btn) {
-  currentFilter = f;
-  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  render();
-}
-
-function setSearch(q) {
-  currentSearch = q;
-  render();
-}
-
-// ─── Date formatting ─────────────────────────────────────────────────────────
-function formatDate(iso) {
-  if (!iso) return '';
-  const [y, m, d] = iso.split('-');
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function stripSize(n){ return n.replace(/\s*\([^)]*\)\s*$/, '').trim(); }
+function fmtDate(iso){
+  if(!iso) return '';
+  const [y,m,d] = iso.split('-');
   return `${d}.${m}.${y}`;
 }
 
-// ─── Auto-save snapshot ───────────────────────────────────────────────────────
-async function autoSave() {
-  // Use the report_date from the files (prefer consensus date across warehouses)
-  const dates = reportDates.filter(Boolean);
-  if (!dates.length) return;
-  const report_date = dates[0]; // all files should have same date
-
-  const data = {};
-  const warehouses = [];
-  for (const d of warehouseData) {
-    if (d) { data[d.name] = d.items; warehouses.push(d.name); }
+// ─── File handling ────────────────────────────────────────────────────────────
+async function handleFiles(fileList) {
+  const files = [...fileList];
+  for (const file of files.slice(0, 3)) {
+    await uploadFile(file);
   }
+  if (warehouseData.length > 0) renderTable();
+  if (warehouseData.length === 3) autoSave();
+}
 
+async function uploadFile(file) {
+  const fd = new FormData();
+  fd.append('file', file);
   try {
-    const resp = await fetch('/api/transfers/save', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ report_date, warehouses, data })
-    });
-    if (resp.ok) {
-      const ind = document.getElementById('save-indicator');
-      ind.textContent = `✓ Сохранено ${formatDate(report_date)}`;
-      ind.classList.remove('hidden');
-      setTimeout(() => ind.classList.add('hidden'), 4000);
-      currentSnapshotDate = report_date; // mark as saved/active
-      loadHistory(); // refresh chips
+    const r = await fetch('/api/parse-stock', {method:'POST', body:fd});
+    if (!r.ok) { const e=await r.json().catch(()=>{}); alert(e?.detail||'Ошибка'); return; }
+    const data = await r.json();
+    // Replace if same warehouse already loaded, else push
+    const existing = warehouseData.findIndex(d => d.name === data.warehouse);
+    const entry = {name: data.warehouse, items: data.items, report_date: data.report_date};
+    if (existing >= 0) warehouseData[existing] = entry;
+    else warehouseData.push(entry);
+    currentSnapDate = null;
+    updateSlots();
+  } catch(e) { alert('Ошибка загрузки: '+e.message); }
+}
+
+function updateSlots() {
+  // Sort warehouseData by WH_PRIORITY
+  warehouseData.sort((a,b) => {
+    const ai = WH_PRIORITY.indexOf(a.name);
+    const bi = WH_PRIORITY.indexOf(b.name);
+    return (ai<0?99:ai) - (bi<0?99:bi);
+  });
+  // Build activeWhs list
+  activeWhs = warehouseData.map((d,i) => ({idx:i, name:d.name}));
+
+  // Render slots in drop zone
+  const container = document.getElementById('dz-slots');
+  // Show all 3 slot positions (filled + empty placeholders)
+  const slotNames = [...WH_PRIORITY];
+  container.innerHTML = slotNames.map((whName, i) => {
+    const d = warehouseData.find(w => w.name === whName);
+    const color = WH_COLORS[i];
+    if (d) {
+      return `<div class="dz-slot loaded" style="--dot-color:${color}">
+        <div class="dz-dot"></div>
+        <span class="dz-slot-name">${d.name}</span>
+        <span class="dz-slot-qty">${Object.keys(d.items).length} поз${d.report_date?' · '+fmtDate(d.report_date):''}</span>
+      </div>`;
+    } else {
+      return `<div class="dz-slot" style="--dot-color:${color}">
+        <div class="dz-dot"></div>
+        <span class="dz-slot-name">${whName}</span>
+        <span class="dz-slot-qty">не загружен</span>
+      </div>`;
     }
-  } catch(e) { console.error('autoSave failed:', e); }
+  }).join('');
+}
+
+// ─── Auto-save ────────────────────────────────────────────────────────────────
+async function autoSave() {
+  const dates = warehouseData.map(d=>d.report_date).filter(Boolean);
+  if (!dates.length) return;
+  const report_date = dates[0];
+  const data = {};
+  warehouseData.forEach(d => { data[d.name] = d.items; });
+  try {
+    const r = await fetch('/api/transfers/save', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({report_date, warehouses: warehouseData.map(d=>d.name), data})
+    });
+    if (r.ok) {
+      currentSnapDate = report_date;
+      const badge = document.getElementById('save-badge');
+      badge.textContent = `✓ Сохранено ${fmtDate(report_date)}`;
+      badge.classList.remove('hidden');
+      setTimeout(()=>badge.classList.add('hidden'), 4000);
+      loadHistory();
+    }
+  } catch(e){}
 }
 
 // ─── History ──────────────────────────────────────────────────────────────────
 async function loadHistory() {
+  const container = document.getElementById('hp-chips');
   try {
-    const resp = await fetch('/api/transfers/list');
-    if (!resp.ok) return;
-    const snapshots = await resp.json();
-    const container = document.getElementById('history-chips');
-    if (!snapshots.length) {
-      container.innerHTML = '<span class="history-empty">нет сохранённых снапшотов — загрузите 3 склада</span>';
+    const r = await fetch('/api/transfers/list');
+    if (!r.ok) throw new Error('HTTP '+r.status);
+    const snaps = await r.json();
+    if (!snaps.length) {
+      container.innerHTML = '<span class="hp-empty">нет сохранённых снапшотов</span>';
       return;
     }
-    container.innerHTML = snapshots.map(s => {
-      const isActive = currentSnapshotDate === s.report_date;
-      const whNames = s.warehouses.join(', ');
-      return `<div class="history-chip${isActive?' active':''}" onclick="loadSnapshot('${s.report_date}')" title="${whNames}">
-        <span class="chip-date">${formatDate(s.report_date)}</span>
-        <span class="chip-whs">${s.warehouses.length} склада: ${whNames}</span>
-        <span class="chip-del" onclick="deleteSnapshot(event,'${s.report_date}')" title="Удалить снапшот">✕</span>
-      </div>`;
-    }).join('');
+    container.innerHTML = snaps.map(s => `
+      <div class="history-chip${currentSnapDate===s.report_date?' active':''}" onclick="loadSnap('${s.report_date}')">
+        <span class="hc-date">${fmtDate(s.report_date)}</span>
+        <span class="hc-whs">${s.warehouses.join(' · ')}</span>
+        <span class="hc-del" onclick="delSnap(event,'${s.report_date}')">✕</span>
+      </div>`).join('');
   } catch(e) {
-    document.getElementById('history-chips').innerHTML = '<span class="history-empty">ошибка загрузки истории</span>';
+    container.innerHTML = '<span class="hp-empty">ошибка: '+e.message+'</span>';
   }
 }
 
-async function loadSnapshot(report_date) {
+async function loadSnap(report_date) {
   try {
-    const resp = await fetch('/api/transfers/' + report_date);
-    if (!resp.ok) return;
-    const snap = await resp.json();
-    // Restore warehouseData from snapshot
-    warehouseData = [null, null, null];
-    reportDates = [null, null, null];
-    // Reset all slots first
-    [0,1,2].forEach(i => {
-      const slot = document.getElementById('slot-'+i);
-      if (slot) slot.classList.remove('loaded');
-      document.getElementById('slot-name-'+i).textContent = 'Загрузить отчёт остатков';
-      document.getElementById('slot-sub-'+i).textContent = 'XLS / CSV файл';
-    });
-    const whs = snap.warehouses;
-    whs.forEach((wh, i) => {
-      warehouseData[i] = { name: wh, items: snap.data[wh] || {}, report_date: snap.report_date };
-      reportDates[i] = snap.report_date;
-      const slot = document.getElementById('slot-'+i);
-      if (slot) {
-        slot.classList.add('loaded');
-        document.getElementById('slot-name-'+i).textContent = wh;
-        document.getElementById('slot-sub-'+i).textContent =
-          Object.keys(snap.data[wh]||{}).length + ' позиций · ' + formatDate(snap.report_date);
-        const lbl = document.getElementById('slot-label-'+i);
-        if (lbl) lbl.style.color = WH_COLORS[i];
-      }
-    });
-    currentSnapshotDate = report_date;
-    render();
-    loadHistory(); // update active chip
-  } catch(e) { console.error('loadSnapshot failed:', e); }
-}
-
-async function deleteSnapshot(e, report_date) {
-  e.stopPropagation();
-  if (!confirm(`Удалить снапшот ${formatDate(report_date)}?`)) return;
-  try {
-    await fetch('/api/transfers/' + report_date, { method: 'DELETE' });
-    if (currentSnapshotDate === report_date) {
-      currentSnapshotDate = null;
-      warehouseData = [null, null, null];
-      document.querySelectorAll('.upload-slot').forEach(s => s.classList.remove('loaded'));
-      [0,1,2].forEach(i => {
-        document.getElementById('slot-name-'+i).textContent = 'Загрузить отчёт остатков';
-        document.getElementById('slot-sub-'+i).textContent = 'XLS / CSV файл';
-      });
-      document.getElementById('stats-bar').style.display = 'none';
-      document.getElementById('controls-bar').style.display = 'none';
-      document.getElementById('table-outer').innerHTML = '<div class="empty"><div class="empty-icon">📦</div><div class="empty-title">Загрузите отчёты по складам</div></div>';
-    }
+    const r = await fetch('/api/transfers/'+report_date);
+    if (!r.ok) return;
+    const snap = await r.json();
+    warehouseData = snap.warehouses.map(wh => ({
+      name: wh, items: snap.data[wh]||{}, report_date: snap.report_date
+    }));
+    currentSnapDate = report_date;
+    updateSlots();
+    renderTable();
     loadHistory();
-  } catch(e) {}
+  } catch(e){}
 }
 
-// Load history on page open
+async function delSnap(e, report_date) {
+  e.stopPropagation();
+  if (!confirm(`Удалить снапшот ${fmtDate(report_date)}?`)) return;
+  await fetch('/api/transfers/'+report_date, {method:'DELETE'});
+  if (currentSnapDate === report_date) {
+    warehouseData=[]; activeWhs=[];
+    currentSnapDate=null;
+    updateSlots();
+    document.getElementById('stats-row').style.display='none';
+    document.getElementById('controls').style.display='none';
+    document.getElementById('table-outer').innerHTML=`<div class="empty"><div class="empty-icon">📦</div><div class="empty-title">Загрузите отчёты или выберите дату</div></div>`;
+  }
+  loadHistory();
+}
+
+// ─── Build dataset ────────────────────────────────────────────────────────────
+function buildDataset() {
+  if (!warehouseData.length) return null;
+  const allSkus = new Set();
+  warehouseData.forEach(d => Object.keys(d.items).forEach(k => allSkus.add(k)));
+
+  const baseMap = {};
+  for (const sku of allSkus) {
+    const base = stripSize(sku);
+    if (!baseMap[base]) baseMap[base] = [];
+    const m = sku.match(/\(([^)]+)\)\s*$/);
+    const size = m ? m[1] : null;
+    baseMap[base].push({sku, size});
+  }
+
+  const sizeOrder = ['xxs','xs','s','m','l','xl','xxl','2xl','3xl','4xl','one size','os'];
+  const products = [];
+  for (const [base, variants] of Object.entries(baseMap)) {
+    const variantData = variants.map(({sku, size}) => ({
+      sku, size,
+      qtyByWh: warehouseData.map(d => d.items[sku]||0)
+    }));
+    variantData.sort((a,b) => {
+      const ai=sizeOrder.indexOf((a.size||'').toLowerCase());
+      const bi=sizeOrder.indexOf((b.size||'').toLowerCase());
+      if(ai<0&&bi<0) return (a.size||'').localeCompare(b.size||'');
+      if(ai<0) return 1; if(bi<0) return -1; return ai-bi;
+    });
+    const totalByWh = warehouseData.map((_,i) => variants.reduce((s,v)=>s+(warehouseData[i].items[v.sku]||0),0));
+    const presentCount = totalByWh.filter(q=>q>0).length;
+    products.push({
+      base, variants: variantData, totalByWh, presentCount,
+      hasMulti: variants.length > 1 && variants.some(v=>v.size!==null)
+    });
+  }
+  products.sort((a,b) => a.presentCount-b.presentCount || a.base.localeCompare(b.base));
+  return products;
+}
+
+// ─── Render table ─────────────────────────────────────────────────────────────
+function renderTable() {
+  const products = buildDataset();
+  const outer = document.getElementById('table-outer');
+  if (!products||!products.length) {
+    outer.innerHTML='<div class="empty"><div class="empty-icon">📦</div><div class="empty-title">Нет данных</div></div>';
+    return;
+  }
+  document.getElementById('stats-row').style.display='flex';
+  document.getElementById('controls').style.display='flex';
+
+  let filtered = products;
+  if (currentFilter!=='all') filtered=filtered.filter(p=>p.presentCount===+currentFilter);
+  if (currentSearch) { const q=currentSearch.toLowerCase(); filtered=filtered.filter(p=>p.base.toLowerCase().includes(q)); }
+
+  document.getElementById('st1').textContent=products.filter(p=>p.presentCount===1).length;
+  document.getElementById('st2').textContent=products.filter(p=>p.presentCount===2).length;
+  document.getElementById('st3').textContent=products.filter(p=>p.presentCount===3).length;
+  document.getElementById('stTotal').textContent=products.length;
+
+  let html = `<table><thead><tr>
+    <th>Название</th>
+    ${warehouseData.map((_,i)=>`<th class="wh-h" style="color:${WH_COLORS[i]}">${warehouseData[i].name}</th>`).join('')}
+  </tr></thead><tbody>`;
+
+  const sections={1:'⚡ Только на одном складе',2:'✦ На двух складах',3:'● На всех складах'};
+  let lastSec=-1;
+
+  for (const [pidx, p] of filtered.entries()) {
+    if (p.presentCount!==lastSec) {
+      lastSec=p.presentCount;
+      html+=`<tr class="section-row"><td colspan="${1+warehouseData.length}">${sections[p.presentCount]||''}</td></tr>`;
+    }
+    const rid='p'+pidx;
+    html+=`<tr class="prod-row" id="${rid}">
+      <td>
+        <span class="prod-name">${p.base}</span>
+        ${p.hasMulti?`<span class="size-toggle" id="${rid}-tog" data-rid="${rid}">▸ размеры</span>`:''}
+      </td>`;
+    for (let wi=0;wi<warehouseData.length;wi++) {
+      const qty=p.totalByWh[wi];
+      let cls,disp;
+      if(qty===0){
+        const elsewhere=p.totalByWh.some((q,j)=>j!==wi&&q>0);
+        cls=elsewhere?'q-miss':'q-zero'; disp=elsewhere?'—':'';
+      } else {
+        cls=p.presentCount===1?'q-excl':p.presentCount===2?'q-part':'q-full'; disp=qty;
+      }
+      html+=`<td class="qty-cell"><span class="qty-badge ${cls}">${disp}</span></td>`;
+    }
+    html+=`</tr>`;
+    if (p.hasMulti) {
+      for (const v of p.variants) {
+        const szPresent=warehouseData.filter((_,i)=>(v.qtyByWh[i]||0)>0).length;
+        html+=`<tr class="size-row" data-g="${rid}" style="display:none">
+          <td><span class="sz-label">↳ ${v.size||'—'}</span></td>`;
+        for (let wi=0;wi<warehouseData.length;wi++) {
+          const qty=v.qtyByWh[wi]||0;
+          let cls,disp;
+          if(qty===0){
+            const el=v.qtyByWh.some((q,j)=>j!==wi&&(q||0)>0);
+            cls=el?'q-miss':'q-zero'; disp=el?'—':'';
+          } else {
+            cls=szPresent===1?'q-excl':szPresent===2?'q-part':'q-full'; disp=qty;
+          }
+          html+=`<td class="qty-cell"><span class="qty-badge ${cls}" style="font-size:11px;height:22px;min-width:30px">${disp}</span></td>`;
+        }
+        html+=`</tr>`;
+      }
+    }
+  }
+  html+='</tbody></table>';
+  outer.innerHTML=html;
+}
+
+// ─── Toggle sizes (event delegation) ─────────────────────────────────────────
+document.addEventListener('click', e => {
+  const tog = e.target.closest('.size-toggle');
+  if (!tog) return;
+  const rid = tog.dataset.rid;
+  const rows = document.querySelectorAll(`tr[data-g="${rid}"]`);
+  const open = rows.length && rows[0].style.display!=='none';
+  rows.forEach(r => r.style.display=open?'none':'table-row');
+  tog.textContent=open?'▸ размеры':'▾ размеры';
+});
+
+// ─── Filter / search ──────────────────────────────────────────────────────────
+function setFilter(f,btn){
+  currentFilter=f;
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderTable();
+}
+function setSearch(q){ currentSearch=q; renderTable(); }
+
+// ─── Drag & drop ──────────────────────────────────────────────────────────────
+const dz = document.getElementById('drop-zone');
+dz.addEventListener('dragover', e=>{ e.preventDefault(); dz.classList.add('drag-over'); });
+dz.addEventListener('dragleave', ()=>dz.classList.remove('drag-over'));
+dz.addEventListener('drop', e=>{
+  e.preventDefault(); dz.classList.remove('drag-over');
+  handleFiles(e.dataTransfer.files);
+});
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+updateSlots();
 loadHistory();
-
-// Drag & drop support
-document.querySelectorAll('.upload-slot').forEach((slot, idx) => {
-  slot.addEventListener('dragover', e => { e.preventDefault(); slot.classList.add('drag-over'); });
-  slot.addEventListener('dragleave', () => slot.classList.remove('drag-over'));
-  slot.addEventListener('drop', e => {
-    e.preventDefault(); slot.classList.remove('drag-over');
-    const file = e.dataTransfer.files[0];
-    if (!file) return;
-    const inp = slot.querySelector('input[type=file]');
-    // Simulate file input
-    const dt = new DataTransfer(); dt.items.add(file);
-    inp.files = dt.files;
-    loadFile(idx, inp);
-  });
-});
-
-// Add slot label refs
-document.querySelectorAll('.upload-slot').forEach((slot, i) => {
-  slot.querySelector('.slot-label').id = 'slot-label-'+i;
-});
 </script>
 </body>
 </html>
