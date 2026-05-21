@@ -341,12 +341,14 @@ def parse_xls(file_path):
     for i in range(min(15, sheet.nrows)):
         row = [str(sheet.cell_value(i, j)).strip() for j in range(sheet.ncols)]
         for j, val in enumerate(row):
-            if 'на момент' in val.lower() and j+1 < len(row):
+            if 'на момент' in val.lower() and j+1 < len(row) and not date_str:
                 date_str = row[j+1]
-            if 'на момент:' in val.lower():
+            if 'на момент:' in val.lower() and not date_str:
                 parts = val.split(':', 1)
                 if len(parts) > 1 and parts[1].strip():
                     date_str = parts[1].strip()
+            if 'отчет создан' in val.lower() and j+1 < len(row) and not date_str:
+                date_str = row[j+1]  # e.g. "05/21/2026 18:22:17"
         if any('аименование' in v for v in row):
             header_row = i
             for j, v in enumerate(row):
@@ -357,8 +359,14 @@ def parse_xls(file_path):
         raise ValueError("Не найдена дата в файле")
     if header_row is None or name_col is None or stock_col is None:
         raise ValueError("Не найдена таблица с остатками")
-    import pandas as pd
-    report_date = pd.to_datetime(date_str.split()[0], dayfirst=True).normalize()
+    import pandas as pd, re as _re_xls
+    raw_date = date_str.split()[0] if date_str else ""
+    # Handle MM/DD/YYYY (e.g. "05/21/2026")
+    m_mdy = _re_xls.match(r"(\d{1,2})/(\d{1,2})/(\d{4})", raw_date)
+    if m_mdy:
+        report_date = pd.Timestamp(f"{m_mdy.group(3)}-{m_mdy.group(1).zfill(2)}-{m_mdy.group(2).zfill(2)}")
+    else:
+        report_date = pd.to_datetime(raw_date, dayfirst=True)
     rows = []
     for i in range(header_row + 1, sheet.nrows):
         name = str(sheet.cell_value(i, name_col)).strip()
@@ -611,144 +619,6 @@ def serve_turnover():
         return FileResponse("turnover.html", media_type="text/html")
     return FileResponse("index.html", media_type="text/html")
 
-@app.get("/transfers")
-def serve_transfers():
-    if os.path.exists("transfers.html"):
-        return FileResponse("transfers.html", media_type="text/html")
-    return FileResponse("index.html", media_type="text/html")
-
-@app.post("/api/parse-stock")
-async def parse_stock_file(file: UploadFile = File(...)):
-    """Parse XLS/CSV stock report, return {warehouse, items, report_date}"""
-    import csv, io, re as _re2
-    raw = await file.read()
-    ext = (file.filename or "").rsplit(".", 1)[-1].lower()
-
-    rows = []
-    if ext in ("xls", "xlsx"):
-        try:
-            import xlrd
-            wb = xlrd.open_workbook(file_contents=raw)
-            ws = wb.sheet_by_index(0)
-            for i in range(ws.nrows):
-                rows.append([str(ws.cell_value(i, j)).strip() for j in range(ws.ncols)])
-        except Exception:
-            try:
-                import openpyxl
-                wb = openpyxl.load_workbook(io.BytesIO(raw), data_only=True)
-                ws = wb.active
-                for row in ws.iter_rows(values_only=True):
-                    rows.append([str(c).strip() if c is not None else "" for c in row])
-            except Exception as e:
-                raise HTTPException(status_code=400, detail=f"Не удалось прочитать файл: {e}")
-    else:
-        for enc in ("utf-8", "cp1251", "latin-1"):
-            try:
-                rows = list(csv.reader(io.StringIO(raw.decode(enc))))
-                break
-            except Exception:
-                continue
-        if not rows:
-            raise HTTPException(status_code=400, detail="Не удалось декодировать CSV")
-
-    warehouse = None
-    report_date = None
-    for row in rows:
-        for i, cell in enumerate(row):
-            if cell.strip() == "склад:" and i + 1 < len(row) and not warehouse:
-                warehouse = row[i + 1].strip()
-            if "отчет создан" in cell.lower() and i + 1 < len(row) and not report_date:
-                m = _re2.search(r"(\d{2})/(\d{2})/(\d{4})", row[i + 1])
-                if m:
-                    report_date = f"{m.group(3)}-{m.group(1)}-{m.group(2)}"
-                else:
-                    m2 = _re2.search(r"(\d{2})\.(\d{2})\.(\d{4})", row[i + 1])
-                    if m2:
-                        report_date = f"{m2.group(3)}-{m2.group(2)}-{m2.group(1)}"
-
-    header_idx = name_col = qty_col = None
-    for i, row in enumerate(rows):
-        if "Наименование" in row:
-            header_idx = i
-            name_col = row.index("Наименование")
-            qty_col = next((j for j, c in enumerate(row) if c.strip() == "Остаток"), None)
-            break
-
-    if header_idx is None:
-        raise HTTPException(status_code=400, detail="Не найдена колонка 'Наименование'")
-
-    items = {}
-    for row in rows[header_idx + 1:]:
-        if len(row) <= name_col: continue
-        name = row[name_col].strip()
-        if not name: continue
-        if qty_col is None or qty_col >= len(row): continue
-        try:
-            qty = float(row[qty_col].replace(",", ".").replace(" ", "").strip())
-        except Exception:
-            continue
-        if qty > 0:
-            items[name] = items.get(name, 0) + int(qty)
-
-    return {"warehouse": warehouse or "Склад", "items": items, "report_date": report_date}
-
-@app.post("/api/transfers/save")
-async def save_transfers_snapshot(payload: dict):
-    import json as _json
-    report_date = payload.get("report_date")
-    if not report_date:
-        raise HTTPException(status_code=400, detail="report_date required")
-    conn = get_db()
-    try:
-        conn.execute(
-            "INSERT OR REPLACE INTO transfers_snapshots (report_date, saved_at, warehouses, data) VALUES (?,?,?,?)",
-            (report_date, datetime.now().isoformat()[:19],
-             _json.dumps(payload.get("warehouses", []), ensure_ascii=False),
-             _json.dumps(payload.get("data", {}), ensure_ascii=False, separators=(",", ":")))
-        )
-        conn.commit()
-        return {"ok": True, "report_date": report_date}
-    finally:
-        conn.close()
-
-@app.get("/api/transfers/list")
-def list_transfers_snapshots():
-    import json as _json
-    conn = get_db()
-    try:
-        rows = conn.execute(
-            "SELECT report_date, saved_at, warehouses FROM transfers_snapshots ORDER BY report_date DESC"
-        ).fetchall()
-        return [{"report_date": r[0], "saved_at": r[1], "warehouses": _json.loads(r[2])} for r in rows]
-    finally:
-        conn.close()
-
-@app.get("/api/transfers/{report_date}")
-def get_transfers_snapshot(report_date: str):
-    import json as _json
-    conn = get_db()
-    try:
-        row = conn.execute(
-            "SELECT report_date, saved_at, warehouses, data FROM transfers_snapshots WHERE report_date=?",
-            (report_date,)
-        ).fetchone()
-        if not row:
-            raise HTTPException(status_code=404, detail="Not found")
-        return {"report_date": row[0], "saved_at": row[1],
-                "warehouses": _json.loads(row[2]), "data": _json.loads(row[3])}
-    finally:
-        conn.close()
-
-@app.delete("/api/transfers/{report_date}")
-def delete_transfers_snapshot(report_date: str):
-    conn = get_db()
-    try:
-        conn.execute("DELETE FROM transfers_snapshots WHERE report_date=?", (report_date,))
-        conn.commit()
-        return {"ok": True}
-    finally:
-        conn.close()
-
 @app.get("/api/analytics-data")
 def get_analytics_data():
     """Serve pre-built analytics JSON from disk. If missing, build it first."""
@@ -960,6 +830,138 @@ def get_turnover_data():
     if os.path.exists(TURNOVER_JSON_PATH):
         return FileResponse(TURNOVER_JSON_PATH, media_type="application/json")
     return {"dates": [], "skus": {}}
+
+@app.get("/transfers")
+def serve_transfers():
+    if os.path.exists("transfers.html"):
+        return FileResponse("transfers.html", media_type="text/html")
+    return FileResponse("index.html", media_type="text/html")
+
+@app.post("/api/parse-stock")
+async def parse_stock_file(file: UploadFile = File(...)):
+    """Parse XLS/CSV stock report using existing parse_xls logic + CSV fallback."""
+    import csv, io, re as _re2, tempfile as _tmp
+    raw = await file.read()
+    fname = (file.filename or "").lower()
+    ext = fname.rsplit(".", 1)[-1] if "." in fname else ""
+
+    warehouse = None
+    report_date = None
+    items = {}
+
+    if ext in ("xls", "xlsx"):
+        # Save to temp file and use existing parse_xls (which already handles xlrd)
+        with _tmp.NamedTemporaryFile(suffix="."+ext, delete=False) as tf:
+            tf.write(raw); tmp_path = tf.name
+        try:
+            # parse_xls returns (date_str, rows) where rows = [{sku_name, stock_qty}]
+            date_str, rows = parse_xls(tmp_path)
+            report_date = date_str  # already "YYYY-MM-DD"
+            # Also extract warehouse name directly from xlrd
+            import xlrd as _xlrd
+            book = _xlrd.open_workbook(tmp_path)
+            sheet = book.sheet_by_index(0)
+            for i in range(min(20, sheet.nrows)):
+                row_vals = [str(sheet.cell_value(i, j)).strip() for j in range(sheet.ncols)]
+                for j, val in enumerate(row_vals):
+                    if val == "склад:" and j+1 < len(row_vals):
+                        warehouse = row_vals[j+1].strip()
+                        break
+                if warehouse: break
+            for r in rows:
+                if r["stock_qty"] > 0:
+                    items[r["sku_name"]] = items.get(r["sku_name"], 0) + int(r["stock_qty"])
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Ошибка чтения XLS: {e}")
+        finally:
+            if os.path.exists(tmp_path): os.unlink(tmp_path)
+    else:
+        # CSV path
+        text = None
+        for enc in ("utf-8", "cp1251", "latin-1"):
+            try: text = raw.decode(enc); break
+            except: continue
+        if not text:
+            raise HTTPException(status_code=400, detail="Не удалось декодировать CSV")
+        all_rows = list(csv.reader(io.StringIO(text)))
+        for row in all_rows:
+            for i, cell in enumerate(row):
+                if cell.strip() == "склад:" and i+1 < len(row) and not warehouse:
+                    warehouse = row[i+1].strip()
+                if "отчет создан" in cell.lower() and i+1 < len(row) and not report_date:
+                    m = _re2.search(r"(\d{2})/(\d{2})/(\d{4})", row[i+1])
+                    if m: report_date = f"{m.group(3)}-{m.group(1)}-{m.group(2)}"
+                    else:
+                        m2 = _re2.search(r"(\d{2})\.(\d{2})\.(\d{4})", row[i+1])
+                        if m2: report_date = f"{m2.group(3)}-{m2.group(2)}-{m2.group(1)}"
+        header_idx = name_col = qty_col = None
+        for i, row in enumerate(all_rows):
+            if "Наименование" in row:
+                header_idx = i
+                name_col = row.index("Наименование")
+                qty_col = next((j for j,c in enumerate(row) if c.strip()=="Остаток"), None)
+                break
+        if header_idx is None:
+            raise HTTPException(status_code=400, detail="Не найдена колонка Наименование")
+        for row in all_rows[header_idx+1:]:
+            if len(row) <= name_col: continue
+            name = row[name_col].strip()
+            if not name: continue
+            if qty_col is None or qty_col >= len(row): continue
+            try: qty = float(row[qty_col].replace(",", ".").replace("\xa0", "").strip())
+            except: continue
+            if qty > 0: items[name] = items.get(name, 0) + int(qty)
+
+    return {"warehouse": warehouse or "Склад", "items": items, "report_date": report_date}
+
+@app.post("/api/transfers/save")
+async def save_transfers_snapshot(payload: dict):
+    import json as _json
+    report_date = payload.get("report_date")
+    if not report_date:
+        raise HTTPException(status_code=400, detail="report_date required")
+    conn = get_db()
+    try:
+        conn.execute(
+            "INSERT OR REPLACE INTO transfers_snapshots (report_date, saved_at, warehouses, data) VALUES (?,?,?,?)",
+            (report_date, datetime.now().isoformat()[:19],
+             _json.dumps(payload.get("warehouses", []), ensure_ascii=False),
+             _json.dumps(payload.get("data", {}), ensure_ascii=False, separators=(",", ":"))))
+        conn.commit()
+        return {"ok": True, "report_date": report_date}
+    finally: conn.close()
+
+@app.get("/api/transfers/list")
+def list_transfers_snapshots():
+    import json as _json
+    conn = get_db()
+    try:
+        rows = conn.execute(
+            "SELECT report_date, saved_at, warehouses FROM transfers_snapshots ORDER BY report_date DESC"
+        ).fetchall()
+        return [{"report_date": r[0], "saved_at": r[1], "warehouses": _json.loads(r[2])} for r in rows]
+    finally: conn.close()
+
+@app.get("/api/transfers/{report_date}")
+def get_transfers_snapshot(report_date: str):
+    import json as _json
+    conn = get_db()
+    try:
+        row = conn.execute(
+            "SELECT report_date, saved_at, warehouses, data FROM transfers_snapshots WHERE report_date=?",
+            (report_date,)).fetchone()
+        if not row: raise HTTPException(status_code=404, detail="Not found")
+        return {"report_date": row[0], "saved_at": row[1],
+                "warehouses": _json.loads(row[2]), "data": _json.loads(row[3])}
+    finally: conn.close()
+
+@app.delete("/api/transfers/{report_date}")
+def delete_transfers_snapshot(report_date: str):
+    conn = get_db()
+    try:
+        conn.execute("DELETE FROM transfers_snapshots WHERE report_date=?", (report_date,))
+        conn.commit(); return {"ok": True}
+    finally: conn.close()
 
 @app.get("/{full_path:path}")
 def serve_frontend(full_path: str):
