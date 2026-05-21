@@ -604,6 +604,12 @@ def serve_turnover():
         return FileResponse("turnover.html", media_type="text/html")
     return FileResponse("index.html", media_type="text/html")
 
+@app.get("/transfers")
+def serve_transfers():
+    if os.path.exists("transfers.html"):
+        return FileResponse("transfers.html", media_type="text/html")
+    return FileResponse("index.html", media_type="text/html")
+
 @app.get("/api/analytics-data")
 def get_analytics_data():
     """Serve pre-built analytics JSON from disk. If missing, build it first."""
