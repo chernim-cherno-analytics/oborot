@@ -610,6 +610,85 @@ def serve_transfers():
         return FileResponse("transfers.html", media_type="text/html")
     return FileResponse("index.html", media_type="text/html")
 
+@app.post("/api/parse-stock")
+async def parse_stock_file(file: UploadFile = File(...)):
+    """Parse XLS/CSV stock report, return {warehouse, items: {sku: qty}}"""
+    import csv, io
+    content = await file.read()
+    filename = file.filename or ""
+    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+
+    # XLS/XLSX → parse with xlrd/openpyxl, convert to list of rows
+    rows = []
+    if ext in ("xls", "xlsx"):
+        try:
+            import xlrd
+            wb = xlrd.open_workbook(file_contents=content)
+            ws = wb.sheet_by_index(0)
+            for i in range(ws.nrows):
+                rows.append([str(ws.cell_value(i, j)).strip() for j in range(ws.ncols)])
+        except Exception:
+            try:
+                import openpyxl, io as _io
+                wb = openpyxl.load_workbook(_io.BytesIO(content), data_only=True)
+                ws = wb.active
+                for row in ws.iter_rows(values_only=True):
+                    rows.append([str(c).strip() if c is not None else "" for c in row])
+            except Exception as e:
+                raise HTTPException(status_code=400, detail=f"Не удалось прочитать файл: {e}")
+    else:
+        # CSV — detect encoding
+        for enc in ("utf-8", "cp1251", "latin-1"):
+            try:
+                text = content.decode(enc)
+                reader = csv.reader(io.StringIO(text))
+                rows = [r for r in reader]
+                break
+            except Exception:
+                continue
+        if not rows:
+            raise HTTPException(status_code=400, detail="Не удалось декодировать CSV")
+
+    # Find warehouse name
+    warehouse = None
+    for row in rows:
+        for i, cell in enumerate(row):
+            if cell.strip() == "склад:" and i + 1 < len(row):
+                warehouse = row[i + 1].strip()
+                break
+        if warehouse:
+            break
+
+    # Find header row with "Наименование" and "Остаток"
+    header_idx = name_col = qty_col = None
+    for i, row in enumerate(rows):
+        if "Наименование" in row:
+            header_idx = i
+            name_col = row.index("Наименование")
+            qty_col = next((j for j, c in enumerate(row) if c.strip() == "Остаток"), None)
+            break
+
+    if header_idx is None:
+        raise HTTPException(status_code=400, detail="Не найдена колонка 'Наименование' в файле")
+
+    items = {}
+    for row in rows[header_idx + 1:]:
+        if len(row) <= name_col:
+            continue
+        name = row[name_col].strip()
+        if not name:
+            continue
+        if qty_col is None or qty_col >= len(row):
+            continue
+        try:
+            qty = float(row[qty_col].replace(",", ".").replace("\xa0", "").strip())
+        except Exception:
+            continue
+        if qty > 0:
+            items[name] = items.get(name, 0) + int(qty)
+
+    return {"warehouse": warehouse or "Склад", "items": items}
+
 @app.get("/api/analytics-data")
 def get_analytics_data():
     """Serve pre-built analytics JSON from disk. If missing, build it first."""

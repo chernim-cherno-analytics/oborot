@@ -189,22 +189,22 @@ thead th.wh-header{min-width:90px;text-align:center}
 <div class="upload-section">
   <div class="upload-row" id="upload-row">
     <div class="upload-slot" id="slot-0">
-      <input type="file" accept=".csv,.xls,.xlsx" onchange="loadFile(0, this)"/>
+      <input type="file" accept=".xls,.xlsx,.csv" onchange="loadFile(0, this)"/>
       <span class="slot-label">Склад 1</span>
       <span class="slot-name" id="slot-name-0">Загрузить отчёт остатков</span>
-      <span class="slot-sub" id="slot-sub-0">CSV / XLS файл</span>
+      <span class="slot-sub" id="slot-sub-0">XLS / CSV файл</span>
     </div>
     <div class="upload-slot" id="slot-1">
-      <input type="file" accept=".csv,.xls,.xlsx" onchange="loadFile(1, this)"/>
+      <input type="file" accept=".xls,.xlsx,.csv" onchange="loadFile(1, this)"/>
       <span class="slot-label">Склад 2</span>
       <span class="slot-name" id="slot-name-1">Загрузить отчёт остатков</span>
-      <span class="slot-sub" id="slot-sub-1">CSV / XLS файл</span>
+      <span class="slot-sub" id="slot-sub-1">XLS / CSV файл</span>
     </div>
     <div class="upload-slot" id="slot-2">
-      <input type="file" accept=".csv,.xls,.xlsx" onchange="loadFile(2, this)"/>
+      <input type="file" accept=".xls,.xlsx,.csv" onchange="loadFile(2, this)"/>
       <span class="slot-label">Склад 3</span>
       <span class="slot-name" id="slot-name-2">Загрузить отчёт остатков</span>
-      <span class="slot-sub" id="slot-sub-2">CSV / XLS файл</span>
+      <span class="slot-sub" id="slot-sub-2">XLS / CSV файл</span>
     </div>
   </div>
 </div>
@@ -255,94 +255,44 @@ let currentSearch = '';
 const WH_COLORS = ['#60a5fa','#f472b6','#34d399'];
 const WH_NAMES_DEFAULT = ['Склад 1','Склад 2','Склад 3'];
 
-// ─── CSV Parser ───────────────────────────────────────────────────────────────
-function parseStockCSV(text) {
-  const lines = text.split(/\r?\n/);
-  let warehouse = null;
-  let headerIdx = -1;
-  let nameCol = -1, qtyCol = -1;
-  const items = {};
-
-  // Find warehouse name
-  for (const line of lines) {
-    const cells = parseCSVLine(line);
-    for (let i = 0; i < cells.length - 1; i++) {
-      if (cells[i].trim() === 'склад:') {
-        warehouse = cells[i+1].trim();
-        break;
-      }
-    }
-    if (warehouse) break;
-  }
-
-  // Find header row
-  for (let i = 0; i < lines.length; i++) {
-    const cells = parseCSVLine(lines[i]);
-    if (cells.includes('Наименование')) {
-      headerIdx = i;
-      nameCol = cells.indexOf('Наименование');
-      qtyCol = cells.findIndex(c => c.trim() === 'Остаток');
-      break;
-    }
-  }
-
-  if (headerIdx === -1) return { name: warehouse || 'Неизвестно', items: {} };
-
-  for (let i = headerIdx + 1; i < lines.length; i++) {
-    const cells = parseCSVLine(lines[i]);
-    if (cells.length <= nameCol) continue;
-    const name = cells[nameCol].trim();
-    if (!name) continue;
-    // Skip category rows (e.g. "Accessories/Jewelry")
-    if (qtyCol < 0 || qtyCol >= cells.length) continue;
-    const qtyRaw = cells[qtyCol].replace(',', '.').trim();
-    const qty = parseFloat(qtyRaw);
-    if (isNaN(qty) || qty <= 0) continue;
-    items[name] = (items[name] || 0) + Math.round(qty);
-  }
-
-  return { name: warehouse || 'Склад', items };
-}
-
-function parseCSVLine(line) {
-  const result = [];
-  let cur = '';
-  let inQ = false;
-  for (let i = 0; i < line.length; i++) {
-    const c = line[i];
-    if (c === '"') {
-      if (inQ && line[i+1] === '"') { cur += '"'; i++; }
-      else inQ = !inQ;
-    } else if (c === ',' && !inQ) {
-      result.push(cur); cur = '';
-    } else {
-      cur += c;
-    }
-  }
-  result.push(cur);
-  return result;
-}
-
-// ─── File loading ─────────────────────────────────────────────────────────────
-function loadFile(slotIdx, input) {
+// ─── File loading — via server API ───────────────────────────────────────────
+async function loadFile(slotIdx, input) {
   const file = input.files[0];
   if (!file) return;
-  const reader = new FileReader();
-  reader.onload = e => {
-    const text = e.target.result;
-    const data = parseStockCSV(text);
-    warehouseData[slotIdx] = data;
-    // Update slot UI
-    const slot = document.getElementById('slot-'+slotIdx);
+
+  const slot = document.getElementById('slot-'+slotIdx);
+  const nameEl = document.getElementById('slot-name-'+slotIdx);
+  const subEl = document.getElementById('slot-sub-'+slotIdx);
+
+  nameEl.textContent = 'Загружаю...';
+  subEl.textContent = file.name;
+  slot.style.opacity = '0.7';
+
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    const resp = await fetch('/api/parse-stock', { method: 'POST', body: formData });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      throw new Error(err.detail || resp.statusText);
+    }
+    const data = await resp.json();
+    // data = { warehouse: "Гороховая", items: {"Майка (S)": 5, ...} }
+    warehouseData[slotIdx] = { name: data.warehouse, items: data.items };
+
     slot.classList.add('loaded');
-    document.getElementById('slot-name-'+slotIdx).textContent = data.name;
-    document.getElementById('slot-sub-'+slotIdx).textContent =
-      Object.keys(data.items).length + ' позиций';
+    slot.style.opacity = '1';
+    nameEl.textContent = data.warehouse;
+    subEl.textContent = Object.keys(data.items).length + ' позиций';
     document.getElementById('slot-label-'+slotIdx).style.color = WH_COLORS[slotIdx];
-    // Render if we have at least 1 warehouse
+
     if (warehouseData.some(d => d !== null)) render();
-  };
-  reader.readAsText(file, 'utf-8');
+  } catch(e) {
+    slot.style.opacity = '1';
+    nameEl.textContent = 'Ошибка загрузки';
+    subEl.textContent = String(e.message || e);
+    console.error('parse-stock error:', e);
+  }
 }
 
 // ─── Strip size ───────────────────────────────────────────────────────────────
