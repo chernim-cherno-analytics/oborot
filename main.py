@@ -57,8 +57,8 @@ def init_db():
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         date TEXT NOT NULL, sku_name TEXT NOT NULL,
         qty REAL NOT NULL DEFAULT 0, revenue REAL NOT NULL DEFAULT 0,
-        doc_type TEXT DEFAULT 'sale',
-        UNIQUE(date, sku_name, doc_type))""")
+        doc_type TEXT DEFAULT 'sale', row_id TEXT NOT NULL DEFAULT '',
+        UNIQUE(row_id))""")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_sales_date ON sales_data(date)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_sales_sku ON sales_data(sku_name)")
     conn.execute("""CREATE TABLE IF NOT EXISTS sku_costs (
@@ -573,15 +573,34 @@ async def upload_sales(file: UploadFile = File(...)):
     df["Сумма"] = pd.to_numeric(df["Сумма"], errors="coerce").fillna(0)
 
     conn = get_db()
+
+    # Migrate old schema if row_id column missing
+    cols = [r[1] for r in conn.execute("PRAGMA table_info(sales_data)").fetchall()]
+    if 'row_id' not in cols:
+        conn.execute("ALTER TABLE sales_data ADD COLUMN row_id TEXT NOT NULL DEFAULT ''")
+        conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_sales_row_id ON sales_data(row_id) WHERE row_id != ''")
+        conn.commit()
+
     inserted = 0
     for _, row in df.iterrows():
         try:
-            before = conn.total_changes
-            conn.execute(
-                "INSERT OR REPLACE INTO sales_data (date, sku_name, qty, revenue, doc_type) VALUES (?,?,?,?,?)",
-                (str(row["Дата"]), str(row["Наименование"]).strip(), float(row["Количество"]), float(row["Сумма"]), doc_type)
-            )
-            if conn.total_changes > before: inserted += 1
+            row_id = str(row.get("ID", "")).strip()
+            # Use CSV row ID as unique key so multiple sales on same date+sku are preserved
+            if row_id:
+                conn.execute(
+                    "INSERT OR IGNORE INTO sales_data (date, sku_name, qty, revenue, doc_type, row_id) VALUES (?,?,?,?,?,?)",
+                    (str(row["Дата"]), str(row["Наименование"]).strip(),
+                     float(row["Количество"]), float(row["Сумма"]), doc_type, row_id)
+                )
+            else:
+                # Fallback for rows without ID: use old behaviour
+                conn.execute(
+                    "INSERT OR IGNORE INTO sales_data (date, sku_name, qty, revenue, doc_type, row_id) VALUES (?,?,?,?,?,?)",
+                    (str(row["Дата"]), str(row["Наименование"]).strip(),
+                     float(row["Количество"]), float(row["Сумма"]), doc_type,
+                     f"{doc_type}_{row['Дата']}_{str(row['Наименование']).strip()}")
+                )
+            inserted += 1
         except: pass
     conn.commit()
     date_from = str(df["Дата"].min())
@@ -989,7 +1008,7 @@ def serve_revenue():
 
 @app.get("/api/revenue-data")
 def get_revenue_data():
-    """Return gross sales, returns and net per SKU (base name, aggregated across sizes)."""
+    """Return gross sales and returns per SKU base name, with per-size breakdown."""
     conn = get_db()
     rows = conn.execute("""
         SELECT sku_name,
@@ -1010,7 +1029,6 @@ def get_revenue_data():
         skus[base]["sale_rev"] += r["sale_rev"] or 0
         skus[base]["ret_qty"]  += r["ret_qty"]  or 0
         skus[base]["ret_rev"]  += r["ret_rev"]  or 0
-        # per-size breakdown (only if sku_name differs from base)
         if r["sku_name"] != base:
             skus[base]["sizes"][r["sku_name"]] = {
                 "sale_qty": r["sale_qty"] or 0,
