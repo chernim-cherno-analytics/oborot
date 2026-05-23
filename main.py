@@ -57,8 +57,8 @@ def init_db():
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         date TEXT NOT NULL, sku_name TEXT NOT NULL,
         qty REAL NOT NULL DEFAULT 0, revenue REAL NOT NULL DEFAULT 0,
-        doc_type TEXT DEFAULT 'sale', row_id TEXT NOT NULL DEFAULT '',
-        UNIQUE(row_id))""")
+        doc_type TEXT DEFAULT 'sale',
+        UNIQUE(date, sku_name, doc_type))""")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_sales_date ON sales_data(date)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_sales_sku ON sales_data(sku_name)")
     conn.execute("""CREATE TABLE IF NOT EXISTS sku_costs (
@@ -573,34 +573,15 @@ async def upload_sales(file: UploadFile = File(...)):
     df["Сумма"] = pd.to_numeric(df["Сумма"], errors="coerce").fillna(0)
 
     conn = get_db()
-
-    # Migrate old schema if row_id column missing
-    cols = [r[1] for r in conn.execute("PRAGMA table_info(sales_data)").fetchall()]
-    if 'row_id' not in cols:
-        conn.execute("ALTER TABLE sales_data ADD COLUMN row_id TEXT NOT NULL DEFAULT ''")
-        conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_sales_row_id ON sales_data(row_id) WHERE row_id != ''")
-        conn.commit()
-
     inserted = 0
     for _, row in df.iterrows():
         try:
-            row_id = str(row.get("ID", "")).strip()
-            # Use CSV row ID as unique key so multiple sales on same date+sku are preserved
-            if row_id:
-                conn.execute(
-                    "INSERT OR IGNORE INTO sales_data (date, sku_name, qty, revenue, doc_type, row_id) VALUES (?,?,?,?,?,?)",
-                    (str(row["Дата"]), str(row["Наименование"]).strip(),
-                     float(row["Количество"]), float(row["Сумма"]), doc_type, row_id)
-                )
-            else:
-                # Fallback for rows without ID: use old behaviour
-                conn.execute(
-                    "INSERT OR IGNORE INTO sales_data (date, sku_name, qty, revenue, doc_type, row_id) VALUES (?,?,?,?,?,?)",
-                    (str(row["Дата"]), str(row["Наименование"]).strip(),
-                     float(row["Количество"]), float(row["Сумма"]), doc_type,
-                     f"{doc_type}_{row['Дата']}_{str(row['Наименование']).strip()}")
-                )
-            inserted += 1
+            before = conn.total_changes
+            conn.execute(
+                "INSERT OR REPLACE INTO sales_data (date, sku_name, qty, revenue, doc_type) VALUES (?,?,?,?,?)",
+                (str(row["Дата"]), str(row["Наименование"]).strip(), float(row["Количество"]), float(row["Сумма"]), doc_type)
+            )
+            if conn.total_changes > before: inserted += 1
         except: pass
     conn.commit()
     date_from = str(df["Дата"].min())
@@ -1000,43 +981,16 @@ def del_transfers(report_date: str):
         conn.execute("DELETE FROM transfers_snapshots WHERE report_date=?",(report_date,)); conn.commit(); return {"ok":True}
     finally: conn.close()
 
-@app.get("/revenue")
-def serve_revenue():
-    if os.path.exists("revenue.html"):
-        return FileResponse("revenue.html", media_type="text/html")
-    return FileResponse("index.html", media_type="text/html")
 
-@app.get("/api/revenue-data")
-def get_revenue_data():
-    """Return gross sales and returns per SKU base name, with per-size breakdown."""
+@app.post("/api/admin/clear-sales")
+def clear_sales_data():
+    """Delete all sales_data rows so CSVs can be re-uploaded cleanly."""
     conn = get_db()
-    rows = conn.execute("""
-        SELECT sku_name,
-            SUM(CASE WHEN doc_type='sale'   THEN qty     ELSE 0 END) as sale_qty,
-            SUM(CASE WHEN doc_type='sale'   THEN revenue ELSE 0 END) as sale_rev,
-            SUM(CASE WHEN doc_type='return' THEN qty     ELSE 0 END) as ret_qty,
-            SUM(CASE WHEN doc_type='return' THEN revenue ELSE 0 END) as ret_rev
-        FROM sales_data
-        GROUP BY sku_name
-    """).fetchall()
-    conn.close()
-    skus = {}
-    for r in rows:
-        base = _strip_size(r["sku_name"])
-        if base not in skus:
-            skus[base] = {"sale_qty": 0, "sale_rev": 0, "ret_qty": 0, "ret_rev": 0, "sizes": {}}
-        skus[base]["sale_qty"] += r["sale_qty"] or 0
-        skus[base]["sale_rev"] += r["sale_rev"] or 0
-        skus[base]["ret_qty"]  += r["ret_qty"]  or 0
-        skus[base]["ret_rev"]  += r["ret_rev"]  or 0
-        if r["sku_name"] != base:
-            skus[base]["sizes"][r["sku_name"]] = {
-                "sale_qty": r["sale_qty"] or 0,
-                "sale_rev": r["sale_rev"] or 0,
-                "ret_qty":  r["ret_qty"]  or 0,
-                "ret_rev":  r["ret_rev"]  or 0,
-            }
-    return skus
+    old = conn.execute("SELECT COUNT(*) as c FROM sales_data WHERE row_id = ''").fetchone()["c"]
+    all_ = conn.execute("SELECT COUNT(*) as c FROM sales_data").fetchone()["c"]
+    conn.execute("DELETE FROM sales_data")
+    conn.commit(); conn.close()
+    return {"deleted": all_, "old_schema_rows": old, "message": "Залейте CSV заново."}
 
 @app.get("/{full_path:path}")
 def serve_frontend(full_path: str):
