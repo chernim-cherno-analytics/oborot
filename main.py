@@ -57,8 +57,8 @@ def init_db():
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         date TEXT NOT NULL, sku_name TEXT NOT NULL,
         qty REAL NOT NULL DEFAULT 0, revenue REAL NOT NULL DEFAULT 0,
-        doc_type TEXT DEFAULT 'sale',
-        UNIQUE(date, sku_name, doc_type))""")
+        doc_type TEXT DEFAULT 'sale', row_id TEXT NOT NULL DEFAULT '',
+        UNIQUE(row_id))""")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_sales_date ON sales_data(date)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_sales_sku ON sales_data(sku_name)")
     conn.execute("""CREATE TABLE IF NOT EXISTS sku_costs (
@@ -573,15 +573,36 @@ async def upload_sales(file: UploadFile = File(...)):
     df["Сумма"] = pd.to_numeric(df["Сумма"], errors="coerce").fillna(0)
 
     conn = get_db()
+
+    # Migrate old schema if row_id column missing
+    cols = [r[1] for r in conn.execute("PRAGMA table_info(sales_data)").fetchall()]
+    if 'row_id' not in cols:
+        conn.execute("ALTER TABLE sales_data ADD COLUMN row_id TEXT NOT NULL DEFAULT ''")
+        conn.commit()
+
+    # Drop old unique index on (date, sku_name, doc_type) if exists
+    indexes = [r[1] for r in conn.execute("PRAGMA index_list(sales_data)").fetchall()]
+    for idx in indexes:
+        info = conn.execute(f"PRAGMA index_info({idx})").fetchall()
+        cols_in_idx = [r[2] for r in info]
+        if set(cols_in_idx) == {'date', 'sku_name', 'doc_type'}:
+            conn.execute(f"DROP INDEX IF EXISTS {idx}")
+            conn.commit()
+            break
+
     inserted = 0
     for _, row in df.iterrows():
         try:
-            before = conn.total_changes
+            row_id = str(row.get("ID", "")).strip()
+            if not row_id:
+                # fallback: use a hash of date+name+amount to deduplicate
+                row_id = f"{doc_type}|{row['Дата']}|{str(row['Наименование']).strip()}|{float(row['Сумма'])}"
             conn.execute(
-                "INSERT OR REPLACE INTO sales_data (date, sku_name, qty, revenue, doc_type) VALUES (?,?,?,?,?)",
-                (str(row["Дата"]), str(row["Наименование"]).strip(), float(row["Количество"]), float(row["Сумма"]), doc_type)
+                "INSERT OR IGNORE INTO sales_data (date, sku_name, qty, revenue, doc_type, row_id) VALUES (?,?,?,?,?,?)",
+                (str(row["Дата"]), str(row["Наименование"]).strip(),
+                 float(row["Количество"]), float(row["Сумма"]), doc_type, row_id)
             )
-            if conn.total_changes > before: inserted += 1
+            inserted += 1
         except: pass
     conn.commit()
     date_from = str(df["Дата"].min())
