@@ -880,6 +880,44 @@ def serve_transfers():
         return FileResponse("transfers.html", media_type="text/html")
     return FileResponse("index.html", media_type="text/html")
 
+@app.get("/revenue")
+def serve_revenue():
+    if os.path.exists("revenue.html"):
+        return FileResponse("revenue.html", media_type="text/html")
+    return FileResponse("index.html", media_type="text/html")
+
+@app.get("/api/revenue-data")
+def get_revenue_data():
+    """Gross sales and returns per SKU base name, with per-size breakdown."""
+    conn = get_db()
+    rows = conn.execute("""
+        SELECT sku_name,
+            SUM(CASE WHEN doc_type='sale'   THEN qty     ELSE 0 END) as sale_qty,
+            SUM(CASE WHEN doc_type='sale'   THEN revenue ELSE 0 END) as sale_rev,
+            SUM(CASE WHEN doc_type='return' THEN qty     ELSE 0 END) as ret_qty,
+            SUM(CASE WHEN doc_type='return' THEN revenue ELSE 0 END) as ret_rev
+        FROM sales_data
+        GROUP BY sku_name
+    """).fetchall()
+    conn.close()
+    skus = {}
+    for r in rows:
+        base = _strip_size(r["sku_name"])
+        if base not in skus:
+            skus[base] = {"sale_qty": 0, "sale_rev": 0, "ret_qty": 0, "ret_rev": 0, "sizes": {}}
+        skus[base]["sale_qty"] += r["sale_qty"] or 0
+        skus[base]["sale_rev"] += r["sale_rev"] or 0
+        skus[base]["ret_qty"]  += r["ret_qty"]  or 0
+        skus[base]["ret_rev"]  += r["ret_rev"]  or 0
+        if r["sku_name"] != base:
+            skus[base]["sizes"][r["sku_name"]] = {
+                "sale_qty": r["sale_qty"] or 0,
+                "sale_rev": r["sale_rev"] or 0,
+                "ret_qty":  r["ret_qty"]  or 0,
+                "ret_rev":  r["ret_rev"]  or 0,
+            }
+    return skus
+
 @app.post("/api/parse-stock")
 async def parse_stock_file(file: UploadFile = File(...)):
     import csv, io, tempfile as _tmp
