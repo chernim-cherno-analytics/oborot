@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Chernim Cherno · Оборот</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0 }
+    body { font-family: Helvetica, 'Helvetica Neue', Arial, sans-serif; min-height: 100vh; background: #272b08; color: white; }
+
+    .gradient-bg { position: fixed; inset: 0; z-index: 0; overflow: hidden; background: #272b08; }
+    .gradient-bg::before, .gradient-bg::after, .b1, .b2, .b3 {
+      position: absolute; border-radius: 50%; filter: blur(90px); opacity: 0.9;
+    }
+    .gradient-bg::before { content: ''; width: 70vw; height: 70vw;
+      background: radial-gradient(circle, #60886a, transparent 70%);
+      top: -20%; left: -10%; animation: blob1 11s ease-in-out infinite alternate; }
+    .gradient-bg::after { content: ''; width: 60vw; height: 60vw;
+      background: radial-gradient(circle, #79a28e, transparent 70%);
+      bottom: -15%; right: -10%; animation: blob2 14s ease-in-out infinite alternate; }
+    .b1 { width: 55vw; height: 55vw; background: radial-gradient(circle, #466030, transparent 70%);
+      top: 30%; left: 30%; animation: blob3 9s ease-in-out infinite alternate; }
+    .b2 { width: 45vw; height: 45vw; background: radial-gradient(circle, #9ad5c8, transparent 70%);
+      top: -10%; right: 10%; animation: blob4 13s ease-in-out infinite alternate; }
+    .b3 { width: 50vw; height: 50vw; background: radial-gradient(circle, #1a2008, transparent 70%);
+      bottom: 10%; left: 20%; animation: blob5 16s ease-in-out infinite alternate; }
+    .vignette { position: fixed; inset: 0; z-index: 1; pointer-events: none;
+      background: radial-gradient(ellipse at center, transparent 40%, rgba(10,12,4,0.55) 100%); }
+    .grain { position: fixed; inset: 0; z-index: 2; pointer-events: none; }
+    .grain::before { content: ''; position: absolute; inset: -50%; width: 200%; height: 200%;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='grain'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23grain)'/%3E%3C/svg%3E");
+      background-size: 200px 200px; opacity: 0.12; mix-blend-mode: overlay;
+      animation: grain-shift 0.15s steps(1) infinite; }
+    @keyframes grain-shift {
+      0%{transform:translate(0,0)} 10%{transform:translate(-3%,-4%)} 20%{transform:translate(4%,2%)}
+      30%{transform:translate(-2%,5%)} 40%{transform:translate(5%,-3%)} 50%{transform:translate(-4%,4%)}
+      60%{transform:translate(3%,-2%)} 70%{transform:translate(-5%,3%)} 80%{transform:translate(2%,-5%)}
+      90%{transform:translate(-3%,2%)} 100%{transform:translate(4%,-4%)} }
+    @keyframes blob1 { 0%{transform:translate(0,0) scale(1)} 33%{transform:translate(8vw,5vh) scale(1.1)} 66%{transform:translate(-5vw,10vh) scale(0.95)} 100%{transform:translate(10vw,-8vh) scale(1.05)} }
+    @keyframes blob2 { 0%{transform:translate(0,0) scale(1)} 33%{transform:translate(-10vw,-6vh) scale(1.08)} 66%{transform:translate(6vw,-12vh) scale(1.12)} 100%{transform:translate(-8vw,5vh) scale(0.92)} }
+    @keyframes blob3 { 0%{transform:translate(0,0) scale(1)} 50%{transform:translate(-12vw,8vh) scale(1.15)} 100%{transform:translate(8vw,-10vh) scale(0.9)} }
+    @keyframes blob4 { 0%{transform:translate(0,0) scale(0.9)} 50%{transform:translate(10vw,12vh) scale(1.1)} 100%{transform:translate(-6vw,6vh) scale(1)} }
+    @keyframes blob5 { 0%{transform:translate(0,0) scale(1.1)} 50%{transform:translate(14vw,-8vh) scale(0.9)} 100%{transform:translate(-10vw,-12vh) scale(1.05)} }
+
+    .header {
+      position: sticky; top: 0; z-index: 200;
+      padding: 0 28px; height: 56px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .logo { text-decoration: none; display:flex; align-items:center;
+      font-size: 15px; font-weight: 400; letter-spacing: 0.12em; color: rgba(255,255,255,0.88); }
+    .nav { display: flex; gap: 20px }
+    .nav a {
+      font-size: 13px; font-weight: 400; letter-spacing: 0.05em;
+      color: rgba(255,255,255,0.3); text-decoration: none; transition: color .2s;
+    }
+    .nav a:hover { color: rgba(255,255,255,0.7) }
+    .nav a.active { color: rgba(255,255,255,0.92); font-weight: 500; }
+
+    .cat-bar {
+      position: relative; z-index: 10;
+      padding: 14px 28px; display: flex; gap: 8px; flex-wrap: wrap;
+      border-bottom: 1px solid rgba(255,255,255,0.15);
+      background: rgba(255,255,255,0.05); backdrop-filter: blur(10px);
+    }
+    .cat-btn {
+      font-size: 12px; font-weight: 500; padding: 5px 14px; border-radius: 20px;
+      border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.07);
+      color: rgba(255,255,255,0.6); cursor: pointer; transition: all .15s; white-space: nowrap;
+    }
+    .cat-btn:hover { background: rgba(255,255,255,0.15); color: white }
+    .cat-btn.active { background: rgba(255,255,255,0.2); color: white; border-color: rgba(255,255,255,0.4) }
+    .cat-btn .cnt { font-size: 10px; opacity: 0.6; margin-left: 3px }
+
+    .main { padding: 20px 28px; max-width: 1600px; margin: 0 auto; position: relative; z-index: 3; }
+
+    .summary-row { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+    .sum-card {
+      background: rgba(255,255,255,0.06); backdrop-filter: blur(12px);
+      border: 1px solid rgba(255,255,255,0.12); border-radius: 10px;
+      padding: 12px 18px; flex: 1; min-width: 140px;
+    }
+    .sum-label { font-size: 10px; font-weight: 600; color: rgba(255,255,255,0.35); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 4px }
+    .sum-value { font-size: 20px; font-weight: 700; color: rgba(255,255,255,0.9) }
+    .sum-sub { font-size: 11px; color: rgba(255,255,255,0.35); margin-top: 2px }
+
+    .table-outer {
+      background: rgba(255,255,255,0.05); backdrop-filter: blur(16px);
+      border: 1px solid rgba(255,255,255,0.12); border-radius: 12px;
+      overflow: auto; max-height: calc(100vh - 240px);
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 780px; }
+    thead th {
+      background: rgba(30,38,18,0.88); backdrop-filter: blur(16px);
+      padding: 10px 12px; text-align: right;
+      font-size: 10px; font-weight: 500; color: rgba(255,255,255,0.45);
+      letter-spacing: 0.07em; text-transform: uppercase;
+      white-space: nowrap; position: sticky; top: 0; z-index: 10;
+      border-bottom: 1px solid rgba(255,255,255,0.12);
+      cursor: pointer; user-select: none; transition: color .15s;
+    }
+    thead th:hover { color: rgba(255,255,255,0.75) }
+    thead th.sorted { color: rgba(255,255,255,0.9) }
+    thead th.sorted::after { content: ' ↓'; font-size: 9px; }
+    thead th:first-child { text-align: left; padding-left: 14px; min-width: 220px; cursor: default }
+    thead th:first-child::after { content: '' !important }
+    .sub-th { font-size: 9px; font-weight: 400; letter-spacing: 0; text-transform: none; opacity: 0.45; display: block; margin-top: 2px; }
+
+    tbody tr.pr td {
+      padding: 8px 12px; border-bottom: 1px solid rgba(255,255,255,0.07);
+      text-align: right; vertical-align: middle; color: rgba(255,255,255,0.85);
+    }
+    tbody tr.pr td:first-child { text-align: left; padding-left: 14px; cursor: pointer; }
+    tbody tr.pr:hover td { background: rgba(255,255,255,0.08) }
+
+    tbody tr.sr td { padding: 5px 12px; border-bottom: 1px solid rgba(255,255,255,0.05); font-size:11px; text-align:right; color: rgba(255,255,255,0.5) }
+    tbody tr.sr td:first-child { padding-left: 32px; color: rgba(255,255,255,0.28); text-align:left; font-style:italic }
+    tbody tr.sr:hover td { background: rgba(255,255,255,0.04) }
+
+    tbody tr.cat-total td {
+      padding: 7px 12px; border-bottom: 2px solid rgba(255,255,255,0.15); border-top: 1px solid rgba(255,255,255,0.1);
+      text-align: right; font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.45);
+      background: rgba(255,255,255,0.03);
+    }
+    tbody tr.cat-total td:first-child { text-align: left; padding-left: 14px; color: rgba(255,255,255,0.3); }
+
+    .pname { font-weight: 500; font-size: 12px; color: rgba(255,255,255,0.9) }
+    .ei { font-size: 9px; margin-right: 5px; color: rgba(255,255,255,0.3); display:inline-block; transition: transform .15s }
+    .ei.open { transform: rotate(90deg) }
+    .nb { font-variant-numeric: tabular-nums }
+    .nbig { font-weight: 700; font-size: 13px }
+
+    .ret-val { color: rgba(239,68,68,0.8); font-weight: 600; }
+    .ret-pct { font-size: 10px; color: rgba(239,68,68,0.55) }
+    .zero { color: rgba(255,255,255,0.2) }
+
+    /* row tinting by net revenue */
+    .rg2 td { background: rgba(120,255,80,0.10) }
+    .rg1 td { background: rgba(134,239,172,0.06) }
+    .ro  td { background: rgba(251,146,60,0.08) }
+    .rr  td { background: rgba(239,68,68,0.06) }
+    .rz  td { opacity: 0.4 }
+    .rg2:hover td { background: rgba(120,255,80,0.20) !important }
+    .rg1:hover td { background: rgba(134,239,172,0.15) !important }
+    .ro:hover  td { background: rgba(251,146,60,0.17) !important }
+    .rr:hover  td { background: rgba(239,68,68,0.14) !important }
+
+    .loading { text-align:center; padding:60px; color:rgba(255,255,255,0.3); font-size:13px }
+  </style>
+</head>
+<body>
+<div class="gradient-bg"><div class="b1"></div><div class="b2"></div><div class="b3"></div></div>
+<div class="vignette"></div>
+<div class="grain"></div>
+
+<div class="header">
+  <a class="logo" href="/">Chernim Cherno</a>
+  <nav class="nav">
+    <a href="/">Data</a>
+    <a href="/analytics">Остатки</a>
+    <a href="/turnover">Оборачиваемость</a>
+    <a href="/revenue" class="active">Оборот</a>
+    <a href="/order">Заказ</a>
+  </nav>
+</div>
+
+<div class="cat-bar" id="cat-bar"><span style="font-size:12px;color:rgba(255,255,255,0.3)">Загрузка...</span></div>
+
+<div class="main">
+  <div class="summary-row" id="summary-row"></div>
+  <div class="table-outer">
+    <table id="mt">
+      <thead>
+        <tr>
+          <th>Название</th>
+          <th id="th-sales" class="sorted" onclick="setSort('sales')">Продажи<span class="sub-th">₽ брутто</span></th>
+          <th id="th-returns" onclick="setSort('returns')">Возвраты<span class="sub-th">₽ сумма</span></th>
+          <th id="th-net" onclick="setSort('net')">Итого<span class="sub-th">₽ чистые</span></th>
+          <th id="th-retpct" onclick="setSort('retpct')">% возвратов<span class="sub-th">от продаж</span></th>
+          <th id="th-qty" onclick="setSort('qty')">Продано<span class="sub-th">штук</span></th>
+          <th id="th-ap" onclick="setSort('ap')">Ср. цена<span class="sub-th">₽/шт</span></th>
+        </tr>
+      </thead>
+      <tbody id="tb"><tr><td colspan="7" class="loading">Загружаю данные...</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+const CATEGORIES = {
+  "Верхняя одежда": ["бомбер","куртка","тренч","пальто","ветровка","олимпийка","комбинезон","фрак","меховой пиджак"],
+  "Костюмы":        ["пиджак","жилет-галстук","корсетный жилет"],
+  "Брюки":          ["брюки","джинсы","спортивные брюки"],
+  "Рубашки":        ["рубашка"],
+  "Свитера":        ["свитер"],
+  "Худи и свитшоты":["худи","свитшот"],
+  "Шорты":          ["шорты"],
+  "Майки":          ["майка","топ","лонгслив","кроп кольчуга","манишка кольчуга","майка кольчуга"],
+  "Футболки":       ["футболка"],
+  "Сумки":          ["сумка","клатч"],
+  "Аксессуары":     ["ремень","галстук","шарф","шапка","носки","воротник","меховой ворот"],
+  "Украшения":      ["браслет","кольцо","подвеска","серьга","кафф","цепь","цепочка","сет из"],
+  "Нижнее белье":   ["боксер","брифы","комплект"],
+  "Очки":           ["очки"],
+  "Прочее":         []
+};
+const CAT_ORDER = ["Верхняя одежда","Костюмы","Брюки","Рубашки","Свитера","Худи и свитшоты","Шорты","Майки","Футболки","Сумки","Аксессуары","Украшения","Нижнее белье","Очки","Прочее"];
+const SIZE_ORDER = ["xxs","xs","s","m","l","xl","xxl","2xl","3xl","4xl","one size","os"];
+
+let currentCat = "Верхняя одежда";
+let sortCol    = "sales";
+let revenueData = {};  // loaded from API
+
+function getCat(n) {
+  const nl = n.toLowerCase();
+  if (nl.includes("сертификат") || nl.includes("кошелек")) return null;
+  for (const [c, kws] of Object.entries(CATEGORIES)) {
+    if (c === "Прочее") continue;
+    if (kws.some(k => nl.includes(k))) return c;
+  }
+  return "Прочее";
+}
+
+function sortSizes(keys) {
+  return [...keys].sort((a, b) => {
+    const ma = a.match(/\(([^)]+)\)$/), mb = b.match(/\(([^)]+)\)$/);
+    if (!ma || !mb) return 0;
+    const ia = SIZE_ORDER.indexOf(ma[1].toLowerCase()), ib = SIZE_ORDER.indexOf(mb[1].toLowerCase());
+    if (ia === -1 && ib === -1) return ma[1].localeCompare(mb[1]);
+    if (ia === -1) return 1; if (ib === -1) return -1;
+    return ia - ib;
+  });
+}
+
+function fmt(n) {
+  if (!n && n !== 0) return "—";
+  return Math.round(n).toLocaleString("ru-RU");
+}
+
+function rowClass(net) {
+  if (net <= 0) return "rz";
+  if (net >= 500000) return "rg2";
+  if (net >= 100000) return "rg1";
+  if (net >= 30000)  return "ro";
+  return "rr";
+}
+
+function setSort(col) {
+  sortCol = col;
+  document.querySelectorAll("thead th").forEach(th => th.classList.remove("sorted"));
+  const el = document.getElementById("th-" + col);
+  if (el) el.classList.add("sorted");
+  render();
+}
+
+function buildTabs() {
+  const cnt = {};
+  for (const base of Object.keys(revenueData)) {
+    const c = getCat(base);
+    if (!c) continue;
+    cnt[c] = (cnt[c] || 0) + 1;
+  }
+  document.getElementById("cat-bar").innerHTML =
+    CAT_ORDER.filter(c => cnt[c] > 0).map(c =>
+      `<button class="cat-btn ${c === currentCat ? "active" : ""}" onclick="selCat('${c}')">${c}<span class="cnt">${cnt[c]}</span></button>`
+    ).join("");
+}
+
+function selCat(c) {
+  currentCat = c;
+  document.querySelectorAll(".cat-btn").forEach(b => b.classList.toggle("active", b.textContent.trim().startsWith(c)));
+  render();
+}
+
+function render() {
+  const tb = document.getElementById("tb");
+  tb.innerHTML = "";
+
+  const items = Object.entries(revenueData)
+    .filter(([base]) => getCat(base) === currentCat)
+    .map(([base, d]) => {
+      const net = d.sale_rev - d.ret_rev;
+      const ap  = d.sale_qty > 0 ? d.sale_rev / d.sale_qty : 0;
+      return { base, d, net, ap };
+    });
+
+  if (!items.length) {
+    tb.innerHTML = `<tr><td colspan="7" class="loading">Нет данных</td></tr>`;
+    return;
+  }
+
+  const sortFns = {
+    sales:   (a, b) => b.d.sale_rev - a.d.sale_rev,
+    returns: (a, b) => b.d.ret_rev  - a.d.ret_rev,
+    net:     (a, b) => b.net - a.net,
+    retpct:  (a, b) => {
+      const pa = a.d.sale_rev > 0 ? a.d.ret_rev / a.d.sale_rev : 0;
+      const pb = b.d.sale_rev > 0 ? b.d.ret_rev / b.d.sale_rev : 0;
+      return pb - pa;
+    },
+    qty: (a, b) => b.d.sale_qty - a.d.sale_qty,
+    ap:  (a, b) => b.ap - a.ap,
+  };
+  items.sort(sortFns[sortCol] || sortFns.sales);
+
+  let catSaleRev = 0, catRetRev = 0, catQty = 0;
+
+  for (const { base, d, net, ap } of items) {
+    catSaleRev += d.sale_rev;
+    catRetRev  += d.ret_rev;
+    catQty     += d.sale_qty;
+
+    const retPct = d.sale_rev > 0 ? (d.ret_rev / d.sale_rev * 100) : 0;
+    const cls = rowClass(net);
+    const sid = base.replace(/[^a-zа-яё0-9]/gi, "_");
+    const hasSizes = d.sizes && Object.keys(d.sizes).length > 0;
+
+    const retCell  = d.ret_rev > 0
+      ? `<span class="ret-val">−${fmt(d.ret_rev)} ₽</span>`
+      : `<span class="zero">—</span>`;
+    const retPctCell = d.ret_rev > 0
+      ? `<span class="ret-pct">${retPct.toFixed(1)}%</span>`
+      : `<span class="zero">—</span>`;
+
+    const tr = document.createElement("tr");
+    tr.className = `pr ${cls}`;
+    tr.innerHTML = `
+      <td><span class="ei" id="ei_${sid}">${hasSizes ? "▶" : ""}</span><span class="pname">${base}</span></td>
+      <td class="nb nbig">${fmt(d.sale_rev)} ₽</td>
+      <td class="nb">${retCell}</td>
+      <td class="nb nbig">${fmt(net)} ₽</td>
+      <td class="nb">${retPctCell}</td>
+      <td class="nb">${fmt(d.sale_qty)}</td>
+      <td class="nb">${ap > 0 ? fmt(ap) + " ₽" : '<span class="zero">—</span>'}</td>`;
+    tb.appendChild(tr);
+
+    // Size sub-rows
+    if (hasSizes) {
+      const sortedSz = sortSizes(Object.keys(d.sizes));
+      for (const szKey of sortedSz) {
+        const s = d.sizes[szKey];
+        const szNet    = s.sale_rev - s.ret_rev;
+        const szAp     = s.sale_qty > 0 ? s.sale_rev / s.sale_qty : 0;
+        const szRetPct = s.sale_rev > 0 ? (s.ret_rev / s.sale_rev * 100) : 0;
+        const szLabel  = (szKey.match(/\(([^)]+)\)$/) || ["", szKey])[1];
+
+        const szRetCell = s.ret_rev > 0
+          ? `<span class="ret-val" style="font-size:10px">−${fmt(s.ret_rev)} ₽</span>`
+          : `<span class="zero">—</span>`;
+        const szPctCell = s.ret_rev > 0
+          ? `<span class="ret-pct">${szRetPct.toFixed(1)}%</span>`
+          : `<span class="zero">—</span>`;
+
+        const sztr = document.createElement("tr");
+        sztr.className = `sr szrow-${sid}`;
+        sztr.style.display = "none";
+        sztr.innerHTML = `
+          <td>↳ ${szLabel}</td>
+          <td class="nb">${s.sale_rev > 0 ? fmt(s.sale_rev) + " ₽" : '<span class="zero">—</span>'}</td>
+          <td class="nb">${szRetCell}</td>
+          <td class="nb">${szNet !== 0 ? fmt(szNet) + " ₽" : '<span class="zero">—</span>'}</td>
+          <td class="nb">${szPctCell}</td>
+          <td class="nb">${s.sale_qty > 0 ? fmt(s.sale_qty) : '<span class="zero">—</span>'}</td>
+          <td class="nb">${szAp > 0 ? fmt(szAp) + " ₽" : '<span class="zero">—</span>'}</td>`;
+        tb.appendChild(sztr);
+      }
+
+      tr.querySelector("td:first-child").addEventListener("click", () => {
+        const rows = document.querySelectorAll(`.szrow-${sid}`);
+        const open = rows.length && rows[0].style.display !== "none";
+        rows.forEach(r => r.style.display = open ? "none" : "");
+        const ei = document.getElementById(`ei_${sid}`);
+        if (ei) ei.classList.toggle("open", !open);
+      });
+    }
+  }
+
+  // Category total
+  const catNet    = catSaleRev - catRetRev;
+  const catRetPct = catSaleRev > 0 ? (catRetRev / catSaleRev * 100).toFixed(1) : "0.0";
+  const totalTr   = document.createElement("tr");
+  totalTr.className = "cat-total";
+  totalTr.innerHTML = `
+    <td>Итого по категории (${items.length} поз.)</td>
+    <td>${fmt(catSaleRev)} ₽</td>
+    <td><span class="ret-val">−${fmt(catRetRev)} ₽</span></td>
+    <td>${fmt(catNet)} ₽</td>
+    <td>${catRetPct}%</td>
+    <td>${fmt(catQty)}</td>
+    <td>—</td>`;
+  tb.appendChild(totalTr);
+
+  updateSummary(catSaleRev, catRetRev, catNet, catQty, items.length);
+}
+
+function updateSummary(saleRev, retRev, net, qty, count) {
+  const retPct = saleRev > 0 ? (retRev / saleRev * 100).toFixed(1) : "0.0";
+  document.getElementById("summary-row").innerHTML = `
+    <div class="sum-card">
+      <div class="sum-label">Продажи (брутто)</div>
+      <div class="sum-value">${fmt(saleRev)} ₽</div>
+      <div class="sum-sub">${count} позиций · ${fmt(qty)} штук</div>
+    </div>
+    <div class="sum-card">
+      <div class="sum-label">Возвраты</div>
+      <div class="sum-value" style="color:rgba(239,68,68,0.85)">−${fmt(retRev)} ₽</div>
+      <div class="sum-sub">${retPct}% от продаж</div>
+    </div>
+    <div class="sum-card">
+      <div class="sum-label">Чистый оборот</div>
+      <div class="sum-value" style="color:rgba(134,239,172,0.9)">${fmt(net)} ₽</div>
+      <div class="sum-sub">продажи − возвраты</div>
+    </div>`;
+}
+
+async function init() {
+  try {
+    const resp = await fetch("/api/revenue-data");
+    if (!resp.ok) throw new Error(resp.status);
+    revenueData = await resp.json();
+  } catch(e) {
+    document.getElementById("tb").innerHTML =
+      `<tr><td colspan="7" class="loading">Ошибка загрузки данных: ${e.message}</td></tr>`;
+    return;
+  }
+  buildTabs();
+  setSort("sales");
+}
+init();
+</script>
+</body>
+</html>

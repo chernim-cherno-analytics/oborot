@@ -981,6 +981,45 @@ def del_transfers(report_date: str):
         conn.execute("DELETE FROM transfers_snapshots WHERE report_date=?",(report_date,)); conn.commit(); return {"ok":True}
     finally: conn.close()
 
+@app.get("/revenue")
+def serve_revenue():
+    if os.path.exists("revenue.html"):
+        return FileResponse("revenue.html", media_type="text/html")
+    return FileResponse("index.html", media_type="text/html")
+
+@app.get("/api/revenue-data")
+def get_revenue_data():
+    """Return gross sales, returns and net per SKU (base name, aggregated across sizes)."""
+    conn = get_db()
+    rows = conn.execute("""
+        SELECT sku_name,
+            SUM(CASE WHEN doc_type='sale'   THEN qty     ELSE 0 END) as sale_qty,
+            SUM(CASE WHEN doc_type='sale'   THEN revenue ELSE 0 END) as sale_rev,
+            SUM(CASE WHEN doc_type='return' THEN qty     ELSE 0 END) as ret_qty,
+            SUM(CASE WHEN doc_type='return' THEN revenue ELSE 0 END) as ret_rev
+        FROM sales_data
+        GROUP BY sku_name
+    """).fetchall()
+    conn.close()
+    skus = {}
+    for r in rows:
+        base = _strip_size(r["sku_name"])
+        if base not in skus:
+            skus[base] = {"sale_qty": 0, "sale_rev": 0, "ret_qty": 0, "ret_rev": 0, "sizes": {}}
+        skus[base]["sale_qty"] += r["sale_qty"] or 0
+        skus[base]["sale_rev"] += r["sale_rev"] or 0
+        skus[base]["ret_qty"]  += r["ret_qty"]  or 0
+        skus[base]["ret_rev"]  += r["ret_rev"]  or 0
+        # per-size breakdown (only if sku_name differs from base)
+        if r["sku_name"] != base:
+            skus[base]["sizes"][r["sku_name"]] = {
+                "sale_qty": r["sale_qty"] or 0,
+                "sale_rev": r["sale_rev"] or 0,
+                "ret_qty":  r["ret_qty"]  or 0,
+                "ret_rev":  r["ret_rev"]  or 0,
+            }
+    return skus
+
 @app.get("/{full_path:path}")
 def serve_frontend(full_path: str):
     if os.path.exists("index.html"):
