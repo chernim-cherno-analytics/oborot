@@ -569,8 +569,12 @@ async def upload_sales(file: UploadFile = File(...)):
         df = df[df["Артикул"].notna() & (df["Артикул"].astype(str).str.strip() != "")]
 
     df["Дата"] = pd.to_datetime(df["Дата документа"], dayfirst=True).dt.date
-    df["Количество"] = pd.to_numeric(df["Количество"], errors="coerce").fillna(0)
-    df["Сумма"] = pd.to_numeric(df["Сумма"], errors="coerce").fillna(0)
+    for col in ["Количество", "Сумма"]:
+    df[col] = (df[col].astype(str)
+               .str.replace("\xa0", "", regex=False)
+               .str.replace(" ", "", regex=False)
+               .str.replace(",", ".", regex=False))
+    df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
 
     conn = get_db()
     from collections import defaultdict
