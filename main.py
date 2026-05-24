@@ -569,23 +569,27 @@ async def upload_sales(file: UploadFile = File(...)):
         df = df[df["Артикул"].notna() & (df["Артикул"].astype(str).str.strip() != "")]
 
     df["Дата"] = pd.to_datetime(df["Дата документа"], dayfirst=True).dt.date
-    for col in ["Количество", "Сумма"]:
-        df[col] = (df[col].astype(str)
-                   .str.replace("\xa0", "", regex=False)
-                   .str.replace(" ", "", regex=False)
-                   .str.replace(",", ".", regex=False))
-        df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
+    df["Количество"] = pd.to_numeric(df["Количество"], errors="coerce").fillna(0)
+    df["Сумма"] = pd.to_numeric(df["Сумма"], errors="coerce").fillna(0)
 
     conn = get_db()
-    inserted = 0
+    from collections import defaultdict
+    agg = defaultdict(lambda: {"qty": 0.0, "revenue": 0.0})
     for _, row in df.iterrows():
+        key = (str(row["Дата"]), str(row["Наименование"]).strip())
+        agg[key]["qty"]     += float(row["Количество"])
+        agg[key]["revenue"] += float(row["Сумма"])
+    dates = list({k[0] for k in agg.keys()})
+    placeholders = ",".join("?" * len(dates))
+    conn.execute(f"DELETE FROM sales_data WHERE doc_type=? AND date IN ({placeholders})", [doc_type] + dates)
+    inserted = 0
+    for (date, sku_name), vals in agg.items():
         try:
-            before = conn.total_changes
             conn.execute(
                 "INSERT OR REPLACE INTO sales_data (date, sku_name, qty, revenue, doc_type) VALUES (?,?,?,?,?)",
-                (str(row["Дата"]), str(row["Наименование"]).strip(), float(row["Количество"]), float(row["Сумма"]), doc_type)
+                (date, sku_name, vals["qty"], vals["revenue"], doc_type)
             )
-            if conn.total_changes > before: inserted += 1
+            inserted += 1
         except: pass
     conn.commit()
     date_from = str(df["Дата"].min())
