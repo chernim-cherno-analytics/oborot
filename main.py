@@ -57,8 +57,8 @@ def init_db():
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         date TEXT NOT NULL, sku_name TEXT NOT NULL,
         qty REAL NOT NULL DEFAULT 0, revenue REAL NOT NULL DEFAULT 0,
-        doc_type TEXT DEFAULT 'sale', row_id TEXT NOT NULL DEFAULT '',
-        UNIQUE(row_id))""")
+        doc_type TEXT DEFAULT 'sale',
+        UNIQUE(date, sku_name, doc_type))""")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_sales_date ON sales_data(date)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_sales_sku ON sales_data(sku_name)")
     conn.execute("""CREATE TABLE IF NOT EXISTS sku_costs (
@@ -574,26 +574,28 @@ async def upload_sales(file: UploadFile = File(...)):
 
     conn = get_db()
 
-    # Migrate old schema: add row_id column if missing
-    existing_cols = [r[1] for r in conn.execute("PRAGMA table_info(sales_data)").fetchall()]
-    if 'row_id' not in existing_cols:
-        conn.execute("ALTER TABLE sales_data ADD COLUMN row_id TEXT NOT NULL DEFAULT ''")
-        conn.commit()
-    # Remove old unique index on (date, sku_name, doc_type) if it still exists
-    for idx in [r[1] for r in conn.execute("PRAGMA index_list(sales_data)").fetchall()]:
-        idx_cols = {r[2] for r in conn.execute(f"PRAGMA index_info({idx})").fetchall()}
-        if idx_cols == {'date', 'sku_name', 'doc_type'}:
-            conn.execute(f"DROP INDEX IF EXISTS {idx}"); conn.commit(); break
+    # Aggregate CSV rows by (date, sku_name) — sum qty and revenue
+    from collections import defaultdict
+    agg = defaultdict(lambda: {"qty": 0.0, "revenue": 0.0})
+    for _, row in df.iterrows():
+        key = (str(row["Дата"]), str(row["Наименование"]).strip())
+        agg[key]["qty"]     += float(row["Количество"])
+        agg[key]["revenue"] += float(row["Сумма"])
+
+    # Delete existing rows for the same date range and doc_type, then re-insert aggregated
+    dates = list({k[0] for k in agg.keys()})
+    placeholders = ",".join("?" * len(dates))
+    conn.execute(
+        f"DELETE FROM sales_data WHERE doc_type=? AND date IN ({placeholders})",
+        [doc_type] + dates
+    )
 
     inserted = 0
-    for _, row in df.iterrows():
+    for (date, sku_name), vals in agg.items():
         try:
-            row_id = str(row.get("ID", "")).strip()
-            if not row_id:
-                row_id = f"{doc_type}|{row['Дата']}|{str(row['Наименование']).strip()}|{float(row['Сумма'])}"
             conn.execute(
-                "INSERT OR IGNORE INTO sales_data (date, sku_name, qty, revenue, doc_type, row_id) VALUES (?,?,?,?,?,?)",
-                (str(row["Дата"]), str(row["Наименование"]).strip(), float(row["Количество"]), float(row["Сумма"]), doc_type, row_id)
+                "INSERT INTO sales_data (date, sku_name, qty, revenue, doc_type) VALUES (?,?,?,?,?)",
+                (date, sku_name, vals["qty"], vals["revenue"], doc_type)
             )
             inserted += 1
         except: pass
