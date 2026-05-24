@@ -570,11 +570,11 @@ async def upload_sales(file: UploadFile = File(...)):
 
     df["Дата"] = pd.to_datetime(df["Дата документа"], dayfirst=True).dt.date
     for col in ["Количество", "Сумма"]:
-    df[col] = (df[col].astype(str)
-               .str.replace("\xa0", "", regex=False)
-               .str.replace(" ", "", regex=False)
-               .str.replace(",", ".", regex=False))
-    df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
+        df[col] = (df[col].astype(str)
+                   .str.replace("\xa0", "", regex=False)
+                   .str.replace(" ", "", regex=False)
+                   .str.replace(",", ".", regex=False))
+        df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
 
     conn = get_db()
     from collections import defaultdict
