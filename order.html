@@ -855,13 +855,15 @@ function getCurrentStock(base){
   for(const d of allDates){if(dm[d]!==undefined)last=dm[d];}
   return last;
 }
+// allDates in order.html are WEEKLY (from SD.dates).
+// getDaysInStock counts matching weeks, then *7 to convert to days.
 function getDaysInStock(base){
   const dm=getMergedStockMap(base);
   const cutoff=new Date(Date.now()-365*24*3600*1000);
   const last365=allDates.filter(d=>new Date(d)>=cutoff);
-  let dis=0,prev=0;
-  for(const d of last365){const s=dm[d]!==undefined?dm[d]:prev;if(s>=3)dis++;prev=s;}
-  return dis;
+  let weeks=0,prev=0;
+  for(const d of last365){const s=dm[d]!==undefined?dm[d]:prev;if(s>=3)weeks++;prev=s;}
+  return weeks*7; // convert weeks → days
 }
 function getTurnover(base){
   const sk=SKUS[base]; if(!sk)return 0;
@@ -871,10 +873,10 @@ function getTurnover(base){
   const cutoff=new Date(Date.now()-365*24*3600*1000);
   const last365=allDates.filter(d=>new Date(d)>=cutoff);
   const seasonDates=last365.filter(d=>getSeason(d)===currentSeason);
-  let si=0,prev=0;
-  for(const d of seasonDates){const q=dm[d]!==undefined?dm[d]:prev;if(q>=3)si++;prev=q;}
+  let sweeks=0,prev=0;
+  for(const d of seasonDates){const q=dm[d]!==undefined?dm[d]:prev;if(q>=3)sweeks++;prev=q;}
   const seasonRev=sk.sea[currentSeason]||0;
-  if(si>0&&seasonRev>0)return seasonRev/si;
+  if(sweeks>0&&seasonRev>0)return seasonRev/(sweeks*7);
   return sk.nr/dis;
 }
 function getDailyQty(base){
@@ -886,9 +888,9 @@ function getDailyQty(base){
   const dm=getMergedStockMap(base);
   const cutoff=new Date(Date.now()-365*24*3600*1000);
   const seasonDates=allDates.filter(d=>new Date(d)>=cutoff&&getSeason(d)===currentSeason);
-  let si=0,prev=0;
-  for(const d of seasonDates){const q=dm[d]!==undefined?dm[d]:prev;if(q>=3)si++;prev=q;}
-  if(si>0) return (sk.nq*(seasonRev/totalRev))/si;
+  let sweeks=0,prev=0;
+  for(const d of seasonDates){const q=dm[d]!==undefined?dm[d]:prev;if(q>=3)sweeks++;prev=q;}
+  if(sweeks>0) return (sk.nq*(seasonRev/totalRev))/(sweeks*7);
   return sk.nq/dis;
 }
 
