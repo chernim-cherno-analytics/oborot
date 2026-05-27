@@ -480,6 +480,21 @@ const PRICE_DB = {"Ремень с золотой клешней краба":{"p
 
 // ─── Data helpers ────────────────────────────────────────────────────────────
 function stripSize(n){return n.replace(/\s*\([^)]*\)\s*$/, "").trim()}
+
+// Extract size label from a compound bracket like "(M, 178-188)" -> "M"
+// or "(One Size)" -> "One Size" or "(S)" -> "S"
+function extractSizeLabel(bracketContent){
+  // compound: "M, 178-188" or "S, 168-178" -> take first token before comma
+  const parts = bracketContent.split(',');
+  return parts[0].trim();
+}
+
+const SIZE_LABELS_SET = new Set([
+  "xxs","xs","s","m","l","xl","xxl","2xl","3xl","4xl","one size","os",
+  "44","46","48","50","52","54","56","58","36","38","40","42",
+  "17.5","18","18.5","19","19.5","20","20.5","21","21.5",
+  "xs/s","s/m","m/l","l/xl"
+]);
 function getSeason(d){
   const m=new Date(d).getMonth()+1;
   if(m===12||m<=2)return"winter";if(m<=5)return"spring";if(m<=8)return"summer";return"autumn";
@@ -508,20 +523,14 @@ const CATEGORIES = {
   "Очки":["очки"],
   "Прочее":[]
 };
-// Returns true if this key is a size variant like "ProductName (S)"
+// Returns true if this key is a size variant like "ProductName (S)" or "ProductName (M, 178-188)"
 // Size variants are sub-rows, not main table entries
 function isSizeVariant(key){
-  // Check if key ends with (SizeLabel) AND the base without size exists in stockData or SKUS
   const m = key.match(/^(.+?)\s*\(([^)]+)\)\s*$/);
   if(!m) return false;
   const base = m[1].trim();
-  const label = m[2].trim().toLowerCase();
-  // Must be a clothing size label (not product descriptor like "3 шт" or "бело-синяя")
-  const sizeLabels = ["xxs","xs","s","m","l","xl","xxl","2xl","3xl","4xl","one size","os",
-    "44","46","48","50","52","54","56","58","36","38","40","42",
-    "17.5","18","18.5","19","19.5","20","20.5","21","21.5",
-    "xs/s","s/m","m/l","l/xl"];
-  if(!sizeLabels.includes(label)) return false;
+  const sizeLabel = extractSizeLabel(m[2]).toLowerCase();
+  if(!SIZE_LABELS_SET.has(sizeLabel)) return false;
   // Parent must exist in stockData or SKUS
   return !!(stockData[base] || SKUS[base]);
 }
@@ -994,7 +1003,8 @@ function getSizeEntries(base){
     const m = key.match(/^(.+?)\s*\(([^)]+)\)\s*$/);
     if(m && m[1].trim() === base && isSizeVariant(key)){
       seen.add(key);
-      result.push({ label: m[2], szKey: key });
+      // Use just the size part (before comma) as display label
+      result.push({ label: extractSizeLabel(m[2]), szKey: key });
     }
   }
   if(!result.length){
