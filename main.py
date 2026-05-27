@@ -524,6 +524,23 @@ async def debug_parse_xls(file: UploadFile = File(...)):
         "raw_cells_preview": raw_cells[:30]
     }
 
+@app.delete("/api/debug-delete-sku")
+def debug_delete_sku(q: str):
+    """Delete all stock_snapshots rows where sku_name contains q (for fixing corrupted data)."""
+    conn = get_db()
+    count = conn.execute(
+        "SELECT COUNT(*) as c FROM stock_snapshots WHERE LOWER(sku_name) LIKE ?",
+        (f"%{q.lower()}%",)
+    ).fetchone()["c"]
+    conn.execute("DELETE FROM stock_snapshots WHERE LOWER(sku_name) LIKE ?", (f"%{q.lower()}%",))
+    conn.commit(); conn.close()
+    global _analytics_cache, _analytics_cache_key
+    _analytics_cache = None; _analytics_cache_key = None
+    import os
+    if os.path.exists(ANALYTICS_JSON_PATH): os.remove(ANALYTICS_JSON_PATH)
+    if os.path.exists(TURNOVER_JSON_PATH): os.remove(TURNOVER_JSON_PATH)
+    return {"deleted": count, "query": q}
+
 @app.get("/api/debug-sku-search")
 def debug_sku_search(q: str = "nowhere"):
     """Search for SKU names in DB containing the query string (case-insensitive)."""
