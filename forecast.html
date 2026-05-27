@@ -42,155 +42,153 @@
     @keyframes blob4{0%{transform:translate(0,0) scale(0.9)}50%{transform:translate(10vw,12vh) scale(1.1)}100%{transform:translate(-6vw,6vh) scale(1)}}
     @keyframes blob5{0%{transform:translate(0,0) scale(1.1)}50%{transform:translate(14vw,-8vh) scale(0.9)}100%{transform:translate(-10vw,-12vh) scale(1.05)}}
 
-    .header {
-      position: sticky; top: 0; z-index: 200;
-      padding: 0 28px; height: 56px;
-      display: flex; align-items: center; justify-content: space-between;
-    }
-    .logo { text-decoration: none; display:flex; align-items:center;
-      font-family: Helvetica, 'Helvetica Neue', Arial, sans-serif;
-      font-size: 15px; font-weight: 400; letter-spacing: 0.12em; color: rgba(255,255,255,0.88); }
+    .header { position: sticky; top: 0; z-index: 200; padding: 0 28px; height: 56px;
+      display: flex; align-items: center; justify-content: space-between; }
+    .logo { text-decoration: none; font-size: 15px; font-weight: 400; letter-spacing: 0.12em; color: rgba(255,255,255,0.88); }
     .nav { display: flex; gap: 20px }
-    .nav a {
-      font-size: 13px; font-weight: 400; letter-spacing: 0.05em;
-      color: rgba(255,255,255,0.3);
-      text-decoration: none; transition: color .2s;
-    }
+    .nav a { font-size: 13px; color: rgba(255,255,255,0.3); text-decoration: none; transition: color .2s; }
     .nav a:hover { color: rgba(255,255,255,0.7) }
     .nav a.active { color: rgba(255,255,255,0.92); font-weight: 500; }
 
-    /* ─── Top controls ─── */
+    /* ─── Controls bar ─── */
     .controls {
       position: relative; z-index: 10;
-      padding: 14px 28px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
-      border-bottom: 1px solid rgba(255,255,255,0.15);
-      background: rgba(255,255,255,0.05); backdrop-filter: blur(10px);
+      padding: 12px 28px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      background: rgba(255,255,255,0.04); backdrop-filter: blur(10px);
     }
-    .period-btn {
-      font-size: 12px; font-weight: 500; padding: 5px 16px; border-radius: 20px;
-      border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.07);
-      color: rgba(255,255,255,0.6); cursor: pointer; transition: all .15s;
-      font-family: inherit;
+    .ctrl-group { display: flex; align-items: center; gap: 8px; }
+    .ctrl-label { font-size: 10px; font-weight: 600; color: rgba(255,255,255,0.3); letter-spacing: .08em; text-transform: uppercase; }
+    .ctrl-date {
+      background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 8px; padding: 6px 10px; font-size: 12px; font-weight: 500;
+      color: white; font-family: inherit; outline: none; cursor: pointer;
     }
-    .period-btn:hover { background: rgba(255,255,255,0.15); color: white }
-    .period-btn.active { background: rgba(255,255,255,0.2); color: white; border-color: rgba(255,255,255,0.4) }
-    .sep { width: 1px; height: 22px; background: rgba(255,255,255,0.12); }
+    .ctrl-date:focus { border-color: rgba(134,239,172,0.4); }
+    .ctrl-date::-webkit-calendar-picker-indicator { filter: invert(0.7); }
+    .sep { width: 1px; height: 24px; background: rgba(255,255,255,0.1); }
     .add-supply-btn {
       margin-left: auto;
       font-size: 12px; font-weight: 500; padding: 6px 16px; border-radius: 20px;
-      border: 1px solid rgba(134,239,172,0.4); background: rgba(134,239,172,0.12);
+      border: 1px solid rgba(134,239,172,0.4); background: rgba(134,239,172,0.1);
       color: rgba(134,239,172,0.9); cursor: pointer; transition: all .15s; font-family: inherit;
     }
-    .add-supply-btn:hover { background: rgba(134,239,172,0.22); color: white }
+    .add-supply-btn:hover { background: rgba(134,239,172,0.2); }
 
     /* ─── Summary cards ─── */
-    .summary {
-      position: relative; z-index: 4;
-      padding: 16px 28px; display: flex; gap: 12px; flex-wrap: wrap;
-    }
+    .summary { position: relative; z-index: 4; padding: 14px 28px; display: flex; gap: 10px; flex-wrap: wrap; }
     .scard {
-      background: rgba(255,255,255,0.06); backdrop-filter: blur(12px);
+      background: rgba(255,255,255,0.05); backdrop-filter: blur(12px);
       border: 1px solid rgba(255,255,255,0.1); border-radius: 10px;
-      padding: 14px 18px; min-width: 160px;
+      padding: 12px 16px; min-width: 150px; flex: 1;
     }
-    .scard-label { font-size: 10px; font-weight: 600; color: rgba(255,255,255,0.35); letter-spacing: .08em; text-transform: uppercase; margin-bottom: 6px; }
-    .scard-val { font-size: 22px; font-weight: 700; color: rgba(255,255,255,0.95); }
-    .scard-sub { font-size: 11px; color: rgba(255,255,255,0.35); margin-top: 3px; }
+    .scard-label { font-size: 10px; font-weight: 600; color: rgba(255,255,255,0.3); letter-spacing: .08em; text-transform: uppercase; margin-bottom: 5px; }
+    .scard-val { font-size: 20px; font-weight: 700; color: rgba(255,255,255,0.95); }
+    .scard-sub { font-size: 10px; color: rgba(255,255,255,0.3); margin-top: 2px; }
     .scard.warn .scard-val { color: rgba(251,146,60,0.95); }
-    .scard.danger .scard-val { color: rgba(239,68,68,0.95); }
     .scard.good .scard-val { color: rgba(134,239,172,0.95); }
 
-    /* ─── Main table ─── */
-    .main { padding: 0 28px 24px; max-width: 1800px; margin: 0 auto; position: relative; z-index: 3; }
+    /* ─── Table ─── */
+    .main { padding: 0 28px 28px; position: relative; z-index: 3; }
     .table-outer {
-      background: rgba(255,255,255,0.05); backdrop-filter: blur(16px);
-      border: 1px solid rgba(255,255,255,0.12); border-radius: 12px;
-      overflow: auto; max-height: calc(100vh - 230px);
+      background: rgba(255,255,255,0.04); backdrop-filter: blur(16px);
+      border: 1px solid rgba(255,255,255,0.1); border-radius: 12px;
+      overflow: auto; max-height: calc(100vh - 250px);
     }
-    table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 1100px; table-layout: fixed; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 1200px; }
     thead th {
-      background: rgba(30,38,18,0.92); backdrop-filter: blur(16px);
-      padding: 10px 10px; text-align: center;
-      font-size: 10px; font-weight: 500; color: rgba(255,255,255,0.45);
-      letter-spacing: 0.07em; text-transform: uppercase;
-      white-space: nowrap; position: sticky; top: 0; z-index: 10;
-      border-bottom: 1px solid rgba(255,255,255,0.12);
+      background: rgba(20,28,10,0.95); padding: 9px 10px; text-align: center;
+      font-size: 10px; font-weight: 500; color: rgba(255,255,255,0.4);
+      letter-spacing: 0.07em; text-transform: uppercase; white-space: nowrap;
+      position: sticky; top: 0; z-index: 10;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
     }
-    thead th:first-child { text-align: left; padding-left: 14px; }
-    thead th .sub { display:block; font-size:9px; font-weight:400; letter-spacing:0; text-transform:none; opacity:0.45; margin-top:2px; }
-    tbody tr td {
-      padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,0.07);
-      text-align: center; vertical-align: middle; color: rgba(255,255,255,0.85);
+    thead th:first-child { text-align: left; padding-left: 14px; width: 220px; }
+    thead th .sub { display:block; font-size:9px; opacity:0.4; text-transform:none; letter-spacing:0; margin-top:1px; }
+    tbody td {
+      padding: 7px 10px; border-bottom: 1px solid rgba(255,255,255,0.06);
+      text-align: center; vertical-align: middle; color: rgba(255,255,255,0.82);
     }
-    tbody tr td:first-child { text-align: left; padding-left: 14px; }
-    tbody tr:hover td { background: rgba(255,255,255,0.06) }
+    tbody td:first-child { text-align: left; padding-left: 14px; }
+    tbody tr:hover td { background: rgba(255,255,255,0.04); }
+    tbody tr.excluded td { opacity: 0.3; }
+    tbody tr.excluded td:first-child { opacity: 1; }
     .nb { font-variant-numeric: tabular-nums; }
-    .nbig { font-weight: 700; font-size: 13px; }
-    .loading { text-align:center; padding:60px; color:rgba(255,255,255,0.3); font-size:13px; }
 
-    /* Revenue bar */
-    .rev-bar { position:relative; display:flex; align-items:center; gap:6px; }
-    .rev-fill { height: 18px; border-radius: 3px; min-width: 2px; transition: width .3s; }
-    .rev-label { font-size: 11px; font-weight: 700; white-space: nowrap; }
+    /* Rev bar */
+    .rev-bar { display:flex; align-items:center; gap:6px; }
+    .rev-fill { height:16px; border-radius:3px; min-width:2px; }
+    .rev-label { font-size:11px; font-weight:700; white-space:nowrap; }
 
-    /* Status badge */
-    .badge { display:inline-block; font-size:10px; font-weight:700; padding:2px 8px; border-radius:10px; }
-    .badge-ok   { background:rgba(134,239,172,0.18); color:rgba(134,239,172,0.9); }
-    .badge-warn { background:rgba(251,146,60,0.18);  color:rgba(251,146,60,0.9); }
-    .badge-dead { background:rgba(239,68,68,0.15);   color:rgba(239,68,68,0.8); }
-    .badge-new  { background:rgba(147,197,253,0.18); color:rgba(147,197,253,0.9); }
+    /* Badge */
+    .badge { display:inline-block; font-size:10px; font-weight:700; padding:2px 7px; border-radius:9px; white-space:nowrap; }
+    .badge-ok   { background:rgba(134,239,172,0.15); color:rgba(134,239,172,0.9); }
+    .badge-warn { background:rgba(251,146,60,0.15);  color:rgba(251,146,60,0.9); }
+    .badge-dead { background:rgba(239,68,68,0.12);   color:rgba(239,68,68,0.8); }
 
-    /* Supply chips */
+    /* Exclude btn */
+    .excl-btn {
+      font-size:10px; padding:2px 8px; border-radius:8px; cursor:pointer;
+      border: 1px solid rgba(255,255,255,0.12); background:rgba(255,255,255,0.05);
+      color:rgba(255,255,255,0.35); font-family:inherit; transition: all .15s;
+    }
+    .excl-btn:hover { background:rgba(239,68,68,0.15); border-color:rgba(239,68,68,0.3); color:rgba(239,68,68,0.8); }
+    .excl-btn.is-excl { background:rgba(134,239,172,0.1); border-color:rgba(134,239,172,0.3); color:rgba(134,239,172,0.7); }
+    .excl-btn.is-excl:hover { background:rgba(134,239,172,0.18); }
+
+    /* Editable rate */
+    .rate-cell { position:relative; display:flex; align-items:center; justify-content:center; gap:4px; }
+    .rate-val { cursor:pointer; border-bottom:1px dashed rgba(255,255,255,0.2); }
+    .rate-val:hover { border-bottom-color:rgba(134,239,172,0.6); color:rgba(134,239,172,0.9); }
+    .rate-input {
+      width:60px; background:rgba(255,255,255,0.1); border:1px solid rgba(134,239,172,0.5);
+      border-radius:5px; padding:2px 6px; font-size:12px; color:white; font-family:inherit;
+      text-align:center; outline:none;
+    }
+    .rate-reset { font-size:10px; cursor:pointer; color:rgba(255,255,255,0.2); }
+    .rate-reset:hover { color:rgba(239,68,68,0.7); }
+
+    /* Supply chip */
     .supply-chip {
-      display:inline-flex; align-items:center; gap:5px;
-      background: rgba(134,239,172,0.12); border: 1px solid rgba(134,239,172,0.25);
-      border-radius: 12px; padding: 2px 8px; font-size: 10px; font-weight: 600;
-      color: rgba(134,239,172,0.8); cursor: default; white-space:nowrap;
+      display:inline-flex; align-items:center; gap:4px;
+      background:rgba(134,239,172,0.1); border:1px solid rgba(134,239,172,0.2);
+      border-radius:10px; padding:2px 7px; font-size:10px; color:rgba(134,239,172,0.8);
+      white-space:nowrap; margin:1px;
     }
-    .supply-chip .del-chip { cursor:pointer; opacity:0.5; font-size:12px; line-height:1; }
-    .supply-chip .del-chip:hover { opacity:1; }
+    .supply-chip .dx { cursor:pointer; opacity:0.4; font-size:12px; }
+    .supply-chip .dx:hover { opacity:1; color:white; }
 
-    /* ─── Supply modal ─── */
-    .modal-bg {
-      display:none; position:fixed; inset:0; z-index:500;
-      background:rgba(0,0,0,0.6); backdrop-filter:blur(4px);
-      align-items:center; justify-content:center;
-    }
+    /* Modal */
+    .modal-bg { display:none; position:fixed; inset:0; z-index:500;
+      background:rgba(0,0,0,0.55); backdrop-filter:blur(4px);
+      align-items:center; justify-content:center; }
     .modal-bg.open { display:flex; }
-    .modal {
-      background:#1e2610; border:1px solid rgba(255,255,255,0.15);
-      border-radius:14px; padding:28px; width:440px; max-width:95vw;
-    }
-    .modal h2 { font-size:15px; font-weight:600; color:rgba(255,255,255,0.9); margin-bottom:18px; }
-    .modal label { display:block; font-size:11px; font-weight:600; color:rgba(255,255,255,0.4); letter-spacing:.06em; text-transform:uppercase; margin-bottom:6px; }
+    .modal { background:#1c2210; border:1px solid rgba(255,255,255,0.12);
+      border-radius:14px; padding:26px; width:400px; max-width:94vw; }
+    .modal h2 { font-size:14px; font-weight:600; color:rgba(255,255,255,0.9); margin-bottom:16px; }
+    .modal label { display:block; font-size:10px; font-weight:600; color:rgba(255,255,255,0.35);
+      letter-spacing:.07em; text-transform:uppercase; margin-bottom:5px; }
     .modal input, .modal select {
-      width:100%; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.15);
-      border-radius:8px; padding:9px 12px; font-size:13px; color:white; font-family:inherit;
-      outline:none; margin-bottom:14px;
+      width:100%; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.12);
+      border-radius:8px; padding:8px 11px; font-size:13px; color:white; font-family:inherit;
+      outline:none; margin-bottom:12px;
     }
-    .modal input:focus, .modal select:focus { border-color:rgba(134,239,172,0.4); }
-    .modal input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.8); }
+    .modal input:focus { border-color:rgba(134,239,172,0.4); }
+    .modal input[type="date"]::-webkit-calendar-picker-indicator { filter:invert(0.7); }
     .modal-row { display:flex; gap:10px; }
-    .modal-row .modal-col { flex:1; }
-    .modal-actions { display:flex; gap:10px; margin-top:6px; }
-    .btn-save { flex:1; background:rgba(134,239,172,0.18); border:1px solid rgba(134,239,172,0.35); color:rgba(134,239,172,0.95); border-radius:8px; padding:10px; font-size:13px; font-weight:600; cursor:pointer; font-family:inherit; transition:background .15s; }
-    .btn-save:hover { background:rgba(134,239,172,0.28); }
-    .btn-cancel { flex:1; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.12); color:rgba(255,255,255,0.5); border-radius:8px; padding:10px; font-size:13px; cursor:pointer; font-family:inherit; }
+    .modal-col { flex:1; }
+    .modal-actions { display:flex; gap:10px; margin-top:4px; }
+    .btn-save { flex:1; background:rgba(134,239,172,0.15); border:1px solid rgba(134,239,172,0.3);
+      color:rgba(134,239,172,0.95); border-radius:8px; padding:9px; font-size:13px;
+      font-weight:600; cursor:pointer; font-family:inherit; }
+    .btn-save:hover { background:rgba(134,239,172,0.25); }
+    .btn-cancel { background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1);
+      color:rgba(255,255,255,0.4); border-radius:8px; padding:9px 18px; font-size:13px;
+      cursor:pointer; font-family:inherit; }
+    #sku-suggestions div { padding:7px 11px; cursor:pointer; font-size:12px; color:rgba(255,255,255,0.75); }
+    #sku-suggestions div:hover { background:rgba(255,255,255,0.07); }
 
-    /* ─── Supplies sidebar (pending) ─── */
-    .supplies-list {
-      margin-bottom: 14px;
-    }
-    .supply-row {
-      display:flex; align-items:center; gap:8px; padding:6px 10px;
-      background:rgba(134,239,172,0.07); border:1px solid rgba(134,239,172,0.15);
-      border-radius:8px; margin-bottom:6px; font-size:12px;
-    }
-    .supply-row-name { flex:1; color:rgba(255,255,255,0.8); font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-    .supply-row-qty  { color:rgba(134,239,172,0.9); font-weight:700; min-width:50px; text-align:right; }
-    .supply-row-date { color:rgba(255,255,255,0.4); font-size:10px; min-width:70px; text-align:right; }
-    .supply-row-del  { color:rgba(255,255,255,0.25); cursor:pointer; font-size:15px; }
-    .supply-row-del:hover { color:rgba(239,68,68,0.7); }
+    .loading { text-align:center; padding:60px; color:rgba(255,255,255,0.25); font-size:13px; }
   </style>
 </head>
 <body>
@@ -210,64 +208,71 @@
   </nav>
 </div>
 
-<!-- Controls -->
 <div class="controls">
-  <button class="period-btn active" data-days="30" onclick="setPeriod(30,this)">1 месяц</button>
-  <button class="period-btn" data-days="90" onclick="setPeriod(90,this)">3 месяца</button>
+  <div class="ctrl-group">
+    <span class="ctrl-label">С</span>
+    <input type="date" class="ctrl-date" id="date-from" onchange="render()"/>
+  </div>
+  <div class="ctrl-group">
+    <span class="ctrl-label">По</span>
+    <input type="date" class="ctrl-date" id="date-to" onchange="render()"/>
+  </div>
   <div class="sep"></div>
-  <span style="font-size:11px;color:rgba(255,255,255,0.3)" id="as-of-label"></span>
+  <span style="font-size:11px;color:rgba(255,255,255,0.25)" id="period-desc"></span>
   <button class="add-supply-btn" onclick="openModal()">+ Добавить поставку</button>
 </div>
 
-<!-- Summary cards -->
-<div class="summary" id="summary-cards">
-  <div class="scard"><div class="scard-label">Прогноз выручки</div><div class="scard-val" id="sc-rev">—</div><div class="scard-sub" id="sc-period-label">за период</div></div>
-  <div class="scard"><div class="scard-label">Товаров с продажами</div><div class="scard-val" id="sc-active">—</div><div class="scard-sub">прогноз > 0</div></div>
-  <div class="scard warn" id="sc-card-warn"><div class="scard-label">Закончатся в периоде</div><div class="scard-val" id="sc-sellout">—</div><div class="scard-sub">товаров</div></div>
-  <div class="scard"><div class="scard-label">Поставок запланировано</div><div class="scard-val" id="sc-supplies">—</div><div class="scard-sub" id="sc-supplies-sub">позиций</div></div>
-  <div class="scard good" id="sc-card-good"><div class="scard-label">Доп. выручка от поставок</div><div class="scard-val" id="sc-supply-rev">—</div><div class="scard-sub">от будущих поставок</div></div>
+<div class="summary">
+  <div class="scard"><div class="scard-label">Прогноз выручки</div><div class="scard-val" id="sc-rev">—</div><div class="scard-sub" id="sc-days">за период</div></div>
+  <div class="scard"><div class="scard-label">Товаров в продаже</div><div class="scard-val" id="sc-active">—</div><div class="scard-sub">прогноз > 0</div></div>
+  <div class="scard warn"><div class="scard-label">Закончатся в периоде</div><div class="scard-val" id="sc-sellout">—</div><div class="scard-sub">раньше конца</div></div>
+  <div class="scard good"><div class="scard-label">С ожидаемой поставкой</div><div class="scard-val" id="sc-supply-count">—</div><div class="scard-sub" id="sc-supply-rev">позиций</div></div>
+  <div class="scard"><div class="scard-label">Исключено</div><div class="scard-val" id="sc-excl">—</div><div class="scard-sub">товаров вручную</div></div>
 </div>
 
-<!-- Table -->
 <div class="main">
   <div class="table-outer">
     <table>
       <colgroup>
-        <col style="width:220px">
-        <col style="width:80px">
-        <col style="width:90px">
-        <col style="width:100px">
-        <col style="width:130px">
-        <col style="width:100px">
-        <col style="width:100px">
-        <col style="width:90px">
-        <col style="width:200px">
+        <col style="width:220px"><!-- name -->
+        <col style="width:80px"> <!-- stock now -->
+        <col style="width:90px"> <!-- stock at start -->
+        <col style="width:105px"><!-- rate rub/day -->
+        <col style="width:85px"> <!-- rate qty/day -->
+        <col style="width:120px"><!-- rev bar -->
+        <col style="width:80px"> <!-- qty sold -->
+        <col style="width:105px"><!-- sellout date -->
+        <col style="width:75px"> <!-- status -->
+        <col style="width:185px"><!-- supplies -->
+        <col style="width:80px"> <!-- exclude -->
       </colgroup>
       <thead>
         <tr>
           <th>Название</th>
-          <th>Остаток<br><span class="sub">сейчас</span></th>
-          <th>Ср. цена<br><span class="sub">продажи ₽</span></th>
+          <th>Сток<br><span class="sub">сейчас</span></th>
+          <th>Сток на старт<br><span class="sub">к дате «С»</span></th>
+          <th>Оборот ₽/день<br><span class="sub">кликни чтоб изменить</span></th>
           <th>Продаж/день<br><span class="sub">шт</span></th>
           <th>Прогноз выручки<br><span class="sub">за период ₽</span></th>
-          <th>Продаж<br><span class="sub">шт за период</span></th>
-          <th>Стока хватит<br><span class="sub">до даты</span></th>
+          <th>Продаж<br><span class="sub">шт</span></th>
+          <th>Сток закончится<br><span class="sub">дата</span></th>
           <th>Статус</th>
           <th>Поставки<br><span class="sub">ожидается</span></th>
+          <th></th>
         </tr>
       </thead>
-      <tbody id="tb"><tr><td colspan="9" class="loading">Загружаю данные...</td></tr></tbody>
+      <tbody id="tb"><tr><td colspan="11" class="loading">Загружаю...</td></tr></tbody>
     </table>
   </div>
 </div>
 
-<!-- Add Supply Modal -->
+<!-- Modal -->
 <div class="modal-bg" id="modal-bg">
   <div class="modal">
     <h2>Ожидаемая поставка</h2>
     <label>Товар</label>
-    <input type="text" id="modal-sku" placeholder="Начните вводить название..." autocomplete="off" oninput="suggestSku(this.value)"/>
-    <div id="sku-suggestions" style="margin-top:-10px;margin-bottom:12px;max-height:160px;overflow:auto;background:rgba(30,38,18,0.98);border:1px solid rgba(255,255,255,0.12);border-radius:8px;display:none;"></div>
+    <input type="text" id="modal-sku" placeholder="Начните вводить..." autocomplete="off" oninput="suggestSku(this.value)"/>
+    <div id="sku-suggestions" style="margin-top:-8px;margin-bottom:10px;background:rgba(20,28,10,0.98);border:1px solid rgba(255,255,255,0.1);border-radius:8px;display:none;max-height:160px;overflow:auto;"></div>
     <div class="modal-row">
       <div class="modal-col">
         <label>Количество (шт)</label>
@@ -286,319 +291,357 @@
 </div>
 
 <script>
-// ─── State ───────────────────────────────────────────────────────────────────
-let period = 30;
-let turnoverData = null;   // { dates, skus }
-let analyticsData = null;  // { dates, stock }
-let supplies = loadSupplies(); // [{sku, qty, date}]
+// ─── Persistent state ─────────────────────────────────────────────────────────
+let supplies  = load('cc_supplies_v2') || [];
+let excluded  = new Set(load('cc_excluded_v1') || []);
+let overrides = load('cc_overrides_v1') || {};  // {skuName: rub_per_day}
+
+function load(k) { try { return JSON.parse(localStorage.getItem(k)); } catch(e) { return null; } }
+function save(k, v) { localStorage.setItem(k, JSON.stringify(v)); }
+
+// ─── Data ─────────────────────────────────────────────────────────────────────
+let tData = null;   // turnover api response
+let aData = null;   // analytics api response
 let allSkuNames = [];
 
-// ─── Persist supplies in localStorage ────────────────────────────────────────
-function loadSupplies() {
-  try { return JSON.parse(localStorage.getItem('cc_supplies_v1') || '[]'); } catch(e) { return []; }
-}
-function saveSupplies() {
-  localStorage.setItem('cc_supplies_v1', JSON.stringify(supplies));
+// ─── Init dates: today → today+90 ────────────────────────────────────────────
+function isoDate(d) { return d.toISOString().slice(0, 10); }
+function addDays(d, n) { const r = new Date(d); r.setDate(r.getDate() + n); return r; }
+
+const today = new Date(); today.setHours(0,0,0,0);
+document.getElementById('date-from').value = isoDate(today);
+document.getElementById('date-to').value   = isoDate(addDays(today, 90));
+
+// ─── Load ─────────────────────────────────────────────────────────────────────
+async function loadData() {
+  try {
+    const [tr, ar] = await Promise.all([fetch('/api/turnover-data'), fetch('/api/analytics-data')]);
+    tData = await tr.json();
+    aData = await ar.json();
+    allSkuNames = Object.keys(aData.stock || {})
+      .filter(n => stripSize(n) === n)
+      .sort();
+    render();
+  } catch(e) {
+    document.getElementById('tb').innerHTML = `<tr><td colspan="11" class="loading">Ошибка: ${e.message}</td></tr>`;
+  }
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-function fmt(n) { if (!n && n !== 0) return '—'; return Math.round(n).toLocaleString('ru-RU'); }
-function fmtDate(d) {
-  if (!d) return '—';
-  const dt = new Date(d);
-  return dt.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
-}
-function getSeason(d) {
-  const m = new Date(d).getMonth() + 1;
-  if (m === 12 || m <= 2) return 'winter';
-  if (m <= 5) return 'spring';
-  if (m <= 8) return 'summer';
-  return 'autumn';
-}
 function stripSize(n) { return n.replace(/\s*\([^)]*\)\s*$/, '').trim(); }
-
-function getCurrentStock(skuName, stockObj, dates) {
-  if (!stockObj || !dates || !dates.length) return 0;
-  for (let i = dates.length - 1; i >= 0; i--) {
-    if (stockObj[dates[i]] !== undefined) return stockObj[dates[i]];
-  }
-  return 0;
+function fmt(n)  { return Math.round(n).toLocaleString('ru-RU'); }
+function fmtD(s) {
+  if (!s) return '—';
+  const d = new Date(s);
+  return d.toLocaleDateString('ru-RU', { day:'numeric', month:'short', year:'numeric' });
 }
 
-// ─── Main data load ───────────────────────────────────────────────────────────
-async function loadData() {
-  document.getElementById('tb').innerHTML = '<tr><td colspan="9" class="loading">Загружаю данные...</td></tr>';
-  try {
-    const [tRes, aRes] = await Promise.all([
-      fetch('/api/turnover-data'),
-      fetch('/api/analytics-data')
-    ]);
-    if (!tRes.ok) throw new Error('turnover ' + tRes.status);
-    if (!aRes.ok) throw new Error('analytics ' + aRes.status);
-    turnoverData = await tRes.json();
-    analyticsData = await aRes.json();
-    // Collect all base SKU names with any stock
-    allSkuNames = Object.keys(analyticsData.stock || {})
-      .filter(n => n === stripSize(n)) // base names only
-      .sort();
-    render();
-  } catch (e) {
-    document.getElementById('tb').innerHTML = `<tr><td colspan="9" class="loading">Ошибка загрузки: ${e.message}</td></tr>`;
+// Get stock value on a given date (last known before or on that date)
+function stockOn(skuName, targetDate) {
+  const dm = (aData.stock || {})[skuName] || {};
+  const dates = (aData.dates || []);
+  let last = 0;
+  for (const d of dates) {
+    if (dm[d] !== undefined) last = dm[d];
+    if (d >= targetDate) return last;
   }
+  return last;
 }
 
-// ─── Compute forecast for one SKU ────────────────────────────────────────────
-function forecastSku(baseName) {
-  const sk = (turnoverData?.skus || {})[baseName] || {};
-  const stockMap = (analyticsData?.stock || {})[baseName] || {};
-  const allDates = analyticsData?.dates || [];
+// Current stock = latest known value
+function stockNow(skuName) {
+  const dm = (aData.stock || {})[skuName] || {};
+  const dates = (aData.dates || []);
+  let last = 0;
+  for (const d of dates) { if (dm[d] !== undefined) last = dm[d]; }
+  return last;
+}
 
-  const ap = sk.ap || 0;       // avg price
-  const nq = sk.nq || 0;       // total sold qty
-  const nr = sk.nr || 0;       // total revenue
-  const sea = sk.sea || {};
-
-  // Current stock
-  const cs = getCurrentStock(baseName, stockMap, allDates);
-
-  const cutoff = new Date(Date.now() - 90 * 86400000).toISOString().slice(0,10);
-
-  // Days in stock — all time (for fallback)
-  let disAll = 0, prev = 0;
-  for (const d of allDates) {
-    const q = stockMap[d] !== undefined ? stockMap[d] : prev;
-    if (q >= 3) disAll++;
+// Base daily rate from turnover data (same formula as turnover page: nr/dis, nq/dis)
+function baseRate(skuName) {
+  const sk = (tData.skus || {})[skuName] || {};
+  const nr = sk.nr || 0;
+  const nq = sk.nq || 0;
+  const ap = sk.ap || 0;
+  // dis: days in stock — recompute from analytics stock data (last 365 days)
+  const dm   = (aData.stock || {})[skuName] || {};
+  const adates = aData.dates || [];
+  const cutoff365 = isoDate(addDays(today, -365));
+  let dis = 0, prev = 0;
+  for (const d of adates) {
+    const q = dm[d] !== undefined ? dm[d] : prev;
+    if (d >= cutoff365 && q >= 3) dis++;
     prev = q;
   }
+  // If no data in last 365 use all time
+  if (dis === 0) {
+    prev = 0;
+    for (const d of adates) {
+      const q = dm[d] !== undefined ? dm[d] : prev;
+      if (q >= 3) dis++;
+      prev = q;
+    }
+  }
+  const rubPerDay = dis > 0 ? nr / dis : 0;
+  const qtyPerDay = dis > 0 ? nq / dis : 0;
+  return { rubPerDay, qtyPerDay, ap, nr, nq, dis };
+}
 
-  // Chart entries are WEEKLY. We use the same logic as the Turnover page:
-  // dailyRev = total_revenue / days_in_stock (all time), then seasonal correction.
-  const chart = sk.chart || [];
-  const dates = turnoverData?.dates || allDates;
+// ─── Forecast for one SKU ─────────────────────────────────────────────────────
+function forecastSku(name) {
+  const dateFrom = document.getElementById('date-from').value;
+  const dateTo   = document.getElementById('date-to').value;
+  if (!dateFrom || !dateTo || dateFrom >= dateTo) return null;
 
-  // Base daily rate matching turnover page
-  const baseDailyRev = disAll > 0 ? nr / disAll : 0;
-  const baseDailyQty = ap > 0 ? baseDailyRev / ap : (disAll > 0 ? nq / disAll : 0);
+  const periodDays = Math.round((new Date(dateTo) - new Date(dateFrom)) / 86400000);
 
-  // Seasonal correction: adjust for current season vs annual average
-  const today = new Date();
-  const season = getSeason(today.toISOString().slice(0,10));
-  const totalSeaRev = Object.values(sea).reduce((s, v) => s + Math.max(0, v), 0);
-  // seasonalFactor: how much higher/lower is this season vs average season
-  const seasonalFactor = (totalSeaRev > 0 && sea[season] > 0)
-    ? Math.max(0.1, Math.min(4.0, (sea[season] / totalSeaRev) * 4))
-    : 1.0;
+  // Days from today until period start (to project stock forward)
+  const daysUntilStart = Math.max(0, Math.round((new Date(dateFrom) - today) / 86400000));
 
-  const dailyRev = baseDailyRev * seasonalFactor;
-  const dailyQty = baseDailyQty * seasonalFactor;
+  const cs = stockNow(name);
+  const base = baseRate(name);
 
-  const adjDailyQty = dailyQty * seasonalFactor;
-  const adjDailyRev = dailyRev * seasonalFactor;
+  // Override if user has edited the rate
+  const rubPerDay = overrides[name] !== undefined ? overrides[name] : base.rubPerDay;
+  const qtyPerDay = rubPerDay > 0 && base.ap > 0 ? rubPerDay / base.ap : base.qtyPerDay;
 
-  // How many days until stock runs out (current stock only)
-  const daysLeft = adjDailyQty > 0 ? Math.round(cs / adjDailyQty) : null;
-  const selloutDate = daysLeft !== null ? new Date(Date.now() + daysLeft * 86400000) : null;
+  // Stock at period start: current stock minus sales until start date
+  const soldBeforeStart = qtyPerDay * daysUntilStart;
+  const stockAtStart = Math.max(0, cs - soldBeforeStart);
 
-  // Base forecast: limited by stock
-  const daysWithStock = daysLeft !== null ? Math.min(period, daysLeft) : period;
-  let forecastQty = Math.min(cs, Math.round(adjDailyQty * daysWithStock));
-  let forecastRev = Math.round(adjDailyRev * daysWithStock);
-  // Clamp: can't sell more than we have
-  if (ap > 0 && forecastQty > cs) { forecastQty = cs; forecastRev = Math.round(cs * ap); }
+  // How many days into the period does stock last?
+  const daysStockLasts = qtyPerDay > 0
+    ? Math.min(periodDays, stockAtStart / qtyPerDay)
+    : (stockAtStart > 0 ? periodDays : 0);
 
-  // Incorporate planned supplies
-  const today0 = today.toISOString().slice(0,10);
-  const periodEnd = new Date(Date.now() + period * 86400000).toISOString().slice(0,10);
-  const relevant = supplies.filter(s => {
-    const sn = stripSize(s.sku) === baseName ? true : s.sku === baseName;
-    return sn && s.date >= today0 && s.date <= periodEnd;
+  // Revenue from base stock
+  const revFromStock = Math.round(rubPerDay * daysStockLasts);
+  const qtyFromStock = Math.round(qtyPerDay * daysStockLasts);
+
+  // Sellout date
+  let selloutDate = null;
+  if (qtyPerDay > 0 && stockAtStart > 0) {
+    const daysTotal = (cs / qtyPerDay); // days from today
+    selloutDate = isoDate(addDays(today, Math.round(daysTotal)));
+  }
+
+  // Supplies that arrive during the period
+  const periodSupplies = supplies.filter(s => {
+    const sn = stripSize(s.sku) === name || s.sku === name;
+    return sn && s.date >= dateFrom && s.date <= dateTo;
   });
 
-  let supplyForecastRev = 0;
-  for (const sup of relevant) {
-    // Days between supply arrival and period end
-    const daysAvail = Math.round((new Date(periodEnd) - new Date(sup.date)) / 86400000);
+  let revFromSupplies = 0, qtyFromSupplies = 0;
+  for (const sup of periodSupplies) {
+    const daysAvail = Math.round((new Date(dateTo) - new Date(sup.date)) / 86400000);
     if (daysAvail <= 0) continue;
-    const addQty = Math.min(sup.qty, Math.round(adjDailyQty * daysAvail));
-    const addRev = Math.round(adjDailyRev * daysAvail);
-    supplyForecastRev += Math.round(addQty * (ap || 0));
+    const canSell = Math.min(sup.qty, qtyPerDay * daysAvail);
+    qtyFromSupplies += Math.round(canSell);
+    revFromSupplies += Math.round(rubPerDay * Math.min(daysAvail, sup.qty / (qtyPerDay || 0.001)));
+  }
+
+  // Status
+  let status, statusClass;
+  if (cs === 0) {
+    status = 'нет стока'; statusClass = 'badge-dead';
+  } else if (daysStockLasts < periodDays && periodSupplies.length === 0) {
+    if (daysStockLasts < periodDays * 0.3) { status = 'заканчивается'; statusClass = 'badge-warn'; }
+    else { status = 'кончится'; statusClass = 'badge-warn'; }
+  } else {
+    status = 'в норме'; statusClass = 'badge-ok';
   }
 
   return {
-    cs, ap, nr, nq, dailyQty: adjDailyQty, dailyRev: adjDailyRev,
-    forecastQty, forecastRev, supplyForecastRev,
-    daysLeft, selloutDate,
-    totalForecastRev: forecastRev + supplyForecastRev,
-    hasSupply: relevant.length > 0,
-    supplyChips: relevant
+    cs, stockAtStart: Math.round(stockAtStart),
+    rubPerDay, qtyPerDay,
+    revFromStock, qtyFromStock,
+    revFromSupplies, qtyFromSupplies,
+    totalRev: revFromStock + revFromSupplies,
+    totalQty: qtyFromStock + qtyFromSupplies,
+    daysStockLasts: Math.round(daysStockLasts),
+    selloutDate, periodDays,
+    periodSupplies,
+    status, statusClass,
+    isOverride: overrides[name] !== undefined,
+    ap: base.ap,
   };
 }
 
-// ─── Render table ─────────────────────────────────────────────────────────────
+// ─── Render ───────────────────────────────────────────────────────────────────
 function render() {
-  if (!turnoverData || !analyticsData) return;
+  if (!tData || !aData) return;
 
-  const today0 = new Date().toISOString().slice(0,10);
-  const periodEnd = new Date(Date.now() + period * 86400000);
-  document.getElementById('as-of-label').textContent =
-    'по ' + periodEnd.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
-  document.getElementById('sc-period-label').textContent =
-    `за ${period} дней`;
+  const dateFrom = document.getElementById('date-from').value;
+  const dateTo   = document.getElementById('date-to').value;
+  if (!dateFrom || !dateTo) return;
 
-  const items = allSkuNames.map(name => ({ name, ...forecastSku(name) }))
-    .filter(d => d.nr > 0 || d.cs > 0)
-    .sort((a, b) => (b.totalForecastRev || 0) - (a.totalForecastRev || 0));
+  const days = Math.round((new Date(dateTo) - new Date(dateFrom)) / 86400000);
+  document.getElementById('period-desc').textContent = `${days} дней`;
+
+  const rows = allSkuNames
+    .map(name => ({ name, f: forecastSku(name) }))
+    .filter(r => r.f && (r.f.cs > 0 || r.f.totalRev > 0 || r.f.rubPerDay > 0))
+    .sort((a, b) => {
+      // excluded to bottom
+      const ae = excluded.has(a.name) ? 1 : 0;
+      const be = excluded.has(b.name) ? 1 : 0;
+      if (ae !== be) return ae - be;
+      return (b.f.totalRev || 0) - (a.f.totalRev || 0);
+    });
 
   // Summary
-  const totalRev = items.reduce((s, d) => s + (d.totalForecastRev || 0), 0);
-  const activeCount = items.filter(d => d.forecastQty > 0).length;
-  const selloutCount = items.filter(d => d.daysLeft !== null && d.daysLeft < period && d.daysLeft > 0).length;
-  const supplyItems = new Set(supplies.filter(s => {
-    const e = new Date(Date.now() + period * 86400000).toISOString().slice(0,10);
-    return s.date >= today0 && s.date <= e;
-  }).map(s => stripSize(s.sku))).size;
-  const addlRev = items.reduce((s, d) => s + (d.supplyForecastRev || 0), 0);
+  const active = rows.filter(r => !excluded.has(r.name) && r.f.totalRev > 0);
+  const totalRev  = active.reduce((s, r) => s + r.f.totalRev, 0);
+  const sellouts  = active.filter(r => r.f.daysStockLasts < r.f.periodDays).length;
+  const withSupply = active.filter(r => r.f.periodSupplies.length > 0).length;
+  const supplyRev  = active.reduce((s, r) => s + r.f.revFromSupplies, 0);
 
-  document.getElementById('sc-rev').textContent = fmt(totalRev) + ' ₽';
-  document.getElementById('sc-active').textContent = activeCount;
-  document.getElementById('sc-sellout').textContent = selloutCount;
-  document.getElementById('sc-supplies').textContent = supplyItems;
-  document.getElementById('sc-supply-rev').textContent = addlRev > 0 ? '+' + fmt(addlRev) + ' ₽' : '—';
+  document.getElementById('sc-rev').textContent     = fmt(totalRev) + ' ₽';
+  document.getElementById('sc-days').textContent    = `за ${days} дней`;
+  document.getElementById('sc-active').textContent  = active.length;
+  document.getElementById('sc-sellout').textContent = sellouts;
+  document.getElementById('sc-supply-count').textContent = withSupply;
+  document.getElementById('sc-supply-rev').textContent   = withSupply > 0 ? '+' + fmt(supplyRev) + ' ₽ от поставок' : 'позиций';
+  document.getElementById('sc-excl').textContent    = excluded.size;
 
-  const maxRev = items[0]?.totalForecastRev || 1;
+  const maxRev = active.reduce((m, r) => Math.max(m, r.f.totalRev), 1);
   const tb = document.getElementById('tb');
   tb.innerHTML = '';
 
-  for (const d of items) {
-    const isZero = d.totalForecastRev === 0;
-    let statusBadge, statusClass = '';
-    if (d.nr === 0 && d.cs === 0) {
-      statusBadge = '<span class="badge badge-dead">нет данных</span>';
-    } else if (d.daysLeft === 0 || d.cs === 0) {
-      statusBadge = '<span class="badge badge-dead">нет стока</span>';
-    } else if (d.daysLeft !== null && d.daysLeft < 14) {
-      statusBadge = '<span class="badge badge-warn">заканчивается</span>';
-    } else if (d.daysLeft !== null && d.daysLeft < period) {
-      statusBadge = '<span class="badge badge-warn">кончится в периоде</span>';
-    } else if (d.dailyQty < 0.05) {
-      statusBadge = '<span class="badge badge-dead">низкие продажи</span>';
-    } else {
-      statusBadge = '<span class="badge badge-ok">в норме</span>';
-    }
+  for (const { name, f } of rows) {
+    const isExcl = excluded.has(name);
+    const barW   = Math.round((f.totalRev / maxRev) * 110);
+    const supBarW = maxRev > 0 ? Math.round((f.revFromSupplies / maxRev) * 110) : 0;
+    const barColor = isExcl ? 'rgba(255,255,255,0.1)' : 'rgba(134,239,172,0.5)';
 
-    const selloutStr = d.selloutDate
-      ? d.selloutDate.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' })
-      : '> периода';
-
-    const barW = maxRev > 0 ? Math.round(d.totalForecastRev / maxRev * 120) : 0;
-    const barColor = d.forecastRev > 0
-      ? (d.hasSupply ? 'rgba(134,239,172,0.7)' : 'rgba(134,239,172,0.45)')
-      : 'rgba(239,68,68,0.35)';
-    const supBarW = maxRev > 0 ? Math.round(d.supplyForecastRev / maxRev * 120) : 0;
-
-    // Supply chips in cell
-    let supplyCell = '—';
-    if (d.supplyChips.length > 0) {
-      supplyCell = d.supplyChips.map(s =>
-        `<span class="supply-chip" title="${s.sku}">
-          +${s.qty} шт · ${fmtDate(s.date)}
-          <span class="del-chip" onclick="removeSupply('${s.sku}','${s.date}',${s.qty});event.stopPropagation()">×</span>
+    // Supply chips
+    let supplyCell = '<span style="color:rgba(255,255,255,0.2);font-size:11px">—</span>';
+    if (f.periodSupplies.length > 0) {
+      supplyCell = f.periodSupplies.map(s =>
+        `<span class="supply-chip">+${s.qty}шт · ${fmtD(s.date)}
+          <span class="dx" onclick="removeSupply('${s.sku}','${s.date}',${s.qty})">×</span>
         </span>`
-      ).join(' ');
+      ).join('');
     }
+
+    // Rate cell (editable)
+    const rateDisplay = f.rubPerDay > 0 ? fmt(f.rubPerDay) + ' ₽' : '—';
+    const rateCell = `
+      <div class="rate-cell" id="rc-${name.replace(/[^a-zA-Zа-яА-Я0-9]/g,'_')}">
+        <span class="rate-val" onclick="editRate('${name.replace(/'/g,"\\'")}')">
+          ${rateDisplay}${f.isOverride ? ' ✏️' : ''}
+        </span>
+        ${f.isOverride ? `<span class="rate-reset" onclick="resetRate('${name.replace(/'/g,"\\'")}')">✕</span>` : ''}
+      </div>`;
+
+    const selloutStr = f.selloutDate ? fmtD(f.selloutDate) : (f.cs === 0 ? '—' : '> периода');
+    const selloutColor = f.daysStockLasts < f.periodDays && !isExcl
+      ? 'rgba(251,146,60,0.9)' : 'rgba(255,255,255,0.5)';
 
     const tr = document.createElement('tr');
-    if (isZero) tr.style.opacity = '0.45';
+    if (isExcl) tr.classList.add('excluded');
     tr.innerHTML = `
-      <td style="font-weight:500;font-size:12px;color:rgba(255,255,255,0.9)">${d.name}</td>
-      <td class="nb nbig">${d.cs}</td>
-      <td class="nb">${d.ap > 0 ? fmt(d.ap) + ' ₽' : '—'}</td>
-      <td class="nb">${d.dailyQty > 0 ? d.dailyQty.toFixed(2) : '—'}</td>
+      <td style="font-weight:500">${name}</td>
+      <td class="nb" style="font-weight:700">${f.cs}</td>
+      <td class="nb" style="color:rgba(255,255,255,0.6)">${f.stockAtStart}</td>
+      <td>${rateCell}</td>
+      <td class="nb" style="color:rgba(255,255,255,0.6)">${f.qtyPerDay > 0 ? f.qtyPerDay.toFixed(2) : '—'}</td>
       <td>
+        ${isExcl ? '<span style="color:rgba(255,255,255,0.2);font-size:11px">исключён</span>' : `
         <div class="rev-bar">
           <div class="rev-fill" style="width:${barW}px;background:${barColor}"></div>
-          ${d.hasSupply && supBarW > 0 ? `<div class="rev-fill" style="width:${supBarW}px;background:rgba(134,239,172,0.25);margin-left:-2px"></div>` : ''}
-          <span class="rev-label">${fmt(d.totalForecastRev)} ₽</span>
-        </div>
+          ${supBarW > 0 ? `<div class="rev-fill" style="width:${supBarW}px;background:rgba(134,239,172,0.2)"></div>` : ''}
+          <span class="rev-label">${fmt(f.totalRev)} ₽</span>
+        </div>`}
       </td>
-      <td class="nb">${d.forecastQty > 0 ? d.forecastQty : '—'}</td>
-      <td class="nb" style="font-size:11px;color:${d.daysLeft !== null && d.daysLeft < period ? 'rgba(251,146,60,0.9)' : 'rgba(255,255,255,0.6)'}">
-        ${selloutStr}
-      </td>
-      <td>${statusBadge}</td>
-      <td>${supplyCell}</td>`;
+      <td class="nb">${isExcl ? '—' : (f.totalQty || '—')}</td>
+      <td class="nb" style="font-size:11px;color:${selloutColor}">${selloutStr}</td>
+      <td>${isExcl ? '<span class="badge badge-dead">исключён</span>' : `<span class="badge ${f.statusClass}">${f.status}</span>`}</td>
+      <td>${supplyCell}</td>
+      <td>
+        <button class="excl-btn ${isExcl ? 'is-excl' : ''}" onclick="toggleExclude('${name.replace(/'/g,"\\'")}')">
+          ${isExcl ? 'вернуть' : 'исключить'}
+        </button>
+      </td>`;
     tb.appendChild(tr);
   }
 
-  if (!items.length) {
-    tb.innerHTML = '<tr><td colspan="9" class="loading">Нет данных для отображения</td></tr>';
+  if (!rows.length) {
+    tb.innerHTML = '<tr><td colspan="11" class="loading">Нет данных</td></tr>';
   }
 }
 
-// ─── Period toggle ────────────────────────────────────────────────────────────
-function setPeriod(days, btn) {
-  period = days;
-  document.querySelectorAll('.period-btn').forEach(b => b.classList.toggle('active', b === btn));
+// ─── Exclude ──────────────────────────────────────────────────────────────────
+function toggleExclude(name) {
+  if (excluded.has(name)) excluded.delete(name); else excluded.add(name);
+  save('cc_excluded_v1', [...excluded]);
   render();
 }
 
-// ─── Modal ───────────────────────────────────────────────────────────────────
-function openModal(prefillSku) {
+// ─── Override rate ────────────────────────────────────────────────────────────
+function editRate(name) {
+  const base = baseRate(name);
+  const current = overrides[name] !== undefined ? overrides[name] : base.rubPerDay;
+  const val = prompt(`Введите оборот ₽/день для "${name}"\n(базовое: ${Math.round(base.rubPerDay)})`, Math.round(current));
+  if (val === null) return;
+  const n = parseFloat(val);
+  if (!isNaN(n) && n >= 0) {
+    overrides[name] = n;
+    save('cc_overrides_v1', overrides);
+    render();
+  }
+}
+function resetRate(name) {
+  delete overrides[name];
+  save('cc_overrides_v1', overrides);
+  render();
+}
+
+// ─── Supplies ─────────────────────────────────────────────────────────────────
+function openModal(pre) {
   document.getElementById('modal-bg').classList.add('open');
-  document.getElementById('modal-sku').value = prefillSku || '';
+  document.getElementById('modal-sku').value = pre || '';
   document.getElementById('modal-qty').value = '';
-  // Default date: today + 14 days
-  const d = new Date(Date.now() + 14 * 86400000);
-  document.getElementById('modal-date').value = d.toISOString().slice(0,10);
+  document.getElementById('modal-date').value = isoDate(addDays(today, 14));
   document.getElementById('sku-suggestions').style.display = 'none';
 }
-function closeModal() {
-  document.getElementById('modal-bg').classList.remove('open');
-  document.getElementById('sku-suggestions').style.display = 'none';
-}
+function closeModal() { document.getElementById('modal-bg').classList.remove('open'); }
 document.getElementById('modal-bg').addEventListener('click', e => { if (e.target === e.currentTarget) closeModal(); });
 
 function suggestSku(val) {
   const box = document.getElementById('sku-suggestions');
   if (!val || val.length < 2) { box.style.display = 'none'; return; }
   const q = val.toLowerCase();
-  const matches = allSkuNames.filter(n => n.toLowerCase().includes(q)).slice(0, 8);
-  if (!matches.length) { box.style.display = 'none'; return; }
+  const m = allSkuNames.filter(n => n.toLowerCase().includes(q)).slice(0, 8);
+  if (!m.length) { box.style.display = 'none'; return; }
   box.style.display = 'block';
-  box.innerHTML = matches.map(m =>
-    `<div style="padding:8px 12px;cursor:pointer;font-size:12px;color:rgba(255,255,255,0.8);border-bottom:1px solid rgba(255,255,255,0.06)"
-      onmousedown="selectSku('${m.replace(/'/g, "\\'")}');event.preventDefault()"
-      onmouseover="this.style.background='rgba(255,255,255,0.08)'"
-      onmouseout="this.style.background=''">${m}</div>`
+  box.innerHTML = m.map(n =>
+    `<div onmousedown="selectSku('${n.replace(/'/g,"\\'")}');event.preventDefault()">${n}</div>`
   ).join('');
 }
-function selectSku(name) {
-  document.getElementById('modal-sku').value = name;
+function selectSku(n) {
+  document.getElementById('modal-sku').value = n;
   document.getElementById('sku-suggestions').style.display = 'none';
 }
-
 function saveSupply() {
-  const sku = document.getElementById('modal-sku').value.trim();
-  const qty = parseInt(document.getElementById('modal-qty').value);
+  const sku  = document.getElementById('modal-sku').value.trim();
+  const qty  = parseInt(document.getElementById('modal-qty').value);
   const date = document.getElementById('modal-date').value;
-  if (!sku) { alert('Укажите название товара'); return; }
-  if (!qty || qty <= 0) { alert('Укажите количество'); return; }
-  if (!date) { alert('Укажите дату поступления'); return; }
-  // Remove duplicate
+  if (!sku) return alert('Укажите товар');
+  if (!qty || qty <= 0) return alert('Укажите количество');
+  if (!date) return alert('Укажите дату');
   supplies = supplies.filter(s => !(s.sku === sku && s.date === date));
   supplies.push({ sku, qty, date });
-  saveSupplies();
+  save('cc_supplies_v2', supplies);
   closeModal();
   render();
 }
-
 function removeSupply(sku, date, qty) {
   supplies = supplies.filter(s => !(s.sku === sku && s.date === date && s.qty === qty));
-  saveSupplies();
+  save('cc_supplies_v2', supplies);
   render();
 }
 
-// ─── Init ─────────────────────────────────────────────────────────────────────
 loadData();
 </script>
 </body>
