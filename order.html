@@ -1064,7 +1064,7 @@ function render(){
   const active=items.filter(x=>(x.order.turn>=2000&&x.order.qty>=5)||addedToOrder.has(x.base))
     .sort((a,b)=>(b.order.revPotential||0)-(a.order.revPotential||0));
   const possible=items.filter(x=>x.order.turn>=1000&&x.order.turn<2000&&x.order.qty>=5&&!addedToOrder.has(x.base))
-    .sort((a,b)=>annualTurn(b.base)-annualTurn(a.base));
+    .sort((a,b)=>(b.order.revPotential||0)-(a.order.revPotential||0));
 
   // Totals
   const totalItems=active.length;
