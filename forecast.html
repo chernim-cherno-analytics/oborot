@@ -361,47 +361,36 @@ function forecastSku(baseName) {
   // Current stock
   const cs = getCurrentStock(baseName, stockMap, allDates);
 
-  // Daily qty rate — use last 90 days if possible, else all time
   const cutoff = new Date(Date.now() - 90 * 86400000).toISOString().slice(0,10);
-  const recentDates = allDates.filter(d => d >= cutoff);
-  let dis90 = 0, prev = 0;
-  for (const d of recentDates) {
-    const q = stockMap[d] !== undefined ? stockMap[d] : prev;
-    if (q >= 3) dis90++;
-    prev = q;
-  }
 
-  // Fallback: all time
-  let disAll = 0; prev = 0;
+  // Days in stock — all time (for fallback)
+  let disAll = 0, prev = 0;
   for (const d of allDates) {
     const q = stockMap[d] !== undefined ? stockMap[d] : prev;
     if (q >= 3) disAll++;
     prev = q;
   }
 
-  // Days-in-stock weighted sales rate
-  // Use 90-day if enough data, else all-time
-  // Get revenue for last 90 days from chart
+  // Chart entries are WEEKLY. We use the same logic as the Turnover page:
+  // dailyRev = total_revenue / days_in_stock (all time), then seasonal correction.
   const chart = sk.chart || [];
   const dates = turnoverData?.dates || allDates;
-  const cutoffIdx = dates.findIndex(d => d >= cutoff);
-  let rev90 = 0, qty90 = 0;
-  if (cutoffIdx >= 0 && dates.length > 0 && nr > 0) {
-    const chartSlice = chart.slice(Math.max(0, cutoffIdx));
-    rev90 = chartSlice.reduce((s, v) => s + Math.max(0, v), 0);
-    qty90 = dis90 > 0 ? rev90 / (ap || 1) : 0;
-  }
 
-  const dailyRev  = dis90 > 5 ? rev90 / dis90  : (disAll > 0 ? nr / disAll : 0);
-  const dailyQty  = dis90 > 5 ? (ap > 0 ? dailyRev / ap : 0) : (disAll > 0 ? nq / disAll : 0);
+  // Base daily rate matching turnover page
+  const baseDailyRev = disAll > 0 ? nr / disAll : 0;
+  const baseDailyQty = ap > 0 ? baseDailyRev / ap : (disAll > 0 ? nq / disAll : 0);
 
-  // Apply seasonal correction for the forecast window
+  // Seasonal correction: adjust for current season vs annual average
   const today = new Date();
   const season = getSeason(today.toISOString().slice(0,10));
-  const totalSeaRev = Object.values(sea).reduce((s,v) => s + Math.max(0,v), 0);
-  const seasonalFactor = totalSeaRev > 0 && sea[season] !== undefined
-    ? Math.max(0.1, (sea[season] / totalSeaRev) * 4)  // *4 because 4 seasons
+  const totalSeaRev = Object.values(sea).reduce((s, v) => s + Math.max(0, v), 0);
+  // seasonalFactor: how much higher/lower is this season vs average season
+  const seasonalFactor = (totalSeaRev > 0 && sea[season] > 0)
+    ? Math.max(0.1, Math.min(4.0, (sea[season] / totalSeaRev) * 4))
     : 1.0;
+
+  const dailyRev = baseDailyRev * seasonalFactor;
+  const dailyQty = baseDailyQty * seasonalFactor;
 
   const adjDailyQty = dailyQty * seasonalFactor;
   const adjDailyRev = dailyRev * seasonalFactor;
