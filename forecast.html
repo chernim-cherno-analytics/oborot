@@ -337,51 +337,55 @@ function fmtD(s) {
 }
 
 // Get stock value on a given date (last known before or on that date)
+// Aggregate stock across all size variants — matches turnover page logic exactly
+function mergedStockMap(skuName) {
+  const allStock = aData.stock || {};
+  const adates   = aData.dates || [];
+  const keys = Object.keys(allStock).filter(k => stripSize(k) === skuName);
+  if (keys.length === 0) return {};
+  const merged = {};
+  for (const k of keys) {
+    const dm = allStock[k];
+    let prev = 0;
+    for (const d of adates) {
+      if (dm[d] !== undefined) prev = dm[d];
+      merged[d] = (merged[d] || 0) + prev;
+    }
+  }
+  return merged;
+}
+
 function stockOn(skuName, targetDate) {
-  const dm = (aData.stock || {})[skuName] || {};
-  const dates = (aData.dates || []);
+  const merged = mergedStockMap(skuName);
+  const dates  = aData.dates || [];
   let last = 0;
   for (const d of dates) {
-    if (dm[d] !== undefined) last = dm[d];
+    if (merged[d] !== undefined) last = merged[d];
     if (d >= targetDate) return last;
   }
   return last;
 }
 
-// Current stock = latest known value
+// Current stock = latest known aggregated value
 function stockNow(skuName) {
-  const dm = (aData.stock || {})[skuName] || {};
-  const dates = (aData.dates || []);
+  const merged = mergedStockMap(skuName);
+  const dates  = aData.dates || [];
   let last = 0;
-  for (const d of dates) { if (dm[d] !== undefined) last = dm[d]; }
+  for (const d of dates) { if (merged[d] !== undefined) last = merged[d]; }
   return last;
 }
 
-// Base daily rate from turnover data (same formula as turnover page: nr/dis, nq/dis)
+// Base daily rate — same formula as turnover page: nr/dis, nq/dis
+// dis = days where total stock across all sizes >= 3 (all time, same as turnover page)
 function baseRate(skuName) {
   const sk = (tData.skus || {})[skuName] || {};
   const nr = sk.nr || 0;
   const nq = sk.nq || 0;
   const ap = sk.ap || 0;
-  // dis: days in stock — recompute from analytics stock data (last 365 days)
-  const dm   = (aData.stock || {})[skuName] || {};
-  const adates = aData.dates || [];
-  const cutoff365 = isoDate(addDays(today, -365));
-  let dis = 0, prev = 0;
-  for (const d of adates) {
-    const q = dm[d] !== undefined ? dm[d] : prev;
-    if (d >= cutoff365 && q >= 3) dis++;
-    prev = q;
-  }
-  // If no data in last 365 use all time
-  if (dis === 0) {
-    prev = 0;
-    for (const d of adates) {
-      const q = dm[d] !== undefined ? dm[d] : prev;
-      if (q >= 3) dis++;
-      prev = q;
-    }
-  }
+  const merged = mergedStockMap(skuName);
+  const adates  = aData.dates || [];
+  let dis = 0;
+  for (const d of adates) { if ((merged[d] || 0) >= 3) dis++; }
   const rubPerDay = dis > 0 ? nr / dis : 0;
   const qtyPerDay = dis > 0 ? nq / dis : 0;
   return { rubPerDay, qtyPerDay, ap, nr, nq, dis };
