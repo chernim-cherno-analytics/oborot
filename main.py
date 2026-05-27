@@ -479,11 +479,22 @@ async def upload_stock(file: UploadFile = File(...)):
     conn = get_db()
     uploaded_at = datetime.now().isoformat()
     inserted = 0
+    updated = 0
     for row in rows:
+        # Try insert first
         before = conn.total_changes
-        conn.execute("INSERT OR IGNORE INTO stock_snapshots (date,sku_name,stock_qty,uploaded_at) VALUES (?,?,?,?)",
-                     (date_str, row['sku_name'], row['stock_qty'], uploaded_at))
-        if conn.total_changes > before: inserted += 1
+        conn.execute(
+            "INSERT OR IGNORE INTO stock_snapshots (date,sku_name,stock_qty,uploaded_at) VALUES (?,?,?,?)",
+            (date_str, row['sku_name'], row['stock_qty'], uploaded_at))
+        if conn.total_changes > before:
+            inserted += 1
+        else:
+            # Row already exists (same date+sku from another warehouse) — ADD to it
+            conn.execute(
+                "UPDATE stock_snapshots SET stock_qty = stock_qty + ?, uploaded_at = ? "
+                "WHERE date = ? AND sku_name = ?",
+                (row['stock_qty'], uploaded_at, date_str, row['sku_name']))
+            updated += 1
     conn.commit(); conn.close()
     global _analytics_cache, _analytics_cache_key
     _analytics_cache = None
@@ -491,7 +502,7 @@ async def upload_stock(file: UploadFile = File(...)):
     conn2 = get_db()
     rebuild_analytics_json(conn2)
     conn2.close()
-    return {"date": date_str, "inserted": inserted, "skipped": len(rows)-inserted, "total_skus": len(rows)}
+    return {"date": date_str, "inserted": inserted, "updated": updated, "skipped": 0, "total_skus": len(rows)}
 
 
 @app.post("/api/debug-parse-xls")
@@ -1112,6 +1123,21 @@ def del_transfers(report_date: str):
         conn.execute("DELETE FROM transfers_snapshots WHERE report_date=?",(report_date,)); conn.commit(); return {"ok":True}
     finally: conn.close()
 
+
+@app.delete("/api/stocks/date/{date_str}")
+def delete_stocks_for_date(date_str: str):
+    """Delete all stock records for a specific date so files can be re-uploaded."""
+    conn = get_db()
+    count = conn.execute("SELECT COUNT(*) as c FROM stock_snapshots WHERE date=?", (date_str,)).fetchone()["c"]
+    conn.execute("DELETE FROM stock_snapshots WHERE date=?", (date_str,))
+    conn.commit(); conn.close()
+    # Invalidate caches
+    global _analytics_cache, _analytics_cache_key
+    _analytics_cache = None; _analytics_cache_key = None
+    import os
+    if os.path.exists(ANALYTICS_JSON_PATH): os.remove(ANALYTICS_JSON_PATH)
+    if os.path.exists(TURNOVER_JSON_PATH): os.remove(TURNOVER_JSON_PATH)
+    return {"ok": True, "deleted": count, "date": date_str}
 
 @app.post("/api/admin/clear-sales")
 def clear_sales_data():

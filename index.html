@@ -237,10 +237,27 @@ async function loadDates(){
     const r=await fetch("/api/dates"); const dates=await r.json();
     const tabs=document.getElementById("date-tabs"); tabs.innerHTML="";
     dates.forEach(d=>{
+      const wrap=document.createElement("div"); wrap.style.cssText="display:inline-flex;align-items:center;gap:0";
       const btn=document.createElement("button"); btn.className="date-tab"+(d.date===selectedDate?" active":"");
       const p=d.date.split("-"); btn.innerHTML=p[2]+"."+p[1]+"."+p[0]+" <span class='dtc'>"+d.sku_count+"</span>";
       btn.onclick=()=>{selectedDate=d.date;currentPage=1;loadDates();loadStocks();};
-      tabs.appendChild(btn);
+      const del=document.createElement("button");
+      del.title="Удалить остатки за эту дату"; del.textContent="×";
+      del.style.cssText="padding:2px 6px;border-radius:0 8px 8px 0;border:1px solid rgba(255,255,255,0.15);border-left:none;"+
+        "background:rgba(239,68,68,0.12);color:rgba(239,68,68,0.7);cursor:pointer;font-size:13px;line-height:1;height:100%";
+      del.onmouseenter=()=>{del.style.background="rgba(239,68,68,0.3)";del.style.color="white"};
+      del.onmouseleave=()=>{del.style.background="rgba(239,68,68,0.12)";del.style.color="rgba(239,68,68,0.7)"};
+      del.onclick=async(e)=>{
+        e.stopPropagation();
+        if(!confirm("Удалить все остатки за "+p[2]+"."+p[1]+"."+p[0]+"?\nПосле этого можно перезалить файлы заново.")) return;
+        const res=await fetch("/api/stocks/date/"+d.date,{method:"DELETE"});
+        if(res.ok){if(selectedDate===d.date)selectedDate=null; loadDates();}
+        else alert("Ошибка удаления");
+      };
+      // Adjust btn border-radius when del button is next to it
+      btn.style.borderRadius="8px 0 0 8px";
+      wrap.appendChild(btn); wrap.appendChild(del);
+      tabs.appendChild(wrap);
     });
     if(!selectedDate&&dates.length>0){selectedDate=dates[0].date;loadDates();loadStocks();}
   }catch(e){}
@@ -283,7 +300,7 @@ async function uploadFiles(files){
   for(const file of xlsFiles){
     const fd=new FormData();fd.append("file",file);
     try{const res=await fetch("/api/upload",{method:"POST",body:fd});const data=await res.json();
-    if(res.ok){results.push("✓ "+data.date+": +"+data.inserted+" записей");ok++;}
+    if(res.ok){const added=(data.inserted||0)+(data.updated||0);results.push("✓ "+data.date+": +"+(data.inserted||0)+" новых"+(data.updated?" +"+data.updated+" обновлено":""));ok++;}
     else{results.push("✗ "+file.name+": "+data.detail);}}
     catch{results.push("✗ "+file.name+": ошибка сети");}
   }
