@@ -364,7 +364,6 @@
     <a href="/analytics">Остатки</a>
     <a href="/turnover">Оборачиваемость</a>
     <a href="/order" class="active">Заказ</a>
-    <a href="/revenue">Оборот</a>
     <a href="/transfers">Перемещения</a>
   </nav>
 </div>
@@ -835,15 +834,29 @@ function getCostData(base){
 }
 
 // ─── Season / Stock helpers ────────────────────────────────────────────────────
-function getCurrentStock(base){
-  const dm=stockData[base]||{};
-  for(let i=allDates.length-1;i>=0;i--){
-    if(dm[allDates[i]]!==undefined)return dm[allDates[i]];
+// Aggregate stock across all size variants for a base SKU (matches turnover page logic)
+function getMergedStockMap(base){
+  const allKeys=Object.keys(stockData).filter(k=>stripSize(k)===base);
+  if(allKeys.length===0) return stockData[base]||{};
+  const merged={};
+  for(const k of allKeys){
+    const dm=stockData[k];
+    let prev=0;
+    for(const d of allDates){
+      if(dm[d]!==undefined) prev=dm[d];
+      merged[d]=(merged[d]||0)+prev;
+    }
   }
-  return 0;
+  return merged;
+}
+function getCurrentStock(base){
+  const dm=getMergedStockMap(base);
+  let last=0;
+  for(const d of allDates){if(dm[d]!==undefined)last=dm[d];}
+  return last;
 }
 function getDaysInStock(base){
-  const dm=stockData[base]||{};
+  const dm=getMergedStockMap(base);
   const cutoff=new Date(Date.now()-365*24*3600*1000);
   const last365=allDates.filter(d=>new Date(d)>=cutoff);
   let dis=0,prev=0;
@@ -854,7 +867,7 @@ function getTurnover(base){
   const sk=SKUS[base]; if(!sk)return 0;
   const dis=getDaysInStock(base); if(!dis)return 0;
   if(currentSeason==="year") return sk.nr/dis;
-  const dm=stockData[base]||{};
+  const dm=getMergedStockMap(base);
   const cutoff=new Date(Date.now()-365*24*3600*1000);
   const last365=allDates.filter(d=>new Date(d)>=cutoff);
   const seasonDates=last365.filter(d=>getSeason(d)===currentSeason);
@@ -870,7 +883,7 @@ function getDailyQty(base){
   if(currentSeason==="year") return sk.nq/dis;
   const seasonRev=sk.sea[currentSeason]||0;
   const totalRev=sk.nr||1;
-  const dm=stockData[base]||{};
+  const dm=getMergedStockMap(base);
   const cutoff=new Date(Date.now()-365*24*3600*1000);
   const seasonDates=allDates.filter(d=>new Date(d)>=cutoff&&getSeason(d)===currentSeason);
   let si=0,prev=0;
