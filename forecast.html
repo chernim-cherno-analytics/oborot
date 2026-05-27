@@ -319,7 +319,16 @@ async function loadData() {
     tData = await tr.json();
     aData = await ar.json();
     allSkuNames = Object.keys(aData.stock || {})
-      .filter(n => stripSize(n) === n)
+      .filter(n => {
+        if (stripSize(n) !== n) return false; // skip size variants
+        const nl = n.toLowerCase();
+        // Skip non-merchandise
+        if (nl.includes("сертификат") || nl.includes("кошелек") || nl.includes("sample") ||
+            nl.includes("упаковоч") || nl.includes("пакет") || nl.includes("коробк") ||
+            nl.includes("вешалк") || nl.includes("бирк") || nl.includes("кофр") ||
+            nl.includes("наклейк") || nl.includes("нитк")) return false;
+        return true;
+      })
       .sort();
     render();
   } catch(e) {
