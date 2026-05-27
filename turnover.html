@@ -306,8 +306,10 @@ async function loadStock() {
 
 function compute() {
   for (const base of Object.keys(stockData)) {
-    // Skip size variants — only compute for base names
-    if (base !== base.replace(/\s*\([^)]*\)\s*$/, "").trim()) continue;
+    // Skip size variants — but only if the base name (without size) EXISTS in stockData
+    // If base name doesn't exist, this item IS the base (e.g. new items only loaded with sizes)
+    const _strippedBase = base.replace(/\s*\([^)]*\)\s*$/, "").trim();
+    if (base !== _strippedBase && (stockData[_strippedBase] || SKUS[_strippedBase])) continue;
     const dm=stockData[base]||{};
     const sk=SKUS[base]||{nq:0,nr:0,ap:0,sea:{},chart:[]};
     const skNq = sk.nq || 0;
