@@ -254,6 +254,13 @@
     .rg1:hover td { background: rgba(134,239,172,0.22) !important }
     .ro:hover  td { background: rgba(251,146,60,0.22) !important }
     .rr:hover  td { background: rgba(239,68,68,0.18) !important }
+    .china td { background: rgba(255,100,180,0.13) !important }
+    .china:hover td { background: rgba(255,100,180,0.24) !important }
+    .china-divider td {
+      background: rgba(255,100,180,0.08) !important;
+      font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+      color: rgba(255,150,200,0.7); padding: 5px 10px; border-top: 1px solid rgba(255,100,180,0.2);
+    }
 
     .rank { font-size: 11px; color: rgba(26,42,58,0.3) }
     .pname { font-weight: 500; font-size: 12px; color: white; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
@@ -1059,6 +1066,44 @@ function getSizeQtys(base, totalOrderQty, savedOverrides){
   });
 }
 
+// ─── China-sourced items ───────────────────────────────────────────────────────
+// These items are manufactured in China — shown with pink background + separate ranking
+const CHINA_CATEGORIES = new Set([
+  "Украшения",       // все украшения
+  "Нижнее белье",    // все нижнее белье
+  "Аксессуары",      // все ремни, шарфы, шапка, воротник
+]);
+
+// Specific items by partial name match (lowercase)
+const CHINA_NAMES = [
+  "с понедельника",          // спортивная сумка
+  "килл билл",               // сумки килл билл
+  "нападающий",              // свитера нападающий
+  "приятный",                // свитер приятный
+  "амальфи",                 // свитер амальфи
+  "с белым сердцем",
+  "с красным сердцем",
+  "комфорт плюс",
+  "джинсы",                  // джинсы лето
+  "носки",
+  "кошелек",
+  "кроп кольчуга",
+  "no plans",                // кроп топ
+  "с рельефами",             // майки рельефы (мужская/женская)
+  "рельефами мужская",
+  "лонгслив \"искал такой\"",
+  "лонгслив \\\"искал такой\\\"",
+  "кремовый лонгслив",       // кремовый лонгслив Искал такой
+];
+
+function isChinaItem(base){
+  const cat = getCat(base);
+  if(cat && CHINA_CATEGORIES.has(cat)) return true;
+  const bl = base.toLowerCase();
+  return CHINA_NAMES.some(n => bl.includes(n));
+}
+
+
 function rowCls(t){
   if(t>=5000)return"rg2"; if(t>=2000)return"rg1"; if(t>=1000)return"ro"; if(t>0)return"rr"; return"rgr";
 }
@@ -1083,11 +1128,14 @@ function render(){
   }
 
   // Sort by PROFITABILITY: revPotential = order qty × sale price (highest first)
-  // This matches the user's requirement: сортируем по прибыльности сверху вниз
   const active=items.filter(x=>(x.order.turn>=2000&&x.order.qty>=5)||addedToOrder.has(x.base))
     .sort((a,b)=>(b.order.revPotential||0)-(a.order.revPotential||0));
   const possible=items.filter(x=>x.order.turn>=1000&&x.order.turn<2000&&x.order.qty>=5&&!addedToOrder.has(x.base))
     .sort((a,b)=>(b.order.revPotential||0)-(a.order.revPotential||0));
+
+  // Split active into Russia-sourced and China-sourced
+  const activeRU = active.filter(x => !isChinaItem(x.base));
+  const activeCN = active.filter(x =>  isChinaItem(x.base));
 
   // Totals
   const totalItems=active.length;
@@ -1102,7 +1150,7 @@ function render(){
   document.getElementById("s-rev").textContent=fmtM(totalRev)+" ₽";
 
   const maxRev=Math.max(...active.map(x=>x.order.revPotential),1);
-  let rank=1;
+  let rankRU=1, rankCN=1;
 
   function buildRow(base,cat,order,sk,showRank,isPossible){
     const tr=document.createElement("tr");
@@ -1129,10 +1177,13 @@ function render(){
     // Has sizes? Use SIZE_DB
     const hasSizes=getSizeEntries(base).length>0||(SIZE_DB[base]||[]).length>1;
     const expandId="sz-"+base.replace(/[^a-zA-Z0-9]/g,"_");
+    const isChina=isChinaItem(base);
+    if(isChina) tr.classList.add("china");
 
     const salePriceStr=cd.salePrice>0?fmt(cd.salePrice)+" ₽":"—";
+    const rankNum=showRank?(isChina?rankCN++:rankRU++):"—";
     tr.innerHTML=`
-      <td class="rank">${showRank?rank++:"—"}</td>
+      <td class="rank">${rankNum}</td>
       <td>
         <span class="pname" title="${base}">${base}</span>
         <span class="cat-badge">${cat}</span>
@@ -1182,11 +1233,24 @@ function render(){
     return tr;
   }
 
-  // Active section
-  for(const{base,cat,order,sk}of active){
+  // ── RU section (main order) ───────────────────────────────────────────────
+  for(const{base,cat,order,sk}of activeRU){
     tb.appendChild(buildRow(base,cat,order,sk,true,false));
   }
-  // Possible section
+
+  // ── CN section (China-sourced) ───────────────────────────────────────────
+  if(activeCN.length){
+    const cnSep=document.createElement("tr"); cnSep.className="china-divider";
+    const cnFabric=activeCN.reduce((s,x)=>s+x.order.fabricCost,0);
+    const cnCost=activeCN.reduce((s,x)=>s+x.order.orderCost,0);
+    cnSep.innerHTML=`<td colspan="16">🇨🇳 Китай — ${activeCN.length} позиций · закупка ${fmtM(cnCost)} ₽</td>`;
+    tb.appendChild(cnSep);
+    for(const{base,cat,order,sk}of activeCN){
+      tb.appendChild(buildRow(base,cat,order,sk,true,false));
+    }
+  }
+
+  // ── Possible section ─────────────────────────────────────────────────────
   if(possible.length){
     const sep=document.createElement("tr"); sep.className="section-row";
     sep.innerHTML=`<td colspan="16" style="color:rgba(180,120,0,0.7)">⚠ Возможно к заказу — оборачиваемость 1 000–2 000 ₽/день (${possible.length} позиций)</td>`;
