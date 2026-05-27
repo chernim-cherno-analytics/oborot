@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Chernim Cherno · Прогноз</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0 }
+    body { font-family: Helvetica, 'Helvetica Neue', Arial, sans-serif; min-height: 100vh; background: #272b08; color: white; }
+
+    .gradient-bg { position: fixed; inset: 0; z-index: 0; overflow: hidden; background: #272b08; }
+    .gradient-bg::before, .gradient-bg::after, .b1, .b2, .b3 {
+      position: absolute; border-radius: 50%; filter: blur(90px); opacity: 0.9;
+    }
+    .gradient-bg::before { content: ''; width: 70vw; height: 70vw;
+      background: radial-gradient(circle, #60886a, transparent 70%);
+      top: -20%; left: -10%; animation: blob1 11s ease-in-out infinite alternate; }
+    .gradient-bg::after { content: ''; width: 60vw; height: 60vw;
+      background: radial-gradient(circle, #79a28e, transparent 70%);
+      bottom: -15%; right: -10%; animation: blob2 14s ease-in-out infinite alternate; }
+    .b1 { width: 55vw; height: 55vw; background: radial-gradient(circle, #466030, transparent 70%);
+      top: 30%; left: 30%; animation: blob3 9s ease-in-out infinite alternate; }
+    .b2 { width: 45vw; height: 45vw; background: radial-gradient(circle, #9ad5c8, transparent 70%);
+      top: -10%; right: 10%; animation: blob4 13s ease-in-out infinite alternate; }
+    .b3 { width: 50vw; height: 50vw; background: radial-gradient(circle, #1a2008, transparent 70%);
+      bottom: 10%; left: 20%; animation: blob5 16s ease-in-out infinite alternate; }
+    .vignette { position: fixed; inset: 0; z-index: 1; pointer-events: none;
+      background: radial-gradient(ellipse at center, transparent 40%, rgba(10,12,4,0.55) 100%); }
+    .grain { position: fixed; inset: 0; z-index: 2; pointer-events: none; }
+    .grain::before { content: ''; position: absolute; inset: -50%; width: 200%; height: 200%;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='grain'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23grain)'/%3E%3C/svg%3E");
+      background-size: 200px 200px; opacity: 0.12; mix-blend-mode: overlay;
+      animation: grain-shift 0.15s steps(1) infinite; }
+    @keyframes grain-shift {
+      0%{transform:translate(0,0)} 10%{transform:translate(-3%,-4%)} 20%{transform:translate(4%,2%)}
+      30%{transform:translate(-2%,5%)} 40%{transform:translate(5%,-3%)} 50%{transform:translate(-4%,4%)}
+      60%{transform:translate(3%,-2%)} 70%{transform:translate(-5%,3%)} 80%{transform:translate(2%,-5%)}
+      90%{transform:translate(-3%,2%)} 100%{transform:translate(4%,-4%)} }
+    @keyframes blob1{0%{transform:translate(0,0) scale(1)}33%{transform:translate(8vw,5vh) scale(1.1)}66%{transform:translate(-5vw,10vh) scale(0.95)}100%{transform:translate(10vw,-8vh) scale(1.05)}}
+    @keyframes blob2{0%{transform:translate(0,0) scale(1)}33%{transform:translate(-10vw,-6vh) scale(1.08)}66%{transform:translate(6vw,-12vh) scale(1.12)}100%{transform:translate(-8vw,5vh) scale(0.92)}}
+    @keyframes blob3{0%{transform:translate(0,0) scale(1)}50%{transform:translate(-12vw,8vh) scale(1.15)}100%{transform:translate(8vw,-10vh) scale(0.9)}}
+    @keyframes blob4{0%{transform:translate(0,0) scale(0.9)}50%{transform:translate(10vw,12vh) scale(1.1)}100%{transform:translate(-6vw,6vh) scale(1)}}
+    @keyframes blob5{0%{transform:translate(0,0) scale(1.1)}50%{transform:translate(14vw,-8vh) scale(0.9)}100%{transform:translate(-10vw,-12vh) scale(1.05)}}
+
+    .header {
+      position: sticky; top: 0; z-index: 200;
+      padding: 0 28px; height: 56px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .logo { text-decoration: none; display:flex; align-items:center;
+      font-family: Helvetica, 'Helvetica Neue', Arial, sans-serif;
+      font-size: 15px; font-weight: 400; letter-spacing: 0.12em; color: rgba(255,255,255,0.88); }
+    .nav { display: flex; gap: 20px }
+    .nav a {
+      font-size: 13px; font-weight: 400; letter-spacing: 0.05em;
+      color: rgba(255,255,255,0.3);
+      text-decoration: none; transition: color .2s;
+    }
+    .nav a:hover { color: rgba(255,255,255,0.7) }
+    .nav a.active { color: rgba(255,255,255,0.92); font-weight: 500; }
+
+    /* ─── Top controls ─── */
+    .controls {
+      position: relative; z-index: 10;
+      padding: 14px 28px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+      border-bottom: 1px solid rgba(255,255,255,0.15);
+      background: rgba(255,255,255,0.05); backdrop-filter: blur(10px);
+    }
+    .period-btn {
+      font-size: 12px; font-weight: 500; padding: 5px 16px; border-radius: 20px;
+      border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.07);
+      color: rgba(255,255,255,0.6); cursor: pointer; transition: all .15s;
+      font-family: inherit;
+    }
+    .period-btn:hover { background: rgba(255,255,255,0.15); color: white }
+    .period-btn.active { background: rgba(255,255,255,0.2); color: white; border-color: rgba(255,255,255,0.4) }
+    .sep { width: 1px; height: 22px; background: rgba(255,255,255,0.12); }
+    .add-supply-btn {
+      margin-left: auto;
+      font-size: 12px; font-weight: 500; padding: 6px 16px; border-radius: 20px;
+      border: 1px solid rgba(134,239,172,0.4); background: rgba(134,239,172,0.12);
+      color: rgba(134,239,172,0.9); cursor: pointer; transition: all .15s; font-family: inherit;
+    }
+    .add-supply-btn:hover { background: rgba(134,239,172,0.22); color: white }
+
+    /* ─── Summary cards ─── */
+    .summary {
+      position: relative; z-index: 4;
+      padding: 16px 28px; display: flex; gap: 12px; flex-wrap: wrap;
+    }
+    .scard {
+      background: rgba(255,255,255,0.06); backdrop-filter: blur(12px);
+      border: 1px solid rgba(255,255,255,0.1); border-radius: 10px;
+      padding: 14px 18px; min-width: 160px;
+    }
+    .scard-label { font-size: 10px; font-weight: 600; color: rgba(255,255,255,0.35); letter-spacing: .08em; text-transform: uppercase; margin-bottom: 6px; }
+    .scard-val { font-size: 22px; font-weight: 700; color: rgba(255,255,255,0.95); }
+    .scard-sub { font-size: 11px; color: rgba(255,255,255,0.35); margin-top: 3px; }
+    .scard.warn .scard-val { color: rgba(251,146,60,0.95); }
+    .scard.danger .scard-val { color: rgba(239,68,68,0.95); }
+    .scard.good .scard-val { color: rgba(134,239,172,0.95); }
+
+    /* ─── Main table ─── */
+    .main { padding: 0 28px 24px; max-width: 1800px; margin: 0 auto; position: relative; z-index: 3; }
+    .table-outer {
+      background: rgba(255,255,255,0.05); backdrop-filter: blur(16px);
+      border: 1px solid rgba(255,255,255,0.12); border-radius: 12px;
+      overflow: auto; max-height: calc(100vh - 230px);
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 1100px; table-layout: fixed; }
+    thead th {
+      background: rgba(30,38,18,0.92); backdrop-filter: blur(16px);
+      padding: 10px 10px; text-align: center;
+      font-size: 10px; font-weight: 500; color: rgba(255,255,255,0.45);
+      letter-spacing: 0.07em; text-transform: uppercase;
+      white-space: nowrap; position: sticky; top: 0; z-index: 10;
+      border-bottom: 1px solid rgba(255,255,255,0.12);
+    }
+    thead th:first-child { text-align: left; padding-left: 14px; }
+    thead th .sub { display:block; font-size:9px; font-weight:400; letter-spacing:0; text-transform:none; opacity:0.45; margin-top:2px; }
+    tbody tr td {
+      padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,0.07);
+      text-align: center; vertical-align: middle; color: rgba(255,255,255,0.85);
+    }
+    tbody tr td:first-child { text-align: left; padding-left: 14px; }
+    tbody tr:hover td { background: rgba(255,255,255,0.06) }
+    .nb { font-variant-numeric: tabular-nums; }
+    .nbig { font-weight: 700; font-size: 13px; }
+    .loading { text-align:center; padding:60px; color:rgba(255,255,255,0.3); font-size:13px; }
+
+    /* Revenue bar */
+    .rev-bar { position:relative; display:flex; align-items:center; gap:6px; }
+    .rev-fill { height: 18px; border-radius: 3px; min-width: 2px; transition: width .3s; }
+    .rev-label { font-size: 11px; font-weight: 700; white-space: nowrap; }
+
+    /* Status badge */
+    .badge { display:inline-block; font-size:10px; font-weight:700; padding:2px 8px; border-radius:10px; }
+    .badge-ok   { background:rgba(134,239,172,0.18); color:rgba(134,239,172,0.9); }
+    .badge-warn { background:rgba(251,146,60,0.18);  color:rgba(251,146,60,0.9); }
+    .badge-dead { background:rgba(239,68,68,0.15);   color:rgba(239,68,68,0.8); }
+    .badge-new  { background:rgba(147,197,253,0.18); color:rgba(147,197,253,0.9); }
+
+    /* Supply chips */
+    .supply-chip {
+      display:inline-flex; align-items:center; gap:5px;
+      background: rgba(134,239,172,0.12); border: 1px solid rgba(134,239,172,0.25);
+      border-radius: 12px; padding: 2px 8px; font-size: 10px; font-weight: 600;
+      color: rgba(134,239,172,0.8); cursor: default; white-space:nowrap;
+    }
+    .supply-chip .del-chip { cursor:pointer; opacity:0.5; font-size:12px; line-height:1; }
+    .supply-chip .del-chip:hover { opacity:1; }
+
+    /* ─── Supply modal ─── */
+    .modal-bg {
+      display:none; position:fixed; inset:0; z-index:500;
+      background:rgba(0,0,0,0.6); backdrop-filter:blur(4px);
+      align-items:center; justify-content:center;
+    }
+    .modal-bg.open { display:flex; }
+    .modal {
+      background:#1e2610; border:1px solid rgba(255,255,255,0.15);
+      border-radius:14px; padding:28px; width:440px; max-width:95vw;
+    }
+    .modal h2 { font-size:15px; font-weight:600; color:rgba(255,255,255,0.9); margin-bottom:18px; }
+    .modal label { display:block; font-size:11px; font-weight:600; color:rgba(255,255,255,0.4); letter-spacing:.06em; text-transform:uppercase; margin-bottom:6px; }
+    .modal input, .modal select {
+      width:100%; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.15);
+      border-radius:8px; padding:9px 12px; font-size:13px; color:white; font-family:inherit;
+      outline:none; margin-bottom:14px;
+    }
+    .modal input:focus, .modal select:focus { border-color:rgba(134,239,172,0.4); }
+    .modal input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.8); }
+    .modal-row { display:flex; gap:10px; }
+    .modal-row .modal-col { flex:1; }
+    .modal-actions { display:flex; gap:10px; margin-top:6px; }
+    .btn-save { flex:1; background:rgba(134,239,172,0.18); border:1px solid rgba(134,239,172,0.35); color:rgba(134,239,172,0.95); border-radius:8px; padding:10px; font-size:13px; font-weight:600; cursor:pointer; font-family:inherit; transition:background .15s; }
+    .btn-save:hover { background:rgba(134,239,172,0.28); }
+    .btn-cancel { flex:1; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.12); color:rgba(255,255,255,0.5); border-radius:8px; padding:10px; font-size:13px; cursor:pointer; font-family:inherit; }
+
+    /* ─── Supplies sidebar (pending) ─── */
+    .supplies-list {
+      margin-bottom: 14px;
+    }
+    .supply-row {
+      display:flex; align-items:center; gap:8px; padding:6px 10px;
+      background:rgba(134,239,172,0.07); border:1px solid rgba(134,239,172,0.15);
+      border-radius:8px; margin-bottom:6px; font-size:12px;
+    }
+    .supply-row-name { flex:1; color:rgba(255,255,255,0.8); font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .supply-row-qty  { color:rgba(134,239,172,0.9); font-weight:700; min-width:50px; text-align:right; }
+    .supply-row-date { color:rgba(255,255,255,0.4); font-size:10px; min-width:70px; text-align:right; }
+    .supply-row-del  { color:rgba(255,255,255,0.25); cursor:pointer; font-size:15px; }
+    .supply-row-del:hover { color:rgba(239,68,68,0.7); }
+  </style>
+</head>
+<body>
+<div class="gradient-bg"><div class="b1"></div><div class="b2"></div><div class="b3"></div></div>
+<div class="vignette"></div>
+<div class="grain"></div>
+
+<div class="header">
+  <a class="logo" href="/">Chernim Cherno</a>
+  <nav class="nav">
+    <a href="/">Data</a>
+    <a href="/analytics">Остатки</a>
+    <a href="/turnover">Оборачиваемость</a>
+    <a href="/order">Заказ</a>
+    <a href="/forecast" class="active">Прогноз</a>
+    <a href="/transfers">Перемещения</a>
+  </nav>
+</div>
+
+<!-- Controls -->
+<div class="controls">
+  <button class="period-btn active" data-days="30" onclick="setPeriod(30,this)">1 месяц</button>
+  <button class="period-btn" data-days="90" onclick="setPeriod(90,this)">3 месяца</button>
+  <div class="sep"></div>
+  <span style="font-size:11px;color:rgba(255,255,255,0.3)" id="as-of-label"></span>
+  <button class="add-supply-btn" onclick="openModal()">+ Добавить поставку</button>
+</div>
+
+<!-- Summary cards -->
+<div class="summary" id="summary-cards">
+  <div class="scard"><div class="scard-label">Прогноз выручки</div><div class="scard-val" id="sc-rev">—</div><div class="scard-sub" id="sc-period-label">за период</div></div>
+  <div class="scard"><div class="scard-label">Товаров с продажами</div><div class="scard-val" id="sc-active">—</div><div class="scard-sub">прогноз > 0</div></div>
+  <div class="scard warn" id="sc-card-warn"><div class="scard-label">Закончатся в периоде</div><div class="scard-val" id="sc-sellout">—</div><div class="scard-sub">товаров</div></div>
+  <div class="scard"><div class="scard-label">Поставок запланировано</div><div class="scard-val" id="sc-supplies">—</div><div class="scard-sub" id="sc-supplies-sub">позиций</div></div>
+  <div class="scard good" id="sc-card-good"><div class="scard-label">Доп. выручка от поставок</div><div class="scard-val" id="sc-supply-rev">—</div><div class="scard-sub">от будущих поставок</div></div>
+</div>
+
+<!-- Table -->
+<div class="main">
+  <div class="table-outer">
+    <table>
+      <colgroup>
+        <col style="width:220px">
+        <col style="width:80px">
+        <col style="width:90px">
+        <col style="width:100px">
+        <col style="width:130px">
+        <col style="width:100px">
+        <col style="width:100px">
+        <col style="width:90px">
+        <col style="width:200px">
+      </colgroup>
+      <thead>
+        <tr>
+          <th>Название</th>
+          <th>Остаток<br><span class="sub">сейчас</span></th>
+          <th>Ср. цена<br><span class="sub">продажи ₽</span></th>
+          <th>Продаж/день<br><span class="sub">шт</span></th>
+          <th>Прогноз выручки<br><span class="sub">за период ₽</span></th>
+          <th>Продаж<br><span class="sub">шт за период</span></th>
+          <th>Стока хватит<br><span class="sub">до даты</span></th>
+          <th>Статус</th>
+          <th>Поставки<br><span class="sub">ожидается</span></th>
+        </tr>
+      </thead>
+      <tbody id="tb"><tr><td colspan="9" class="loading">Загружаю данные...</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Add Supply Modal -->
+<div class="modal-bg" id="modal-bg">
+  <div class="modal">
+    <h2>Ожидаемая поставка</h2>
+    <label>Товар</label>
+    <input type="text" id="modal-sku" placeholder="Начните вводить название..." autocomplete="off" oninput="suggestSku(this.value)"/>
+    <div id="sku-suggestions" style="margin-top:-10px;margin-bottom:12px;max-height:160px;overflow:auto;background:rgba(30,38,18,0.98);border:1px solid rgba(255,255,255,0.12);border-radius:8px;display:none;"></div>
+    <div class="modal-row">
+      <div class="modal-col">
+        <label>Количество (шт)</label>
+        <input type="number" id="modal-qty" min="1" placeholder="100"/>
+      </div>
+      <div class="modal-col">
+        <label>Дата поступления</label>
+        <input type="date" id="modal-date"/>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal()">Отмена</button>
+      <button class="btn-save" onclick="saveSupply()">Добавить</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── State ───────────────────────────────────────────────────────────────────
+let period = 30;
+let turnoverData = null;   // { dates, skus }
+let analyticsData = null;  // { dates, stock }
+let supplies = loadSupplies(); // [{sku, qty, date}]
+let allSkuNames = [];
+
+// ─── Persist supplies in localStorage ────────────────────────────────────────
+function loadSupplies() {
+  try { return JSON.parse(localStorage.getItem('cc_supplies_v1') || '[]'); } catch(e) { return []; }
+}
+function saveSupplies() {
+  localStorage.setItem('cc_supplies_v1', JSON.stringify(supplies));
+}
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+function fmt(n) { if (!n && n !== 0) return '—'; return Math.round(n).toLocaleString('ru-RU'); }
+function fmtDate(d) {
+  if (!d) return '—';
+  const dt = new Date(d);
+  return dt.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
+}
+function getSeason(d) {
+  const m = new Date(d).getMonth() + 1;
+  if (m === 12 || m <= 2) return 'winter';
+  if (m <= 5) return 'spring';
+  if (m <= 8) return 'summer';
+  return 'autumn';
+}
+function stripSize(n) { return n.replace(/\s*\([^)]*\)\s*$/, '').trim(); }
+
+function getCurrentStock(skuName, stockObj, dates) {
+  if (!stockObj || !dates || !dates.length) return 0;
+  for (let i = dates.length - 1; i >= 0; i--) {
+    if (stockObj[dates[i]] !== undefined) return stockObj[dates[i]];
+  }
+  return 0;
+}
+
+// ─── Main data load ───────────────────────────────────────────────────────────
+async function loadData() {
+  document.getElementById('tb').innerHTML = '<tr><td colspan="9" class="loading">Загружаю данные...</td></tr>';
+  try {
+    const [tRes, aRes] = await Promise.all([
+      fetch('/api/turnover-data'),
+      fetch('/api/analytics-data')
+    ]);
+    if (!tRes.ok) throw new Error('turnover ' + tRes.status);
+    if (!aRes.ok) throw new Error('analytics ' + aRes.status);
+    turnoverData = await tRes.json();
+    analyticsData = await aRes.json();
+    // Collect all base SKU names with any stock
+    allSkuNames = Object.keys(analyticsData.stock || {})
+      .filter(n => n === stripSize(n)) // base names only
+      .sort();
+    render();
+  } catch (e) {
+    document.getElementById('tb').innerHTML = `<tr><td colspan="9" class="loading">Ошибка загрузки: ${e.message}</td></tr>`;
+  }
+}
+
+// ─── Compute forecast for one SKU ────────────────────────────────────────────
+function forecastSku(baseName) {
+  const sk = (turnoverData?.skus || {})[baseName] || {};
+  const stockMap = (analyticsData?.stock || {})[baseName] || {};
+  const allDates = analyticsData?.dates || [];
+
+  const ap = sk.ap || 0;       // avg price
+  const nq = sk.nq || 0;       // total sold qty
+  const nr = sk.nr || 0;       // total revenue
+  const sea = sk.sea || {};
+
+  // Current stock
+  const cs = getCurrentStock(baseName, stockMap, allDates);
+
+  // Daily qty rate — use last 90 days if possible, else all time
+  const cutoff = new Date(Date.now() - 90 * 86400000).toISOString().slice(0,10);
+  const recentDates = allDates.filter(d => d >= cutoff);
+  let dis90 = 0, prev = 0;
+  for (const d of recentDates) {
+    const q = stockMap[d] !== undefined ? stockMap[d] : prev;
+    if (q >= 3) dis90++;
+    prev = q;
+  }
+
+  // Fallback: all time
+  let disAll = 0; prev = 0;
+  for (const d of allDates) {
+    const q = stockMap[d] !== undefined ? stockMap[d] : prev;
+    if (q >= 3) disAll++;
+    prev = q;
+  }
+
+  // Days-in-stock weighted sales rate
+  // Use 90-day if enough data, else all-time
+  // Get revenue for last 90 days from chart
+  const chart = sk.chart || [];
+  const dates = turnoverData?.dates || allDates;
+  const cutoffIdx = dates.findIndex(d => d >= cutoff);
+  let rev90 = 0, qty90 = 0;
+  if (cutoffIdx >= 0 && dates.length > 0 && nr > 0) {
+    const chartSlice = chart.slice(Math.max(0, cutoffIdx));
+    rev90 = chartSlice.reduce((s, v) => s + Math.max(0, v), 0);
+    qty90 = dis90 > 0 ? rev90 / (ap || 1) : 0;
+  }
+
+  const dailyRev  = dis90 > 5 ? rev90 / dis90  : (disAll > 0 ? nr / disAll : 0);
+  const dailyQty  = dis90 > 5 ? (ap > 0 ? dailyRev / ap : 0) : (disAll > 0 ? nq / disAll : 0);
+
+  // Apply seasonal correction for the forecast window
+  const today = new Date();
+  const season = getSeason(today.toISOString().slice(0,10));
+  const totalSeaRev = Object.values(sea).reduce((s,v) => s + Math.max(0,v), 0);
+  const seasonalFactor = totalSeaRev > 0 && sea[season] !== undefined
+    ? Math.max(0.1, (sea[season] / totalSeaRev) * 4)  // *4 because 4 seasons
+    : 1.0;
+
+  const adjDailyQty = dailyQty * seasonalFactor;
+  const adjDailyRev = dailyRev * seasonalFactor;
+
+  // How many days until stock runs out (current stock only)
+  const daysLeft = adjDailyQty > 0 ? Math.round(cs / adjDailyQty) : null;
+  const selloutDate = daysLeft !== null ? new Date(Date.now() + daysLeft * 86400000) : null;
+
+  // Base forecast: limited by stock
+  const daysWithStock = daysLeft !== null ? Math.min(period, daysLeft) : period;
+  let forecastQty = Math.min(cs, Math.round(adjDailyQty * daysWithStock));
+  let forecastRev = Math.round(adjDailyRev * daysWithStock);
+  // Clamp: can't sell more than we have
+  if (ap > 0 && forecastQty > cs) { forecastQty = cs; forecastRev = Math.round(cs * ap); }
+
+  // Incorporate planned supplies
+  const today0 = today.toISOString().slice(0,10);
+  const periodEnd = new Date(Date.now() + period * 86400000).toISOString().slice(0,10);
+  const relevant = supplies.filter(s => {
+    const sn = stripSize(s.sku) === baseName ? true : s.sku === baseName;
+    return sn && s.date >= today0 && s.date <= periodEnd;
+  });
+
+  let supplyForecastRev = 0;
+  for (const sup of relevant) {
+    // Days between supply arrival and period end
+    const daysAvail = Math.round((new Date(periodEnd) - new Date(sup.date)) / 86400000);
+    if (daysAvail <= 0) continue;
+    const addQty = Math.min(sup.qty, Math.round(adjDailyQty * daysAvail));
+    const addRev = Math.round(adjDailyRev * daysAvail);
+    supplyForecastRev += Math.round(addQty * (ap || 0));
+  }
+
+  return {
+    cs, ap, nr, nq, dailyQty: adjDailyQty, dailyRev: adjDailyRev,
+    forecastQty, forecastRev, supplyForecastRev,
+    daysLeft, selloutDate,
+    totalForecastRev: forecastRev + supplyForecastRev,
+    hasSupply: relevant.length > 0,
+    supplyChips: relevant
+  };
+}
+
+// ─── Render table ─────────────────────────────────────────────────────────────
+function render() {
+  if (!turnoverData || !analyticsData) return;
+
+  const today0 = new Date().toISOString().slice(0,10);
+  const periodEnd = new Date(Date.now() + period * 86400000);
+  document.getElementById('as-of-label').textContent =
+    'по ' + periodEnd.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
+  document.getElementById('sc-period-label').textContent =
+    `за ${period} дней`;
+
+  const items = allSkuNames.map(name => ({ name, ...forecastSku(name) }))
+    .filter(d => d.nr > 0 || d.cs > 0)
+    .sort((a, b) => (b.totalForecastRev || 0) - (a.totalForecastRev || 0));
+
+  // Summary
+  const totalRev = items.reduce((s, d) => s + (d.totalForecastRev || 0), 0);
+  const activeCount = items.filter(d => d.forecastQty > 0).length;
+  const selloutCount = items.filter(d => d.daysLeft !== null && d.daysLeft < period && d.daysLeft > 0).length;
+  const supplyItems = new Set(supplies.filter(s => {
+    const e = new Date(Date.now() + period * 86400000).toISOString().slice(0,10);
+    return s.date >= today0 && s.date <= e;
+  }).map(s => stripSize(s.sku))).size;
+  const addlRev = items.reduce((s, d) => s + (d.supplyForecastRev || 0), 0);
+
+  document.getElementById('sc-rev').textContent = fmt(totalRev) + ' ₽';
+  document.getElementById('sc-active').textContent = activeCount;
+  document.getElementById('sc-sellout').textContent = selloutCount;
+  document.getElementById('sc-supplies').textContent = supplyItems;
+  document.getElementById('sc-supply-rev').textContent = addlRev > 0 ? '+' + fmt(addlRev) + ' ₽' : '—';
+
+  const maxRev = items[0]?.totalForecastRev || 1;
+  const tb = document.getElementById('tb');
+  tb.innerHTML = '';
+
+  for (const d of items) {
+    const isZero = d.totalForecastRev === 0;
+    let statusBadge, statusClass = '';
+    if (d.nr === 0 && d.cs === 0) {
+      statusBadge = '<span class="badge badge-dead">нет данных</span>';
+    } else if (d.daysLeft === 0 || d.cs === 0) {
+      statusBadge = '<span class="badge badge-dead">нет стока</span>';
+    } else if (d.daysLeft !== null && d.daysLeft < 14) {
+      statusBadge = '<span class="badge badge-warn">заканчивается</span>';
+    } else if (d.daysLeft !== null && d.daysLeft < period) {
+      statusBadge = '<span class="badge badge-warn">кончится в периоде</span>';
+    } else if (d.dailyQty < 0.05) {
+      statusBadge = '<span class="badge badge-dead">низкие продажи</span>';
+    } else {
+      statusBadge = '<span class="badge badge-ok">в норме</span>';
+    }
+
+    const selloutStr = d.selloutDate
+      ? d.selloutDate.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' })
+      : '> периода';
+
+    const barW = maxRev > 0 ? Math.round(d.totalForecastRev / maxRev * 120) : 0;
+    const barColor = d.forecastRev > 0
+      ? (d.hasSupply ? 'rgba(134,239,172,0.7)' : 'rgba(134,239,172,0.45)')
+      : 'rgba(239,68,68,0.35)';
+    const supBarW = maxRev > 0 ? Math.round(d.supplyForecastRev / maxRev * 120) : 0;
+
+    // Supply chips in cell
+    let supplyCell = '—';
+    if (d.supplyChips.length > 0) {
+      supplyCell = d.supplyChips.map(s =>
+        `<span class="supply-chip" title="${s.sku}">
+          +${s.qty} шт · ${fmtDate(s.date)}
+          <span class="del-chip" onclick="removeSupply('${s.sku}','${s.date}',${s.qty});event.stopPropagation()">×</span>
+        </span>`
+      ).join(' ');
+    }
+
+    const tr = document.createElement('tr');
+    if (isZero) tr.style.opacity = '0.45';
+    tr.innerHTML = `
+      <td style="font-weight:500;font-size:12px;color:rgba(255,255,255,0.9)">${d.name}</td>
+      <td class="nb nbig">${d.cs}</td>
+      <td class="nb">${d.ap > 0 ? fmt(d.ap) + ' ₽' : '—'}</td>
+      <td class="nb">${d.dailyQty > 0 ? d.dailyQty.toFixed(2) : '—'}</td>
+      <td>
+        <div class="rev-bar">
+          <div class="rev-fill" style="width:${barW}px;background:${barColor}"></div>
+          ${d.hasSupply && supBarW > 0 ? `<div class="rev-fill" style="width:${supBarW}px;background:rgba(134,239,172,0.25);margin-left:-2px"></div>` : ''}
+          <span class="rev-label">${fmt(d.totalForecastRev)} ₽</span>
+        </div>
+      </td>
+      <td class="nb">${d.forecastQty > 0 ? d.forecastQty : '—'}</td>
+      <td class="nb" style="font-size:11px;color:${d.daysLeft !== null && d.daysLeft < period ? 'rgba(251,146,60,0.9)' : 'rgba(255,255,255,0.6)'}">
+        ${selloutStr}
+      </td>
+      <td>${statusBadge}</td>
+      <td>${supplyCell}</td>`;
+    tb.appendChild(tr);
+  }
+
+  if (!items.length) {
+    tb.innerHTML = '<tr><td colspan="9" class="loading">Нет данных для отображения</td></tr>';
+  }
+}
+
+// ─── Period toggle ────────────────────────────────────────────────────────────
+function setPeriod(days, btn) {
+  period = days;
+  document.querySelectorAll('.period-btn').forEach(b => b.classList.toggle('active', b === btn));
+  render();
+}
+
+// ─── Modal ───────────────────────────────────────────────────────────────────
+function openModal(prefillSku) {
+  document.getElementById('modal-bg').classList.add('open');
+  document.getElementById('modal-sku').value = prefillSku || '';
+  document.getElementById('modal-qty').value = '';
+  // Default date: today + 14 days
+  const d = new Date(Date.now() + 14 * 86400000);
+  document.getElementById('modal-date').value = d.toISOString().slice(0,10);
+  document.getElementById('sku-suggestions').style.display = 'none';
+}
+function closeModal() {
+  document.getElementById('modal-bg').classList.remove('open');
+  document.getElementById('sku-suggestions').style.display = 'none';
+}
+document.getElementById('modal-bg').addEventListener('click', e => { if (e.target === e.currentTarget) closeModal(); });
+
+function suggestSku(val) {
+  const box = document.getElementById('sku-suggestions');
+  if (!val || val.length < 2) { box.style.display = 'none'; return; }
+  const q = val.toLowerCase();
+  const matches = allSkuNames.filter(n => n.toLowerCase().includes(q)).slice(0, 8);
+  if (!matches.length) { box.style.display = 'none'; return; }
+  box.style.display = 'block';
+  box.innerHTML = matches.map(m =>
+    `<div style="padding:8px 12px;cursor:pointer;font-size:12px;color:rgba(255,255,255,0.8);border-bottom:1px solid rgba(255,255,255,0.06)"
+      onmousedown="selectSku('${m.replace(/'/g, "\\'")}');event.preventDefault()"
+      onmouseover="this.style.background='rgba(255,255,255,0.08)'"
+      onmouseout="this.style.background=''">${m}</div>`
+  ).join('');
+}
+function selectSku(name) {
+  document.getElementById('modal-sku').value = name;
+  document.getElementById('sku-suggestions').style.display = 'none';
+}
+
+function saveSupply() {
+  const sku = document.getElementById('modal-sku').value.trim();
+  const qty = parseInt(document.getElementById('modal-qty').value);
+  const date = document.getElementById('modal-date').value;
+  if (!sku) { alert('Укажите название товара'); return; }
+  if (!qty || qty <= 0) { alert('Укажите количество'); return; }
+  if (!date) { alert('Укажите дату поступления'); return; }
+  // Remove duplicate
+  supplies = supplies.filter(s => !(s.sku === sku && s.date === date));
+  supplies.push({ sku, qty, date });
+  saveSupplies();
+  closeModal();
+  render();
+}
+
+function removeSupply(sku, date, qty) {
+  supplies = supplies.filter(s => !(s.sku === sku && s.date === date && s.qty === qty));
+  saveSupplies();
+  render();
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+loadData();
+</script>
+</body>
+</html>

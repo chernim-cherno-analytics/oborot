@@ -892,6 +892,12 @@ def serve_transfers():
         return FileResponse("transfers.html", media_type="text/html")
     return FileResponse("index.html", media_type="text/html")
 
+@app.get("/forecast")
+def serve_forecast():
+    if os.path.exists("forecast.html"):
+        return FileResponse("forecast.html", media_type="text/html")
+    return FileResponse("index.html", media_type="text/html")
+
 @app.get("/revenue")
 def serve_revenue():
     if os.path.exists("revenue.html"):
