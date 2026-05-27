@@ -475,6 +475,48 @@
       </tbody>
     </table>
   </div>
+
+  <!-- China table -->
+  <div id="china-section" style="display:none;margin-top:20px">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+      <div style="font-size:13px;font-weight:700;color:rgba(255,150,200,0.9);letter-spacing:.05em">
+        🇨🇳 КИТАЙ
+      </div>
+      <div id="china-summary" style="font-size:12px;color:rgba(255,150,200,0.6)"></div>
+    </div>
+    <div class="table-outer" style="border-color:rgba(255,100,180,0.25)">
+      <table>
+        <colgroup>
+          <col/><col/><col/><col/><col/><col/>
+          <col/><col/><col/><col/><col/><col/>
+          <col/><col/><col/><col/>
+        </colgroup>
+        <thead>
+          <tr style="background:rgba(255,100,180,0.08)">
+            <th>#</th>
+            <th style="text-align:left;padding-left:10px">Название</th>
+            <th>Сейчас<br>в стоке</th>
+            <th>На день<br>прихода</th>
+            <th>Расчёт<br>шт</th>
+            <th>Заказ<br>шт</th>
+            <th>Оборач.<br>₽/день</th>
+            <th>Ткань<br>₽/шт</th>
+            <th>Пошив<br>₽/шт</th>
+            <th>Себест.<br>₽/шт</th>
+            <th>Сумма<br>ткани ₽</th>
+            <th>Сумма<br>пошива ₽</th>
+            <th>Стоим.<br>заказа ₽</th>
+            <th>Цена<br>продажи ₽</th>
+            <th>Потенциал<br>выручки ₽</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="tb-china">
+          <tr><td colspan="16" class="loading-msg">—</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -1076,24 +1118,21 @@ const CHINA_CATEGORIES = new Set([
 
 // Specific items by partial name match (lowercase)
 const CHINA_NAMES = [
-  "с понедельника",          // спортивная сумка
-  "килл билл",               // сумки килл билл
-  "нападающий",              // свитера нападающий
-  "приятный",                // свитер приятный
-  "амальфи",                 // свитер амальфи
-  "с белым сердцем",
-  "с красным сердцем",
-  "комфорт плюс",
-  "джинсы",                  // джинсы лето
+  "с понедельника",          // спортивная сумка "С понедельника"
+  "килл билл",               // сумки Килл Билл
+  "нападающий",              // свитера Нападающий (все цвета)
+  "приятный",                // свитер Приятный (все цвета)
+  "амальфи",                 // свитер Амальфи (все цвета)
+  "с белым сердцем",         // свитер с белым сердцем
+  "с красным сердцем",       // свитер с красным сердцем
+  "комфорт плюс",            // свитер Комфорт плюс
+  "джинсы",                  // Голубые джинсы Лето
   "носки",
   "кошелек",
   "кроп кольчуга",
-  "no plans",                // кроп топ
-  "с рельефами",             // майки рельефы (мужская/женская)
-  "рельефами мужская",
-  "лонгслив \"искал такой\"",
-  "лонгслив \\\"искал такой\\\"",
-  "кремовый лонгслив",       // кремовый лонгслив Искал такой
+  "nowhere",                 // кроп топ "The south coast of Nowhere"
+  "с рельефами",             // майки с рельефами
+  "искал такой",             // Кремовый лонгслив "Искал такой"
 ];
 
 function isChinaItem(base){
@@ -1238,16 +1277,23 @@ function render(){
     tb.appendChild(buildRow(base,cat,order,sk,true,false));
   }
 
-  // ── CN section (China-sourced) ───────────────────────────────────────────
+  // ── China separate table ─────────────────────────────────────────────────
+  const chinaSection=document.getElementById("china-section");
+  const tbChina=document.getElementById("tb-china");
+  tbChina.innerHTML="";
   if(activeCN.length){
-    const cnSep=document.createElement("tr"); cnSep.className="china-divider";
-    const cnFabric=activeCN.reduce((s,x)=>s+x.order.fabricCost,0);
+    chinaSection.style.display="block";
     const cnCost=activeCN.reduce((s,x)=>s+x.order.orderCost,0);
-    cnSep.innerHTML=`<td colspan="16">🇨🇳 Китай — ${activeCN.length} позиций · закупка ${fmtM(cnCost)} ₽</td>`;
-    tb.appendChild(cnSep);
+    const cnRev=activeCN.reduce((s,x)=>s+x.order.revPotential,0);
+    document.getElementById("china-summary").textContent=
+      activeCN.length+" позиций · закупка "+fmtM(cnCost)+" ₽ · потенциал "+fmtM(cnRev)+" ₽";
     for(const{base,cat,order,sk}of activeCN){
-      tb.appendChild(buildRow(base,cat,order,sk,true,false));
+      const row=buildRow(base,cat,order,sk,true,false);
+      row.classList.add("china");
+      tbChina.appendChild(row);
     }
+  } else {
+    chinaSection.style.display="none";
   }
 
   // ── Possible section ─────────────────────────────────────────────────────
