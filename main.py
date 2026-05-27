@@ -524,6 +524,23 @@ async def debug_parse_xls(file: UploadFile = File(...)):
         "raw_cells_preview": raw_cells[:30]
     }
 
+@app.get("/api/debug-sku-search")
+def debug_sku_search(q: str = "nowhere"):
+    """Search for SKU names in DB containing the query string (case-insensitive)."""
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT DISTINCT sku_name, COUNT(*) as dates, SUM(stock_qty) as total_qty "
+        "FROM stock_snapshots WHERE LOWER(sku_name) LIKE ? "
+        "GROUP BY sku_name ORDER BY sku_name",
+        (f"%{q.lower()}%",)
+    ).fetchall()
+    conn.close()
+    results = [{"sku_name": r["sku_name"], "repr": repr(r["sku_name"]),
+                "dates": r["dates"], "total_qty": r["total_qty"],
+                "stripped": _re.sub(r'[\s]*\([^)]*\)[\s]*$', '', str(r["sku_name"])).strip()}
+               for r in rows]
+    return {"count": len(results), "results": results}
+
 @app.get("/api/debug-skus")
 def debug_skus():
     """Show sample sku_names to understand naming format."""
