@@ -834,20 +834,16 @@ function getCostData(base){
 }
 
 // ─── Season / Stock helpers ────────────────────────────────────────────────────
-// Aggregate stock across all size variants for a base SKU
-// Uses the union of all dates found in the stock maps (handles both weekly SD dates and daily analytics dates)
+// Aggregate stock across all size variants for a base SKU (matches turnover page logic)
+// Uses allDates (weekly, from SD) as the canonical date spine — same as turnover page
 function getMergedStockMap(base){
   const allKeys=Object.keys(stockData).filter(k=>stripSize(k)===base);
   if(allKeys.length===0) return stockData[base]||{};
-  // Collect all dates across all size keys
-  const dateSet=new Set();
-  for(const k of allKeys) Object.keys(stockData[k]).forEach(d=>dateSet.add(d));
-  const sortedDates=[...dateSet].sort();
   const merged={};
   for(const k of allKeys){
     const dm=stockData[k];
     let prev=0;
-    for(const d of sortedDates){
+    for(const d of allDates){
       if(dm[d]!==undefined) prev=dm[d];
       merged[d]=(merged[d]||0)+prev;
     }
@@ -860,39 +856,28 @@ function getCurrentStock(base){
   for(const d of allDates){if(dm[d]!==undefined)last=dm[d];}
   return last;
 }
-// getDaysInStock uses dates from the merged stock map itself (handles both weekly and daily data)
+// allDates are WEEKLY (from SD.dates, ~72 entries over ~1.5 years)
+// dis counts weeks where stock>=3, then *7 to convert to days
 function getDaysInStock(base){
   const dm=getMergedStockMap(base);
-  const sortedDates=Object.keys(dm).sort();
   const cutoff=new Date(Date.now()-365*24*3600*1000).toISOString().slice(0,10);
-  const last365=sortedDates.filter(d=>d>=cutoff);
-  // Detect granularity: if avg gap between dates > 3 days → weekly, multiply by 7
-  let avgGap=1;
-  if(last365.length>1){
-    const first=new Date(last365[0]), last2=new Date(last365[last365.length-1]);
-    avgGap=((last2-first)/86400000)/(last365.length-1);
-  }
-  const scale=avgGap>3?7:1; // weekly→×7, daily→×1
-  let dis=0,prev=0;
-  for(const d of last365){const s=dm[d]!==undefined?dm[d]:prev;if(s>=3)dis++;prev=s;}
-  return dis*scale;
+  const last365=allDates.filter(d=>d>=cutoff);
+  let weeks=0,prev=0;
+  for(const d of last365){const s=dm[d]!==undefined?dm[d]:prev;if(s>=3)weeks++;prev=s;}
+  return weeks*7;
 }
 function getTurnover(base){
   const sk=SKUS[base]; if(!sk)return 0;
   const dis=getDaysInStock(base); if(!dis)return 0;
   if(currentSeason==="year") return sk.nr/dis;
   const dm=getMergedStockMap(base);
-  const sortedDates=Object.keys(dm).sort();
   const cutoff=new Date(Date.now()-365*24*3600*1000).toISOString().slice(0,10);
-  const last365=sortedDates.filter(d=>d>=cutoff);
-  let avgGap=1;
-  if(last365.length>1){const f=new Date(last365[0]),l=new Date(last365[last365.length-1]);avgGap=((l-f)/86400000)/(last365.length-1);}
-  const scale=avgGap>3?7:1;
+  const last365=allDates.filter(d=>d>=cutoff);
   const seasonDates=last365.filter(d=>getSeason(d)===currentSeason);
-  let si=0,prev=0;
-  for(const d of seasonDates){const q=dm[d]!==undefined?dm[d]:prev;if(q>=3)si++;prev=q;}
+  let sweeks=0,prev=0;
+  for(const d of seasonDates){const q=dm[d]!==undefined?dm[d]:prev;if(q>=3)sweeks++;prev=q;}
   const seasonRev=sk.sea[currentSeason]||0;
-  if(si>0&&seasonRev>0)return seasonRev/(si*scale);
+  if(sweeks>0&&seasonRev>0)return seasonRev/(sweeks*7);
   return sk.nr/dis;
 }
 function getDailyQty(base){
@@ -902,16 +887,11 @@ function getDailyQty(base){
   const seasonRev=sk.sea[currentSeason]||0;
   const totalRev=sk.nr||1;
   const dm=getMergedStockMap(base);
-  const sortedDates=Object.keys(dm).sort();
   const cutoff=new Date(Date.now()-365*24*3600*1000).toISOString().slice(0,10);
-  const last365=sortedDates.filter(d=>d>=cutoff);
-  let avgGap=1;
-  if(last365.length>1){const f=new Date(last365[0]),l=new Date(last365[last365.length-1]);avgGap=((l-f)/86400000)/(last365.length-1);}
-  const scale=avgGap>3?7:1;
-  const seasonDates=last365.filter(d=>getSeason(d)===currentSeason);
-  let si=0,prev=0;
-  for(const d of seasonDates){const q=dm[d]!==undefined?dm[d]:prev;if(q>=3)si++;prev=q;}
-  if(si>0) return (sk.nq*(seasonRev/totalRev))/(si*scale);
+  const seasonDates=allDates.filter(d=>d>=cutoff&&getSeason(d)===currentSeason);
+  let sweeks=0,prev=0;
+  for(const d of seasonDates){const q=dm[d]!==undefined?dm[d]:prev;if(q>=3)sweeks++;prev=q;}
+  if(sweeks>0) return (sk.nq*(seasonRev/totalRev))/(sweeks*7);
   return sk.nq/dis;
 }
 
