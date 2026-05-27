@@ -343,7 +343,6 @@ def _try_parse_date_str(val, rxls):
     if m:
         a, b, y = int(m.group(1)), int(m.group(2)), int(m.group(3))
         if y >= 2000:
-            # Disambiguate: if a > 12 it must be DD/MM, else assume MM/DD (МойСклад)
             if a > 12:
                 return "{}-{:02d}-{:02d}".format(y, b, a)
             else:
@@ -354,16 +353,31 @@ def _try_parse_date_str(val, rxls):
         return m.group(0)
     return None
 
+def _xlrd_serial_to_date(value, datemode, rxls):
+    """Convert xlrd float to YYYY-MM-DD if it looks like a valid date serial."""
+    import xlrd as _xl
+    try:
+        t = _xl.xldate_as_tuple(value, datemode)
+        if 2015 <= t[0] <= 2035:
+            return "{:04d}-{:02d}-{:02d}".format(*t[:3])
+    except Exception:
+        pass
+    return None
+
 def parse_xls(file_path):
     import xlrd, re as _rxls
     book = xlrd.open_workbook(file_path)
     sheet = book.sheet_by_index(0)
-    report_date = None
     header_row = None
     name_col = None
     stock_col = None
 
-    # ── Pass 1: scan first 25 rows for date AND header ───────────────────────
+    # ── Two-pass date detection: prioritize 'на момент' (actual stock date)
+    # over 'отчет создан' (export timestamp)
+    date_na_moment = None    # highest priority — actual snapshot date
+    date_otchet = None       # fallback — export date
+    date_serial = None       # last resort — bare Excel serial
+
     for i in range(min(25, sheet.nrows)):
         row_vals = [sheet.cell(i, j) for j in range(sheet.ncols)]
 
@@ -376,78 +390,54 @@ def parse_xls(file_path):
                     if 'аименование' in v: name_col = j
                     if 'статок' in v and 'умм' not in v.lower(): stock_col = j
 
-        # ── Find date (only in cells BEFORE header row or label cells) ───────
-        if report_date is None:
-            for j, cell in enumerate(row_vals):
-                # Priority 1: explicit Excel date cell (ctype==3)
-                if cell.ctype == 3:
-                    try:
-                        t = xlrd.xldate_as_tuple(cell.value, book.datemode)
-                        if t[0] >= 2000:
-                            report_date = "{:04d}-{:02d}-{:02d}".format(*t[:3])
-                            break
-                    except Exception:
-                        pass
+        # ── Scan for date labels ─────────────────────────────────────────────
+        for j, cell in enumerate(row_vals):
+            if cell.ctype not in (1, 2, 3):
+                continue
+            val = str(cell.value).strip()
 
-                # Priority 2: string/number cell near date-label keywords
-                elif cell.ctype in (1, 2):
-                    val = str(cell.value).strip()
-                    trigger_labels = ('на момент', 'отчет создан', 'дата')
-                    cell_is_label = any(lbl in val.lower() for lbl in trigger_labels)
+            # Label cell: check what label it is
+            val_lower = val.lower()
+            is_na_moment = 'на момент' in val_lower
+            is_otchet = 'отчет создан' in val_lower or 'отчёт создан' in val_lower
+            is_date_label = is_na_moment or is_otchet or 'дата' in val_lower
 
-                    # Gather candidates: this cell + next cell
-                    candidates = [val]
-                    if j + 1 < sheet.ncols:
-                        nxt = str(sheet.cell(i, j+1).value).strip()
-                        candidates.append(nxt)
-                        # also check if next cell is an Excel date
-                        if sheet.cell(i, j+1).ctype == 3:
-                            try:
-                                t = xlrd.xldate_as_tuple(sheet.cell(i, j+1).value, book.datemode)
-                                if t[0] >= 2000:
-                                    candidates.append("{:04d}-{:02d}-{:02d}".format(*t[:3]))
-                            except Exception:
-                                pass
+            if is_date_label:
+                # Gather candidates from same cell + next 1-2 cells
+                candidates = [val]
+                for delta in (1, 2):
+                    if j + delta < sheet.ncols:
+                        nc = sheet.cell(i, j + delta)
+                        candidates.append(str(nc.value).strip())
+                        if nc.ctype == 3:
+                            d = _xlrd_serial_to_date(nc.value, book.datemode, _rxls)
+                            if d: candidates.append(d)
+                for cand in candidates:
+                    d = _try_parse_date_str(cand, _rxls)
+                    if d:
+                        if is_na_moment and date_na_moment is None:
+                            date_na_moment = d
+                        elif not is_na_moment and date_otchet is None:
+                            date_otchet = d
+                        break
 
-                    if cell_is_label:
-                        for cand in candidates:
-                            d = _try_parse_date_str(cand, _rxls)
-                            if d:
-                                report_date = d
-                                break
-                    elif cell.ctype == 1:
-                        # String cell that looks like a standalone date (no label needed)
-                        d = _try_parse_date_str(val, _rxls)
-                        if d:
-                            report_date = d
+            # Bare Excel date cell (no label nearby)
+            elif cell.ctype == 3 and date_serial is None:
+                d = _xlrd_serial_to_date(cell.value, book.datemode, _rxls)
+                if d: date_serial = d
 
-        if header_row is not None and report_date is not None:
-            break
+            # Bare float that looks like a date serial
+            elif cell.ctype == 2 and date_serial is None:
+                if 42005 <= cell.value <= 47848:
+                    d = _xlrd_serial_to_date(cell.value, book.datemode, _rxls)
+                    if d: date_serial = d
 
-    # ── Pass 2 fallback: look for float serial numbers ONLY if date still None ─
+    # Pick best date: на момент > отчет создан > serial > today
+    report_date = date_na_moment or date_otchet or date_serial
     if report_date is None:
-        for i in range(min(25, sheet.nrows)):
-            for j in range(sheet.ncols):
-                cell = sheet.cell(i, j)
-                if cell.ctype == 2:
-                    v = cell.value
-                    # Only accept serials in the range 2015-01-01 to 2030-12-31
-                    # xlrd serial: 42005=2015-01-01, 47848=2030-12-31
-                    if 42005 <= v <= 47848:
-                        try:
-                            t = xlrd.xldate_as_tuple(v, book.datemode)
-                            if t[0] >= 2015:
-                                report_date = "{:04d}-{:02d}-{:02d}".format(*t[:3])
-                                break
-                        except Exception:
-                            pass
-            if report_date:
-                break
-
-    if report_date is None:
-        # Last resort: just use today
         from datetime import date as _date
         report_date = _date.today().strftime('%Y-%m-%d')
+
     if header_row is None or name_col is None or stock_col is None:
         raise ValueError("Не найдена таблица с остатками (нет колонки Наименование/Остаток)")
 
@@ -459,6 +449,7 @@ def parse_xls(file_path):
             qty = float(sheet.cell_value(i, stock_col))
         except Exception:
             qty = 0.0
+        if qty <= 0: continue  # skip zero/negative stock rows
         rows.append({'sku_name': name, 'stock_qty': qty})
     if not rows:
         raise ValueError("Таблица пустая")
@@ -977,6 +968,12 @@ def get_turnover_data():
     if os.path.exists(TURNOVER_JSON_PATH):
         return FileResponse(TURNOVER_JSON_PATH, media_type="application/json")
     return {"dates": [], "skus": {}}
+
+@app.get("/forecast")
+def serve_forecast():
+    if os.path.exists("forecast.html"):
+        return FileResponse("forecast.html", media_type="text/html")
+    return FileResponse("index.html", media_type="text/html")
 
 @app.get("/transfers")
 def serve_transfers():
