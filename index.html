@@ -198,6 +198,7 @@
   <div style="margin-top:12px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:8px;padding:14px 18px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
     <input type="file" id="csv-input" accept=".csv" multiple style="display:none">
     <button onclick="document.getElementById('csv-input').click()" style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);color:white;padding:7px 16px;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;font-family:Helvetica,sans-serif;white-space:nowrap;transition:background .15s" onmouseover="this.style.background='rgba(255,255,255,0.25)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'">↑ Загрузить CSV продаж</button>
+    <button onclick="rebuildCache(event)" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);color:rgba(255,255,255,0.5);padding:7px 14px;border-radius:6px;font-size:12px;cursor:pointer;font-family:Helvetica,sans-serif;white-space:nowrap" title="Пересобрать кеш если новые позиции не отображаются">🔄 Пересобрать кеш</button>
     <span style="font-size:12px;color:rgba(255,255,255,0.45);line-height:1.6">
       Для обновления перейдите по <a href="https://docs.google.com/spreadsheets/d/1mjz4Zjcq86TqkIbjc-s4nZyGUHAR0kLiNY1NH-MnBpk/edit?gid=1082363897#gid=1082363897" target="_blank" style="color:rgba(255,255,255,0.7);text-underline-offset:3px">ссылке</a>, нажмите «Экспорт», сохраните CSV. Нужно два листа: <b style="color:rgba(255,255,255,0.65);font-weight:500">Продажи</b> и <b style="color:rgba(255,255,255,0.65);font-weight:500">Возвраты</b>.
     </span>
@@ -343,6 +344,19 @@ document.getElementById("csv-input").addEventListener("change", async function(e
   e.target.value = "";
 });
 loadStats();loadDates();
+
+async function rebuildCache(e){
+  const btn=e.target; btn.textContent="⏳ Пересобираю..."; btn.disabled=true;
+  try{
+    const r=await fetch("/api/rebuild-analytics",{method:"POST"});
+    btn.textContent="✓ Готово";
+    setTimeout(()=>{btn.textContent="🔄 Пересобрать кеш";btn.disabled=false;},2000);
+    loadDates(); loadStocks();
+  }catch(ex){
+    btn.textContent="✗ Ошибка";
+    setTimeout(()=>{btn.textContent="🔄 Пересобрать кеш";btn.disabled=false;},2000);
+  }
+}
 </script>
 </body>
 </html>
