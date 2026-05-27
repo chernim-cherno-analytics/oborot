@@ -863,7 +863,19 @@ TURNOVER_JSON_PATH = "/data/turnover_cache.json"
 def get_turnover_data():
     """Serve pre-computed compact turnover stats from disk."""
     if os.path.exists(TURNOVER_JSON_PATH):
-        return FileResponse(TURNOVER_JSON_PATH, media_type="application/json")
+        # Validate cache has dis field — if not, invalidate and rebuild
+        try:
+            import json as _j
+            with open(TURNOVER_JSON_PATH, "r", encoding="utf-8") as _f:
+                _sample = _j.load(_f)
+            _skus = _sample.get("skus", {})
+            _first = next(iter(_skus.values()), {}) if _skus else {}
+            if "dis" not in _first:
+                os.remove(TURNOVER_JSON_PATH)
+            else:
+                return FileResponse(TURNOVER_JSON_PATH, media_type="application/json")
+        except Exception:
+            pass
     # Turnover cache missing — build from analytics cache if it exists (no SQL/memory)
     if os.path.exists(ANALYTICS_JSON_PATH):
         import json
@@ -890,12 +902,6 @@ def get_turnover_data():
 def serve_transfers():
     if os.path.exists("transfers.html"):
         return FileResponse("transfers.html", media_type="text/html")
-    return FileResponse("index.html", media_type="text/html")
-
-@app.get("/forecast")
-def serve_forecast():
-    if os.path.exists("forecast.html"):
-        return FileResponse("forecast.html", media_type="text/html")
     return FileResponse("index.html", media_type="text/html")
 
 @app.get("/revenue")
