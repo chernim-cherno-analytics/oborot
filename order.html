@@ -425,6 +425,13 @@
   <button class="season-tab" data-season="summer" onclick="setSeason(this)">Лето</button>
   <button class="season-tab" data-season="autumn" onclick="setSeason(this)">Осень</button>
   <button class="season-tab" data-season="winter" onclick="setSeason(this)">Зима</button>
+  <div style="width:1px;height:24px;background:rgba(255,255,255,0.2);margin:0 8px"></div>
+  <span class="controls-bar-label">ДНЕЙ ЗАПАСА:</span>
+  <input id="supply-days" type="number" min="1" max="365" value="90"
+    style="width:64px;padding:5px 8px;border-radius:8px;border:1.5px solid rgba(255,255,255,0.35);
+           background:rgba(255,255,255,0.12);color:white;font-size:13px;font-weight:600;
+           font-family:inherit;outline:none;text-align:center"
+    oninput="render()" title="На сколько дней рассчитывать заказ"/>
 </div>
 
 <!-- Table -->
@@ -897,40 +904,65 @@ function getDailyQty(base){
   return sk.nq/dis;
 }
 
+// ─── Supply days input ─────────────────────────────────────────────────────────
+// How many days ahead to stock up. Default 90. User can change via input#supply-days.
+function getSupplyDays(){
+  const inp = document.getElementById('supply-days');
+  if(inp){ const v=parseInt(inp.value); if(v>0) return v; }
+  return 90;
+}
+
 function computeOrder(base){
   if(!arrivalDate)return null;
   const now=new Date(); now.setHours(0,0,0,0);
   const arrival=new Date(arrivalDate); arrival.setHours(0,0,0,0);
-  const days=Math.max(0,Math.round((arrival-now)/86400000));
-  // Use size-summed stock if base has size variants
+  const daysUntilArrival=Math.max(0,Math.round((arrival-now)/86400000));
+  const supplyDays=getSupplyDays();
+
+  // ── Get current stock (sum across all sizes if applicable) ────────────────
   const szEntries=getSizeEntries(base);
   const hasSzData=szEntries.some(e=>e.szKey&&(stockData[e.szKey]||SKUS[e.szKey]));
   let cur, dq, turn;
   if(hasSzData){
-    // Sum stock across all sizes
-    cur=szEntries.reduce((s,e)=>s+(e.szKey?getCurrentStock(e.szKey):0),0);
-    dq=szEntries.reduce((s,e)=>s+(e.szKey?getDailyQty(e.szKey):0),0);
-    turn=szEntries.reduce((s,e)=>s+(e.szKey?getTurnover(e.szKey):0),0);
+    cur  = szEntries.reduce((s,e)=>s+(e.szKey?getCurrentStock(e.szKey):0),0);
+    dq   = szEntries.reduce((s,e)=>s+(e.szKey?getDailyQty(e.szKey):0),0);
+    turn = szEntries.reduce((s,e)=>s+(e.szKey?getTurnover(e.szKey):0),0);
   } else {
-    cur=getCurrentStock(base);
-    dq=getDailyQty(base);
-    turn=getTurnover(base);
+    cur  = getCurrentStock(base);
+    dq   = getDailyQty(base);
+    turn = getTurnover(base);
   }
-  const sold=Math.min(cur,dq*days);
-  const atArrival=Math.max(0,cur-sold);
-  const needed=Math.ceil(dq*90);
-  const calcQty=Math.ceil(Math.max(0,needed-atArrival));
-  // manual order: if adjustments[base] is set, that's the final order qty
-  const manualQty=adjustments[base]; // undefined = not set
-  const qty=manualQty!==undefined ? Math.max(0,manualQty) : Math.max(0,calcQty);
-  const delta=manualQty!==undefined ? (qty-calcQty) : 0;
-  const cd=getCostData(base);
-  const orderCost=qty*cd.total;
-  const fabricCost=qty*cd.fabric;
-  const sewingCost=qty*cd.sewing;
-  const revPotential=qty*cd.salePrice; // цена продажи × количество
-  return{cur,atArrival:Math.round(atArrival),sold:Math.round(sold),days,calcQty,qty,delta,turn,revPotential,
-    costData:cd,orderCost,fabricCost,sewingCost,dq};
+
+  // ── Forecast stock at arrival date ────────────────────────────────────────
+  // Will sell dq * daysUntilArrival units before order arrives,
+  // but can't sell more than we have.
+  const soldBeforeArrival = Math.min(cur, dq * daysUntilArrival);
+  const atArrival = Math.max(0, cur - soldBeforeArrival);
+
+  // ── How many units needed for supplyDays after arrival ───────────────────
+  // needed = dq * supplyDays
+  // deficit = needed - atArrival  (how many we're short)
+  const needed = dq * supplyDays;
+  const calcQty = Math.max(0, Math.ceil(needed - atArrival));
+
+  // manual override: if adjustments[base] is set, use that
+  const manualQty = adjustments[base];
+  const qty = manualQty !== undefined ? Math.max(0, manualQty) : calcQty;
+  const delta = manualQty !== undefined ? (qty - calcQty) : 0;
+
+  // ── Costs & revenue potential ─────────────────────────────────────────────
+  const cd = getCostData(base);
+  const orderCost    = qty * cd.total;
+  const fabricCost   = qty * cd.fabric;
+  const sewingCost   = qty * cd.sewing;
+  const revPotential = qty * cd.salePrice;
+
+  return {
+    cur, atArrival: Math.round(atArrival), sold: Math.round(soldBeforeArrival),
+    days: daysUntilArrival, supplyDays,
+    needed: Math.ceil(needed), calcQty, qty, delta,
+    turn, revPotential, costData: cd, orderCost, fabricCost, sewingCost, dq
+  };
 }
 
 // ─── Size breakdown ────────────────────────────────────────────────────────────
@@ -1027,10 +1059,10 @@ function render(){
     items.push({base,cat,order,sk});
   }
 
-  // Sort by ANNUAL turnover always — order stays fixed when switching seasons
-  const annualTurn=(base)=>{ const sk=SKUS[base]; if(!sk)return 0; const dis=getDaysInStock(base); return dis?sk.nr/dis:0; };
+  // Sort by PROFITABILITY: revPotential = order qty × sale price (highest first)
+  // This matches the user's requirement: сортируем по прибыльности сверху вниз
   const active=items.filter(x=>(x.order.turn>=2000&&x.order.qty>=5)||addedToOrder.has(x.base))
-    .sort((a,b)=>annualTurn(b.base)-annualTurn(a.base));
+    .sort((a,b)=>(b.order.revPotential||0)-(a.order.revPotential||0));
   const possible=items.filter(x=>x.order.turn>=1000&&x.order.turn<2000&&x.order.qty>=5&&!addedToOrder.has(x.base))
     .sort((a,b)=>annualTurn(b.base)-annualTurn(a.base));
 

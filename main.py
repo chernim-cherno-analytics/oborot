@@ -330,6 +330,30 @@ def rebuild_analytics_json(conn):
     os.replace(ttmp, TURNOVER_JSON_PATH)
     print(f"Caches rebuilt: {len(dates)} dates, {len(sku_names)} SKUs")
 
+def _try_parse_date_str(val, rxls):
+    """Try to parse a date from a string. Returns YYYY-MM-DD or None."""
+    # DD.MM.YYYY  e.g. 21.05.2026  ← МойСклад default, check first
+    m = rxls.search(r'(\d{1,2})\.(\d{1,2})\.(\d{4})', val)
+    if m:
+        d, mo, y = int(m.group(1)), int(m.group(2)), int(m.group(3))
+        if 1 <= mo <= 12 and 1 <= d <= 31 and y >= 2000:
+            return "{}-{:02d}-{:02d}".format(y, mo, d)
+    # MM/DD/YYYY  e.g. 05/21/2026
+    m = rxls.search(r'(\d{1,2})/(\d{1,2})/(\d{4})', val)
+    if m:
+        a, b, y = int(m.group(1)), int(m.group(2)), int(m.group(3))
+        if y >= 2000:
+            # Disambiguate: if a > 12 it must be DD/MM, else assume MM/DD (МойСклад)
+            if a > 12:
+                return "{}-{:02d}-{:02d}".format(y, b, a)
+            else:
+                return "{}-{:02d}-{:02d}".format(y, a, b)
+    # YYYY-MM-DD
+    m = rxls.search(r'(\d{4})-(\d{2})-(\d{2})', val)
+    if m and int(m.group(1)) >= 2000:
+        return m.group(0)
+    return None
+
 def parse_xls(file_path):
     import xlrd, re as _rxls
     book = xlrd.open_workbook(file_path)
@@ -339,69 +363,86 @@ def parse_xls(file_path):
     name_col = None
     stock_col = None
 
-    for i in range(min(20, sheet.nrows)):
-        for j in range(sheet.ncols):
-            cell = sheet.cell(i, j)
+    # ── Pass 1: scan first 25 rows for date AND header ───────────────────────
+    for i in range(min(25, sheet.nrows)):
+        row_vals = [sheet.cell(i, j) for j in range(sheet.ncols)]
 
-            # ── Find date ────────────────────────────────────────────────────
-            if report_date is None:
-                # Case 1: xlrd returns a float for an Excel date cell (ctype==3)
-                if cell.ctype == 3:
-                    try:
-                        t = xlrd.xldate_as_tuple(cell.value, book.datemode)
-                        if t[0] >= 2000:
-                            report_date = "{:04d}-{:02d}-{:02d}".format(*t[:3])
-                    except Exception:
-                        pass
-                # Case 2: string cell with date keywords
-                elif cell.ctype in (1, 2):
-                    val = str(cell.value).strip()
-                    trigger_labels = ('на момент', 'отчет создан', 'дата')
-                    if any(lbl in val.lower() for lbl in trigger_labels):
-                        # date might be in same cell after colon OR in next cell
-                        candidates = [val]
-                        if j + 1 < sheet.ncols:
-                            candidates.append(str(sheet.cell_value(i, j+1)).strip())
-                        for cand in candidates:
-                            # MM/DD/YYYY  e.g. 05/21/2026
-                            m = _rxls.search(r'(\d{1,2})/(\d{1,2})/(\d{4})', cand)
-                            if m:
-                                report_date = "{}-{:02d}-{:02d}".format(
-                                    m.group(3), int(m.group(1)), int(m.group(2)))
-                                break
-                            # DD.MM.YYYY  e.g. 21.05.2026
-                            m2 = _rxls.search(r'(\d{1,2})\.(\d{1,2})\.(\d{4})', cand)
-                            if m2:
-                                report_date = "{}-{:02d}-{:02d}".format(
-                                    m2.group(3), int(m2.group(2)), int(m2.group(1)))
-                                break
-                            # YYYY-MM-DD
-                            m3 = _rxls.search(r'(\d{4})-(\d{2})-(\d{2})', cand)
-                            if m3:
-                                report_date = m3.group(0); break
-
-            # ── Floating-point cell that LOOKS like a date serial ─────────────
-            if report_date is None and cell.ctype == 2:
-                v = cell.value
-                if 40000 < v < 60000:   # plausible Excel date range (2009-2064)
-                    try:
-                        t = xlrd.xldate_as_tuple(v, book.datemode)
-                        if t[0] >= 2000:
-                            report_date = "{:04d}-{:02d}-{:02d}".format(*t[:3])
-                    except Exception:
-                        pass
-
-        # ── Find header row ─────────────────────────────────────────────────
+        # ── Find header row ──────────────────────────────────────────────────
         if header_row is None:
-            row_strs = [str(sheet.cell_value(i, j)).strip() for j in range(sheet.ncols)]
+            row_strs = [str(c.value).strip() for c in row_vals]
             if any('аименование' in v for v in row_strs):
                 header_row = i
                 for j, v in enumerate(row_strs):
                     if 'аименование' in v: name_col = j
                     if 'статок' in v and 'умм' not in v.lower(): stock_col = j
 
+        # ── Find date (only in cells BEFORE header row or label cells) ───────
+        if report_date is None:
+            for j, cell in enumerate(row_vals):
+                # Priority 1: explicit Excel date cell (ctype==3)
+                if cell.ctype == 3:
+                    try:
+                        t = xlrd.xldate_as_tuple(cell.value, book.datemode)
+                        if t[0] >= 2000:
+                            report_date = "{:04d}-{:02d}-{:02d}".format(*t[:3])
+                            break
+                    except Exception:
+                        pass
+
+                # Priority 2: string/number cell near date-label keywords
+                elif cell.ctype in (1, 2):
+                    val = str(cell.value).strip()
+                    trigger_labels = ('на момент', 'отчет создан', 'дата')
+                    cell_is_label = any(lbl in val.lower() for lbl in trigger_labels)
+
+                    # Gather candidates: this cell + next cell
+                    candidates = [val]
+                    if j + 1 < sheet.ncols:
+                        nxt = str(sheet.cell(i, j+1).value).strip()
+                        candidates.append(nxt)
+                        # also check if next cell is an Excel date
+                        if sheet.cell(i, j+1).ctype == 3:
+                            try:
+                                t = xlrd.xldate_as_tuple(sheet.cell(i, j+1).value, book.datemode)
+                                if t[0] >= 2000:
+                                    candidates.append("{:04d}-{:02d}-{:02d}".format(*t[:3]))
+                            except Exception:
+                                pass
+
+                    if cell_is_label:
+                        for cand in candidates:
+                            d = _try_parse_date_str(cand, _rxls)
+                            if d:
+                                report_date = d
+                                break
+                    elif cell.ctype == 1:
+                        # String cell that looks like a standalone date (no label needed)
+                        d = _try_parse_date_str(val, _rxls)
+                        if d:
+                            report_date = d
+
         if header_row is not None and report_date is not None:
-            break  # found everything
+            break
+
+    # ── Pass 2 fallback: look for float serial numbers ONLY if date still None ─
+    if report_date is None:
+        for i in range(min(25, sheet.nrows)):
+            for j in range(sheet.ncols):
+                cell = sheet.cell(i, j)
+                if cell.ctype == 2:
+                    v = cell.value
+                    # Only accept serials in the range 2015-01-01 to 2030-12-31
+                    # xlrd serial: 42005=2015-01-01, 47848=2030-12-31
+                    if 42005 <= v <= 47848:
+                        try:
+                            t = xlrd.xldate_as_tuple(v, book.datemode)
+                            if t[0] >= 2015:
+                                report_date = "{:04d}-{:02d}-{:02d}".format(*t[:3])
+                                break
+                        except Exception:
+                            pass
+            if report_date:
+                break
 
     if report_date is None:
         # Last resort: just use today
@@ -452,6 +493,34 @@ async def upload_stock(file: UploadFile = File(...)):
     conn2.close()
     return {"date": date_str, "inserted": inserted, "skipped": len(rows)-inserted, "total_skus": len(rows)}
 
+
+@app.post("/api/debug-parse-xls")
+async def debug_parse_xls(file: UploadFile = File(...)):
+    """Debug endpoint: parse XLS and return what date was detected, WITHOUT saving to DB."""
+    import xlrd
+    with tempfile.NamedTemporaryFile(suffix='.xls', delete=False) as tmp:
+        tmp.write(await file.read()); tmp_path = tmp.name
+    try:
+        date_str, rows = parse_xls(tmp_path)
+        book = xlrd.open_workbook(tmp_path)
+        sheet = book.sheet_by_index(0)
+        raw_cells = []
+        for i in range(min(10, sheet.nrows)):
+            for j in range(min(15, sheet.ncols)):
+                c = sheet.cell(i, j)
+                if c.value not in ('', None, 0):
+                    raw_cells.append({"row": i, "col": j, "ctype": c.ctype, "value": str(c.value)[:80]})
+    except Exception as e:
+        if os.path.exists(tmp_path): os.unlink(tmp_path)
+        return {"error": str(e)}
+    finally:
+        if os.path.exists(tmp_path): os.unlink(tmp_path)
+    return {
+        "detected_date": date_str,
+        "total_rows": len(rows),
+        "sample_skus": [r['sku_name'] for r in rows[:5]],
+        "raw_cells_preview": raw_cells[:30]
+    }
 
 @app.get("/api/debug-skus")
 def debug_skus():
