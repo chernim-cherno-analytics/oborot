@@ -859,10 +859,8 @@ function getCurrentStock(base){
 // This is the canonical dis — no JS re-calculation needed
 function getDaysInStock(base){
   const sk=SKUS[base]; if(!sk)return 0;
-  // Use server-precomputed dis (same as turnover page).
-  // Fallback: estimate from allDates weekly spine * 7 if dis missing.
   if(sk.dis) return sk.dis;
-  // Fallback — count weeks with stock >= 3, multiply by 7
+  // Fallback: count dates with stock >= 3
   const allKeys=Object.keys(stockData).filter(k=>stripSize(k)===base);
   const keys=allKeys.length>0?allKeys:[base];
   const merged={};
@@ -875,33 +873,48 @@ function getDaysInStock(base){
     }
   }
   const cutoff=new Date(Date.now()-365*24*3600*1000).toISOString().slice(0,10);
-  let weeks=0,prev=0;
+  let days=0,prev=0;
   for(const d of allDates){
     if(d<cutoff) continue;
     const s=merged[d]!==undefined?merged[d]:prev;
-    if(s>=3) weeks++;
+    if(s>=3) days++;
     prev=s;
   }
-  return weeks*7||1;
+  return days||1;
 }
+
+// Returns observation period in days (how long we've been tracking this SKU, max 365)
+function getObsPeriod(){
+  if(!allDates||allDates.length<2) return 365;
+  const first=new Date(allDates[0]), last=new Date(allDates[allDates.length-1]);
+  const totalDays=Math.round((last-first)/86400000)+1;
+  return Math.min(365, Math.max(1, totalDays));
+}
+
 function getTurnover(base){
   const sk=SKUS[base]; if(!sk)return 0;
-  const dis=getDaysInStock(base); if(!dis)return 0;
-  if(currentSeason==="year") return sk.nr/dis;
+  // Daily turnover = total revenue / observation period (not just in-stock days)
+  // This prevents inflated numbers for items that sold out
+  const obsDays = getObsPeriod();
+  if(currentSeason==="year"){
+    return sk.nr / obsDays;
+  }
   const seasonRev=sk.sea[currentSeason]||0;
   const seaDays=(sk.sea_days&&sk.sea_days[currentSeason])||0;
   if(seaDays>0&&seasonRev>0) return seasonRev/seaDays;
-  return sk.nr/dis;
+  return sk.nr / obsDays;
 }
 function getDailyQty(base){
   const sk=SKUS[base]; if(!sk||!sk.nq)return 0;
-  const dis=getDaysInStock(base); if(!dis)return 0;
-  if(currentSeason==="year") return sk.nq/dis;
+  const obsDays = getObsPeriod();
+  if(currentSeason==="year"){
+    return sk.nq / obsDays;
+  }
   const seasonRev=sk.sea[currentSeason]||0;
   const totalRev=sk.nr||1;
   const seaDays=(sk.sea_days&&sk.sea_days[currentSeason])||0;
   if(seaDays>0) return (sk.nq*(seasonRev/totalRev))/seaDays;
-  return sk.nq/dis;
+  return sk.nq / obsDays;
 }
 
 // ─── Supply days input ─────────────────────────────────────────────────────────
