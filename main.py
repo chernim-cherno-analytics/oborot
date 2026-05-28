@@ -503,6 +503,11 @@ async def upload_stock(file: UploadFile = File(...)):
     uploaded_at = datetime.now().isoformat()
     inserted = 0
     updated = 0
+    # Log first SKU to diagnose encoding on server
+    if rows:
+        import logging
+        logging.warning(f"UPLOAD first SKU repr: {repr(rows[0]['sku_name'])}")
+        logging.warning(f"UPLOAD has nowhere: {any('owhere' in r['sku_name'] for r in rows)}")
     for row in rows:
         # Try insert first
         before = conn.total_changes
@@ -525,7 +530,9 @@ async def upload_stock(file: UploadFile = File(...)):
     conn2 = get_db()
     rebuild_analytics_json(conn2)
     conn2.close()
-    return {"date": date_str, "inserted": inserted, "updated": updated, "skipped": 0, "total_skus": len(rows)}
+    return {"date": date_str, "inserted": inserted, "updated": updated, "skipped": 0,
+            "total_skus": len(rows),
+            "_debug_sample": [r['sku_name'] for r in rows if 'owhere' in r['sku_name'].lower()][:3]}
 
 
 @app.post("/api/debug-parse-xls")

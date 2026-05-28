@@ -305,7 +305,7 @@ async function uploadFiles(files){
   for(const file of xlsFiles){
     const fd=new FormData();fd.append("file",file);
     try{const res=await fetch("/api/upload",{method:"POST",body:fd});const data=await res.json();
-    if(res.ok){const added=(data.inserted||0)+(data.updated||0);results.push("✓ "+data.date+": +"+(data.inserted||0)+" новых"+(data.updated?" +"+data.updated+" обновлено":""));ok++;}
+    if(res.ok){const added=(data.inserted||0)+(data.updated||0);const dbg=data._debug_sample&&data._debug_sample.length?" SKU="+JSON.stringify(data._debug_sample[0]):"";results.push("✓ "+data.date+": +"+(data.inserted||0)+" новых"+(data.updated?" +"+data.updated+" обновлено":"")+dbg);ok++;}
     else{results.push("✗ "+file.name+": "+data.detail);}}
     catch{results.push("✗ "+file.name+": ошибка сети");}
   }
