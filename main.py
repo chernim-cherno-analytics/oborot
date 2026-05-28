@@ -530,31 +530,28 @@ async def upload_stock(file: UploadFile = File(...)):
 
 @app.post("/api/debug-parse-xls")
 async def debug_parse_xls(file: UploadFile = File(...)):
-    """Debug endpoint: parse XLS and return what date was detected, WITHOUT saving to DB."""
+    """Debug: show exactly what xlrd returns for SKU names, with repr()."""
     import xlrd
     with tempfile.NamedTemporaryFile(suffix='.xls', delete=False) as tmp:
         tmp.write(await file.read()); tmp_path = tmp.name
     try:
-        date_str, rows = parse_xls(tmp_path)
-        book = xlrd.open_workbook(tmp_path)
-        sheet = book.sheet_by_index(0)
-        raw_cells = []
-        for i in range(min(10, sheet.nrows)):
-            for j in range(min(15, sheet.ncols)):
-                c = sheet.cell(i, j)
-                if c.value not in ('', None, 0):
-                    raw_cells.append({"row": i, "col": j, "ctype": c.ctype, "value": str(c.value)[:80]})
-    except Exception as e:
-        if os.path.exists(tmp_path): os.unlink(tmp_path)
-        return {"error": str(e)}
+        results = {}
+        for enc in [None, 'utf-8', 'cp1251', 'latin-1']:
+            try:
+                kw = {'encoding_override': enc} if enc else {}
+                book = xlrd.open_workbook(tmp_path, **kw)
+                sheet = book.sheet_by_index(0)
+                names = []
+                for i in range(min(sheet.nrows, 500)):
+                    v = sheet.cell_value(i, 3)
+                    if v and 'owhere' in str(v).lower():
+                        names.append({'row': i, 'repr': repr(str(v)), 'value': str(v)})
+                results[str(enc)] = {'found': len(names), 'samples': names[:3]}
+            except Exception as e:
+                results[str(enc)] = {'error': str(e)}
+        return results
     finally:
         if os.path.exists(tmp_path): os.unlink(tmp_path)
-    return {
-        "detected_date": date_str,
-        "total_rows": len(rows),
-        "sample_skus": [r['sku_name'] for r in rows[:5]],
-        "raw_cells_preview": raw_cells[:30]
-    }
 
 @app.delete("/api/debug-delete-sku")
 def debug_delete_sku(q: str):
