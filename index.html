@@ -200,6 +200,8 @@
     <button onclick="document.getElementById('csv-input').click()" style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);color:white;padding:7px 16px;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;font-family:Helvetica,sans-serif;white-space:nowrap;transition:background .15s" onmouseover="this.style.background='rgba(255,255,255,0.25)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'">↑ Загрузить CSV продаж</button>
     <button onclick="rebuildCache(event)" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);color:rgba(255,255,255,0.5);padding:7px 14px;border-radius:6px;font-size:12px;cursor:pointer;font-family:Helvetica,sans-serif;white-space:nowrap" title="Пересобрать кеш если новые позиции не отображаются">🔄 Пересобрать кеш</button>
     <button onclick="fixMojibake(event)" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);color:rgba(255,255,255,0.5);padding:7px 14px;border-radius:6px;font-size:12px;cursor:pointer;font-family:Helvetica,sans-serif;white-space:nowrap" title="Удалить сломанные записи с кириллицей и перезалить">🔧 Починить кодировку</button>
+    <input type="file" id="test-xls-input" accept=".xls" style="display:none">
+    <button onclick="document.getElementById('test-xls-input').click()" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);color:rgba(255,255,255,0.5);padding:7px 14px;border-radius:6px;font-size:12px;cursor:pointer;font-family:Helvetica,sans-serif;white-space:nowrap">🔍 Тест кодировки XLS</button>
     <span style="font-size:12px;color:rgba(255,255,255,0.45);line-height:1.6">
       Для обновления перейдите по <a href="https://docs.google.com/spreadsheets/d/1mjz4Zjcq86TqkIbjc-s4nZyGUHAR0kLiNY1NH-MnBpk/edit?gid=1082363897#gid=1082363897" target="_blank" style="color:rgba(255,255,255,0.7);text-underline-offset:3px">ссылке</a>, нажмите «Экспорт», сохраните CSV. Нужно два листа: <b style="color:rgba(255,255,255,0.65);font-weight:500">Продажи</b> и <b style="color:rgba(255,255,255,0.65);font-weight:500">Возвраты</b>.
     </span>
@@ -345,6 +347,28 @@ document.getElementById("csv-input").addEventListener("change", async function(e
   e.target.value = "";
 });
 loadStats();loadDates();
+
+document.getElementById('test-xls-input').addEventListener('change', async function(e){
+  const file = e.target.files[0]; if(!file) return;
+  const fd = new FormData(); fd.append('file', file);
+  const btn = this.previousElementSibling;
+  btn.textContent = '⏳ Проверяю...';
+  try {
+    const r = await fetch('/api/debug-parse-xls', {method:'POST', body:fd});
+    const d = await r.json();
+    let msg = 'Результат для ' + file.name + ':\n\n';
+    for(const [enc, res] of Object.entries(d)){
+      msg += 'encoding=' + enc + ': ';
+      if(res.error) msg += 'ОШИБКА: ' + res.error;
+      else if(res.found) msg += 'НАЙДЕНО ' + res.found + ' строк\n  → ' + (res.samples[0]?.value || '');
+      else msg += 'не найдено nowhere';
+      msg += '\n';
+    }
+    alert(msg);
+  } catch(ex){ alert('Ошибка: ' + ex.message); }
+  btn.textContent = '🔍 Тест кодировки XLS';
+  this.value = '';
+});
 
 async function fixMojibake(e){
   const btn=e.target;
