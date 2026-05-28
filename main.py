@@ -509,20 +509,10 @@ async def upload_stock(file: UploadFile = File(...)):
         logging.warning(f"UPLOAD first SKU repr: {repr(rows[0]['sku_name'])}")
         logging.warning(f"UPLOAD has nowhere: {any('owhere' in r['sku_name'] for r in rows)}")
     for row in rows:
-        # Try insert first
-        before = conn.total_changes
         conn.execute(
-            "INSERT OR IGNORE INTO stock_snapshots (date,sku_name,stock_qty,uploaded_at) VALUES (?,?,?,?)",
+            "INSERT OR REPLACE INTO stock_snapshots (date,sku_name,stock_qty,uploaded_at) VALUES (?,?,?,?)",
             (date_str, row['sku_name'], row['stock_qty'], uploaded_at))
-        if conn.total_changes > before:
-            inserted += 1
-        else:
-            # Row already exists (same date+sku from another warehouse) — ADD to it
-            conn.execute(
-                "UPDATE stock_snapshots SET stock_qty = stock_qty + ?, uploaded_at = ? "
-                "WHERE date = ? AND sku_name = ?",
-                (row['stock_qty'], uploaded_at, date_str, row['sku_name']))
-            updated += 1
+        inserted += 1
     conn.commit(); conn.close()
     global _analytics_cache, _analytics_cache_key
     _analytics_cache = None
@@ -530,8 +520,7 @@ async def upload_stock(file: UploadFile = File(...)):
     conn2 = get_db()
     rebuild_analytics_json(conn2)
     conn2.close()
-    return {"date": date_str, "inserted": inserted, "updated": updated, "skipped": 0,
-            "total_skus": len(rows),
+    return {"date": date_str, "inserted": inserted, "total_skus": len(rows),
             "_debug_sample": [r['sku_name'] for r in rows if 'owhere' in r['sku_name'].lower()][:3]}
 
 
@@ -576,6 +565,17 @@ def debug_delete_sku(q: str):
     if os.path.exists(ANALYTICS_JSON_PATH): os.remove(ANALYTICS_JSON_PATH)
     if os.path.exists(TURNOVER_JSON_PATH): os.remove(TURNOVER_JSON_PATH)
     return {"deleted": count, "query": q}
+
+@app.get("/api/debug-stock-totals")
+def debug_stock_totals():
+    """Show total stock per date to find dates with inflated numbers."""
+    conn = get_db()
+    rows = conn.execute(
+        "SELECT date, COUNT(DISTINCT sku_name) as sku_count, SUM(stock_qty) as total_qty "
+        "FROM stock_snapshots GROUP BY date ORDER BY date DESC LIMIT 30"
+    ).fetchall()
+    conn.close()
+    return [{"date": r["date"], "sku_count": r["sku_count"], "total_qty": r["total_qty"]} for r in rows]
 
 @app.get("/api/debug-sku-search")
 def debug_sku_search(q: str = "nowhere"):
