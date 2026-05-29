@@ -351,7 +351,22 @@ function fmtD(s) {
 function mergedStockMap(skuName) {
   const allStock = aData.stock || {};
   const adates   = aData.dates || [];
-  const keys = Object.keys(allStock).filter(k => stripSize(k) === skuName);
+
+  // If the base key itself exists in stock (server already aggregated sizes),
+  // use it directly — don't also add size variants (that would double-count)
+  if (allStock[skuName]) {
+    const dm = allStock[skuName];
+    const merged = {};
+    let prev = 0;
+    for (const d of adates) {
+      if (dm[d] !== undefined) prev = dm[d];
+      merged[d] = prev;
+    }
+    return merged;
+  }
+
+  // Otherwise sum up size variant keys
+  const keys = Object.keys(allStock).filter(k => k !== skuName && stripSize(k) === skuName);
   if (keys.length === 0) return {};
   const merged = {};
   for (const k of keys) {
