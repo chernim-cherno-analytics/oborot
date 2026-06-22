@@ -968,8 +968,8 @@ function getTurnover(base){
 }
 function getDailyQty(base){
   const sk=SKUS[base]; if(!sk||!sk.nq)return 0;
-  // Always use nq/dis — matches the turnover page velocity
-  return sk.nq / (sk.dis||1);
+  // Use nq/obsPeriod for realistic daily velocity (ordering decisions)
+  return sk.nq / getObsPeriod();
 }
 
 // ─── Supply days input ─────────────────────────────────────────────────────────
@@ -994,7 +994,8 @@ function computeOrder(base){
   if(hasSzData){
     cur  = szEntries.reduce((s,e)=>s+(e.szKey?getCurrentStock(e.szKey):0),0);
     dq   = szEntries.reduce((s,e)=>s+(e.szKey?getDailyQty(e.szKey):0),0);
-    turn = szEntries.reduce((s,e)=>s+(e.szKey?getTurnover(e.szKey):0),0);
+    // Always use base-level turn — matches turnover page (not sum of per-size)
+    turn = getTurnover(base);
   } else {
     cur  = getCurrentStock(base);
     dq   = getDailyQty(base);
@@ -1023,7 +1024,7 @@ function computeOrder(base){
   const orderCost    = qty * cd.total;
   const fabricCost   = qty * cd.fabric;
   const sewingCost   = qty * cd.sewing;
-  const revPotential = qty * cd.salePrice;
+  const revPotential = cd.salePrice > 0 ? qty * cd.salePrice : turn * supplyDays;
 
   return {
     cur, atArrival: Math.round(atArrival), sold: Math.round(soldBeforeArrival),
