@@ -963,28 +963,27 @@ function getObsPeriod(){
 
 function getTurnover(base){
   const sk=SKUS[base]; if(!sk)return 0;
-  // Daily turnover = total revenue / observation period (not just in-stock days)
-  // This prevents inflated numbers for items that sold out
-  const obsDays = getObsPeriod();
+  // Use sk.dis (days in stock ≥3 units) — matches the turnover page metric
+  const dis=sk.dis||1;
   if(currentSeason==="year"){
-    return sk.nr / obsDays;
+    return sk.nr / dis;
   }
   const seasonRev=sk.sea[currentSeason]||0;
   const seaDays=(sk.sea_days&&sk.sea_days[currentSeason])||0;
   if(seaDays>0&&seasonRev>0) return seasonRev/seaDays;
-  return sk.nr / obsDays;
+  return sk.nr / dis;
 }
 function getDailyQty(base){
   const sk=SKUS[base]; if(!sk||!sk.nq)return 0;
-  const obsDays = getObsPeriod();
+  const dis=sk.dis||1;
   if(currentSeason==="year"){
-    return sk.nq / obsDays;
+    return sk.nq / dis;
   }
   const seasonRev=sk.sea[currentSeason]||0;
   const totalRev=sk.nr||1;
   const seaDays=(sk.sea_days&&sk.sea_days[currentSeason])||0;
   if(seaDays>0) return (sk.nq*(seasonRev/totalRev))/seaDays;
-  return sk.nq / obsDays;
+  return sk.nq / dis;
 }
 
 // ─── Supply days input ─────────────────────────────────────────────────────────
