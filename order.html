@@ -968,8 +968,10 @@ function getTurnover(base){
 }
 function getDailyQty(base){
   const sk=SKUS[base]; if(!sk||!sk.nq)return 0;
-  // Use nq/obsPeriod for realistic daily velocity (ordering decisions)
-  return sk.nq / getObsPeriod();
+  // Use min(dis, obsPeriod) — for items often out of stock, dis gives real in-stock velocity
+  // For items always in stock, dis ≥ obsPeriod so it's the same as obsPeriod
+  const dis = sk.dis || getObsPeriod();
+  return sk.nq / Math.min(dis, getObsPeriod());
 }
 
 // ─── Supply days input ─────────────────────────────────────────────────────────
@@ -1173,6 +1175,10 @@ function render(){
   const newItems=items.filter(x=>x.order.turn===0&&x.order.cur>0&&
     !addedToOrder.has(x.base)&&!active.find(a=>a.base===x.base)&&!possible.find(a=>a.base===x.base))
     .sort((a,b)=>a.base.localeCompare(b.base));
+  // Items with good turnover but sufficient stock (calcQty<5) — show for manual review
+  const inStock=items.filter(x=>x.order.turn>=1000&&x.order.qty<5&&x.order.cur>0&&
+    !addedToOrder.has(x.base)&&!active.find(a=>a.base===x.base)&&!possible.find(a=>a.base===x.base))
+    .sort((a,b)=>b.order.turn-a.order.turn);
 
   // Split active into Russia-sourced and China-sourced
   const activeRU = active.filter(x => !isChinaItem(x.base));
@@ -1332,6 +1338,23 @@ function render(){
       const row=buildRow(base,cat,order,sk,false,true);
       row.style.opacity="0.7";
       tb.appendChild(row);
+    }
+  }
+
+  // ── In-stock items: high turn but no order needed right now ─────────────────
+  if(inStock.length){
+    const isRU = inStock.filter(x => !isChinaItem(x.base));
+    const isCN = inStock.filter(x => isChinaItem(x.base));
+    const allIS = [...isRU, ...isCN];
+    if(allIS.length){
+      const issep=document.createElement("tr"); issep.className="section-row";
+      issep.innerHTML=`<td colspan="16" style="color:rgba(255,220,100,0.7)">📦 В стоке — оборот высокий, заказ пока не нужен (${allIS.length} поз.). Можно увеличить заказ вручную.</td>`;
+      tb.appendChild(issep);
+      for(const{base,cat,order,sk}of allIS){
+        const row=buildRow(base,cat,order,sk,false,false);
+        row.style.opacity="0.6";
+        tb.appendChild(row);
+      }
     }
   }
 
