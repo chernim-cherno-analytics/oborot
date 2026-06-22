@@ -309,26 +309,49 @@ def rebuild_analytics_json(conn):
             skus_turnover[base] = {"dis": dis, "cs": int(dm.get(latest, 0)), "sea_days": sea,
                                     "nq": nq, "nr": nr, "ap": ap,
                                     "sea": sea_rev, "chart": chart}
-        # Write per-size keys only where sku_name differs from base
+        # Write per-size keys only where sku_name has a size suffix
+        # Use canonical name (футболка instead of майка) for the output key
+        written_sizes = {}  # canonical_sku -> aggregated dm (handles майка+футболка same size)
         for sku_name, dm in sku_data.items():
             base = _canon_name(sku_name)
             if _strip_size(sku_name) == sku_name:
                 continue  # no size suffix — already included in base_agg (even if aliased)
+            size_suffix = sku_name[len(_strip_size(sku_name)):]  # e.g. " (L)"
+            canonical_sku = base + size_suffix  # e.g. "Черная футболка без рукавов ... (L)"
+            if canonical_sku not in written_sizes:
+                written_sizes[canonical_sku] = dict(dm)
+            else:
+                for d, q in dm.items():
+                    written_sizes[canonical_sku][d] = written_sizes[canonical_sku].get(d, 0) + q
+
+        for canonical_sku, dm in written_sizes.items():
             af.write(",")
-            af.write(json.dumps(sku_name, ensure_ascii=False))
+            af.write(json.dumps(canonical_sku, ensure_ascii=False))
             af.write(":")
             af.write(json.dumps(dm, ensure_ascii=False, separators=(",", ":")))
-            # Add per-size turnover stats
-            sz_s = sales_by_sku.get(sku_name, {"nq":0,"nr":0,"ap":0})
-            sz_sea = sea_by_sku.get(sku_name, {"winter":0,"spring":0,"summer":0,"autumn":0})
-            sz_chart_map = chart_by_sku.get(sku_name, {})
+            # Turnover stats for this size (aggregate across aliases)
+            sz_s = {"nq": 0, "nr": 0, "ap": 0}
+            sz_sea = {"winter": 0, "spring": 0, "summer": 0, "autumn": 0}
+            sz_chart_map = {}
+            # Pull stats from all sku_names that map to this canonical_sku
+            base_of_canon = _strip_size(canonical_sku)
+            size_suffix_of_canon = canonical_sku[len(base_of_canon):]
+            for orig_sku in sku_data:
+                if _canon_name(orig_sku) + orig_sku[len(_strip_size(orig_sku)):] == canonical_sku or orig_sku == canonical_sku:
+                    s = sales_by_sku.get(orig_sku, {"nq": 0, "nr": 0, "ap": 0})
+                    sz_s["nq"] += s["nq"]; sz_s["nr"] += s["nr"]
+                    sea = sea_by_sku.get(orig_sku, {"winter": 0, "spring": 0, "summer": 0, "autumn": 0})
+                    for k in sea: sz_sea[k] += sea[k]
+                    for d, v in chart_by_sku.get(orig_sku, {}).items():
+                        sz_chart_map[d] = sz_chart_map.get(d, 0) + v
+            sz_s["ap"] = sz_s["nr"] / sz_s["nq"] if sz_s["nq"] > 0 else 0
             sz_chart = [sz_chart_map.get(d, 0) for d in dates]
             sz_dis = 0; sz_prev = 0
             for d in dates:
                 q = dm.get(d, sz_prev)
                 if q >= 3: sz_dis += 1
                 sz_prev = q
-            skus_turnover[sku_name] = {
+            skus_turnover[canonical_sku] = {
                 "dis": sz_dis, "cs": int(dm.get(latest, 0)),
                 "nq": sz_s["nq"], "nr": sz_s["nr"], "ap": sz_s["ap"],
                 "sea": sz_sea, "chart": sz_chart
