@@ -312,8 +312,8 @@ def rebuild_analytics_json(conn):
         # Write per-size keys only where sku_name differs from base
         for sku_name, dm in sku_data.items():
             base = _canon_name(sku_name)
-            if sku_name == base:
-                continue  # no size suffix — already written as base key
+            if _strip_size(sku_name) == sku_name:
+                continue  # no size suffix — already included in base_agg (even if aliased)
             af.write(",")
             af.write(json.dumps(sku_name, ensure_ascii=False))
             af.write(":")
