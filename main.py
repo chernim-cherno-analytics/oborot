@@ -100,6 +100,20 @@ init_db()
 def _strip_size(n):
     return _re.sub(r'[\s]*\([^)]*\)[\s]*$', '', str(n)).strip()
 
+# Алиасы: все ключи → каноническое имя товара
+# Майки переименованы в футболки; Lost in summer → Love in summer
+SKU_ALIASES = {
+    'Черная майка без рукавов "No plans"': 'Черная футболка без рукавов "No plans"',
+    'Голубая майка без рукавов "Call me maybe never"': 'Голубая футболка без рукавов "Call me maybe never"',
+    'Белая майка без рукавов "Boysmint"': 'Белая футболка без рукавов "Boysmint"',
+    'Черная футболка без рукавов "Lost in summer"': 'Черная футболка без рукавов "Love in summer"',
+}
+
+def _canon_name(n):
+    """Strip size suffix and apply canonical name aliases (майка→футболка, Lost→Love)."""
+    base = _strip_size(n)
+    return SKU_ALIASES.get(base, base)
+
 _analytics_cache = None
 _analytics_cache_key = None
 
@@ -121,7 +135,7 @@ def build_analytics_data(conn):
     """).fetchall()
     stock = {}
     for r in rows:
-        base = _strip_size(r["sku_name"])
+        base = _canon_name(r["sku_name"])
         if base not in stock:
             stock[base] = {}
         stock[base][r["date"]] = stock[base].get(r["date"], 0) + r["qty"]
@@ -223,7 +237,7 @@ def rebuild_analytics_json(conn):
     sea_by_base = {}
     chart_by_base = {}
     for sku_name, s in sales_by_sku.items():
-        base = _strip_size(sku_name)
+        base = _canon_name(sku_name)
         if base not in sales_by_base:
             sales_by_base[base] = {"nq": 0, "nr": 0}
         sales_by_base[base]["nq"] += s["nq"]
@@ -234,14 +248,14 @@ def rebuild_analytics_json(conn):
         sales_by_base[base]["ap"] = nr / nq if nq > 0 else 0
 
     for sku_name, sea in sea_by_sku.items():
-        base = _strip_size(sku_name)
+        base = _canon_name(sku_name)
         if base not in sea_by_base:
             sea_by_base[base] = {"winter":0,"spring":0,"summer":0,"autumn":0}
         for s in ("winter","spring","summer","autumn"):
             sea_by_base[base][s] += sea[s]
 
     for sku_name, chart_map in chart_by_sku.items():
-        base = _strip_size(sku_name)
+        base = _canon_name(sku_name)
         if base not in chart_by_base:
             chart_by_base[base] = {}
         for d, v in chart_map.items():
@@ -268,7 +282,7 @@ def rebuild_analytics_json(conn):
             "WHERE sku_name=? GROUP BY date", (sku_name,)).fetchall()
         dm = {r["date"]: r["qty"] for r in rows}
         sku_data[sku_name] = dm
-        base = _strip_size(sku_name)
+        base = _canon_name(sku_name)
         if base not in base_agg:
             base_agg[base] = {}
         for d, q in dm.items():
@@ -297,7 +311,7 @@ def rebuild_analytics_json(conn):
                                     "sea": sea_rev, "chart": chart}
         # Write per-size keys only where sku_name differs from base
         for sku_name, dm in sku_data.items():
-            base = _strip_size(sku_name)
+            base = _canon_name(sku_name)
             if sku_name == base:
                 continue  # no size suffix — already written as base key
             af.write(",")
@@ -763,11 +777,11 @@ async def check_bestsellers():
     """).fetchall()
     conn.close()
 
-    sales_map = {_strip_size(r["sku_name"]): r["total_qty"] for r in sales}
+    sales_map = {_canon_name(r["sku_name"]): r["total_qty"] for r in sales}
 
     alerts = []
     for r in rows:
-        base = _strip_size(r["sku_name"])
+        base = _canon_name(r["sku_name"])
         stock = r["stock_qty"]
         if stock <= 0:
             continue
@@ -1073,7 +1087,7 @@ def get_revenue_data():
     conn.close()
     skus = {}
     for r in rows:
-        base = _strip_size(r["sku_name"])
+        base = _canon_name(r["sku_name"])
         if base not in skus:
             skus[base] = {"sale_qty": 0, "sale_rev": 0, "ret_qty": 0, "ret_rev": 0, "sizes": {}}
         skus[base]["sale_qty"] += r["sale_qty"] or 0
