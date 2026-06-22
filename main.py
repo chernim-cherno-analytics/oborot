@@ -106,7 +106,7 @@ SKU_ALIASES = {
     'Черная майка без рукавов "No plans"': 'Черная футболка без рукавов "No plans"',
     'Голубая майка без рукавов "Call me maybe never"': 'Голубая футболка без рукавов "Call me maybe never"',
     'Белая майка без рукавов "Boysmint"': 'Белая футболка без рукавов "Boysmint"',
-    'Черная футболка без рукавов "Lost in summer"': 'Черная футболка без рукавов "Love in summer"',
+    'Черная футболка без рукавов "Love in summer"': 'Черная футболка без рукавов "Lost in summer"',
 }
 
 def _canon_name(n):
