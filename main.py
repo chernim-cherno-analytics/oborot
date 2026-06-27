@@ -679,7 +679,13 @@ def get_stocks(date: Optional[str]=None, search: Optional[str]=None, page: int=1
 def get_all_stocks():
     """Serve pre-built analytics cache from disk. Zero memory usage."""
     if os.path.exists(ANALYTICS_JSON_PATH):
-        return FileResponse(ANALYTICS_JSON_PATH, media_type="application/json")
+        # Auto-invalidate if DB is newer than cache
+        try:
+            db_newer = os.path.exists(DB_PATH) and os.path.getmtime(DB_PATH) > os.path.getmtime(ANALYTICS_JSON_PATH)
+        except Exception:
+            db_newer = False
+        if not db_newer:
+            return FileResponse(ANALYTICS_JSON_PATH, media_type="application/json")
     # Cache missing — build it
     conn = get_db()
     rebuild_analytics_json(conn)
@@ -1041,19 +1047,29 @@ TURNOVER_JSON_PATH = "/data/turnover_cache.json"
 def get_turnover_data():
     """Serve pre-computed compact turnover stats from disk."""
     if os.path.exists(TURNOVER_JSON_PATH):
-        # Validate cache has dis field — if not, invalidate and rebuild
+        # Auto-invalidate if DB is newer than cache
         try:
-            import json as _j
-            with open(TURNOVER_JSON_PATH, "r", encoding="utf-8") as _f:
-                _sample = _j.load(_f)
-            _skus = _sample.get("skus", {})
-            _first = next(iter(_skus.values()), {}) if _skus else {}
-            if "dis" not in _first:
-                os.remove(TURNOVER_JSON_PATH)
-            else:
-                return FileResponse(TURNOVER_JSON_PATH, media_type="application/json")
+            db_newer = os.path.exists(DB_PATH) and os.path.getmtime(DB_PATH) > os.path.getmtime(TURNOVER_JSON_PATH)
         except Exception:
-            pass
+            db_newer = False
+        if db_newer:
+            os.remove(TURNOVER_JSON_PATH)
+            if os.path.exists(ANALYTICS_JSON_PATH):
+                os.remove(ANALYTICS_JSON_PATH)
+        else:
+            # Validate cache has dis field — if not, invalidate and rebuild
+            try:
+                import json as _j
+                with open(TURNOVER_JSON_PATH, "r", encoding="utf-8") as _f:
+                    _sample = _j.load(_f)
+                _skus = _sample.get("skus", {})
+                _first = next(iter(_skus.values()), {}) if _skus else {}
+                if "dis" not in _first:
+                    os.remove(TURNOVER_JSON_PATH)
+                else:
+                    return FileResponse(TURNOVER_JSON_PATH, media_type="application/json")
+            except Exception:
+                pass
     # Turnover cache missing — build from analytics cache if it exists (no SQL/memory)
     if os.path.exists(ANALYTICS_JSON_PATH):
         import json
