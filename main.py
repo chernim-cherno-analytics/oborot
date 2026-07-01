@@ -678,14 +678,8 @@ def get_stocks(date: Optional[str]=None, search: Optional[str]=None, page: int=1
 @app.get("/api/stocks/all")
 def get_all_stocks():
     """Serve pre-built analytics cache from disk. Zero memory usage."""
-    if os.path.exists(ANALYTICS_JSON_PATH):
-        # Auto-invalidate if DB is newer than cache
-        try:
-            db_newer = os.path.exists(DB_PATH) and os.path.getmtime(DB_PATH) > os.path.getmtime(ANALYTICS_JSON_PATH)
-        except Exception:
-            db_newer = False
-        if not db_newer:
-            return FileResponse(ANALYTICS_JSON_PATH, media_type="application/json")
+    if os.path.exists(ANALYTICS_JSON_PATH) and os.path.getsize(ANALYTICS_JSON_PATH) > 100:
+        return FileResponse(ANALYTICS_JSON_PATH, media_type="application/json")
     # Cache missing — build it
     conn = get_db()
     rebuild_analytics_json(conn)
@@ -860,9 +854,12 @@ def serve_turnover():
 
 @app.get("/api/analytics-data")
 def get_analytics_data():
-    """Serve pre-built analytics JSON from disk. If missing, build it first."""
-    if os.path.exists(ANALYTICS_JSON_PATH):
+    """Serve pre-built analytics JSON from disk. If missing or empty, build it first."""
+    if os.path.exists(ANALYTICS_JSON_PATH) and os.path.getsize(ANALYTICS_JSON_PATH) > 100:
         return FileResponse(ANALYTICS_JSON_PATH, media_type="application/json")
+    # File missing or empty — delete and rebuild
+    if os.path.exists(ANALYTICS_JSON_PATH):
+        os.remove(ANALYTICS_JSON_PATH)
     # First run: build the file
     conn = get_db()
     rebuild_analytics_json(conn)
@@ -1046,30 +1043,20 @@ TURNOVER_JSON_PATH = "/data/turnover_cache.json"
 @app.get("/api/turnover-data")
 def get_turnover_data():
     """Serve pre-computed compact turnover stats from disk."""
-    if os.path.exists(TURNOVER_JSON_PATH):
-        # Auto-invalidate if DB is newer than cache
+    if os.path.exists(TURNOVER_JSON_PATH) and os.path.getsize(TURNOVER_JSON_PATH) > 100:
+        # Validate cache has dis field — if not, invalidate and rebuild
         try:
-            db_newer = os.path.exists(DB_PATH) and os.path.getmtime(DB_PATH) > os.path.getmtime(TURNOVER_JSON_PATH)
+            import json as _j
+            with open(TURNOVER_JSON_PATH, "r", encoding="utf-8") as _f:
+                _sample = _j.load(_f)
+            _skus = _sample.get("skus", {})
+            _first = next(iter(_skus.values()), {}) if _skus else {}
+            if "dis" not in _first:
+                os.remove(TURNOVER_JSON_PATH)
+            else:
+                return FileResponse(TURNOVER_JSON_PATH, media_type="application/json")
         except Exception:
-            db_newer = False
-        if db_newer:
-            os.remove(TURNOVER_JSON_PATH)
-            if os.path.exists(ANALYTICS_JSON_PATH):
-                os.remove(ANALYTICS_JSON_PATH)
-        else:
-            # Validate cache has dis field — if not, invalidate and rebuild
-            try:
-                import json as _j
-                with open(TURNOVER_JSON_PATH, "r", encoding="utf-8") as _f:
-                    _sample = _j.load(_f)
-                _skus = _sample.get("skus", {})
-                _first = next(iter(_skus.values()), {}) if _skus else {}
-                if "dis" not in _first:
-                    os.remove(TURNOVER_JSON_PATH)
-                else:
-                    return FileResponse(TURNOVER_JSON_PATH, media_type="application/json")
-            except Exception:
-                pass
+            pass
     # Turnover cache missing — build from analytics cache if it exists (no SQL/memory)
     if os.path.exists(ANALYTICS_JSON_PATH):
         import json
