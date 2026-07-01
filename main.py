@@ -8,6 +8,18 @@ from typing import Optional
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
+# Prevent browsers from caching API responses (stale cache caused 1-byte JSON bugs)
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request as _Req
+class NoCacheAPIMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: _Req, call_next):
+        response = await call_next(request)
+        if request.url.path.startswith("/api/"):
+            response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
+            response.headers["Pragma"] = "no-cache"
+        return response
+app.add_middleware(NoCacheAPIMiddleware)
+
 # ─── Telegram ─────────────────────────────────────────────────────────────────
 TG_TOKEN = os.environ.get("TG_TOKEN", "")
 TG_CHAT  = os.environ.get("TG_CHAT", "")
@@ -1078,6 +1090,87 @@ def get_turnover_data():
     if os.path.exists(TURNOVER_JSON_PATH):
         return FileResponse(TURNOVER_JSON_PATH, media_type="application/json")
     return {"dates": [], "skus": {}}
+
+@app.get("/sales")
+def serve_sales():
+    if os.path.exists("sales.html"):
+        return FileResponse("sales.html", media_type="text/html")
+    return FileResponse("index.html", media_type="text/html")
+
+@app.get("/api/sales-monthly")
+def get_sales_monthly(month: Optional[str] = None):
+    """Monthly sales by canonical SKU with size breakdown, sorted by net revenue."""
+    conn = get_db()
+    # Available months
+    months = [r[0] for r in conn.execute(
+        "SELECT DISTINCT substr(date,1,7) as m FROM sales_data ORDER BY m DESC"
+    ).fetchall()]
+    if not months:
+        conn.close()
+        return {"months": [], "month": None,
+                "summary": {"sales": 0, "returns": 0, "net": 0, "sales_qty": 0, "returns_qty": 0},
+                "items": []}
+    if not month or month not in months:
+        month = months[0]
+    rows = conn.execute(
+        "SELECT sku_name, doc_type, SUM(qty) as qty, SUM(revenue) as rev "
+        "FROM sales_data WHERE substr(date,1,7)=? GROUP BY sku_name, doc_type",
+        (month,)
+    ).fetchall()
+    conn.close()
+
+    bases = {}
+    for r in rows:
+        sku = r["sku_name"]
+        base = _canon_name(sku)
+        is_sale = r["doc_type"] == "sale"
+        qty = r["qty"] or 0
+        rev = r["rev"] or 0
+        if base not in bases:
+            bases[base] = {"sale_rev": 0, "sale_qty": 0, "ret_rev": 0, "ret_qty": 0, "sizes": {}}
+        if is_sale:
+            bases[base]["sale_rev"] += rev; bases[base]["sale_qty"] += qty
+        else:
+            bases[base]["ret_rev"] += rev; bases[base]["ret_qty"] += qty
+        # size handling
+        stripped = _strip_size(sku)
+        if stripped != sku:
+            size_raw = sku[len(stripped):].strip()   # e.g. "(L)"
+            canonical_base = _canon_name(sku)
+            size_key = size_raw
+            if size_key not in bases[canonical_base]["sizes"]:
+                bases[canonical_base]["sizes"][size_key] = {"sale_rev": 0, "sale_qty": 0, "ret_rev": 0, "ret_qty": 0}
+            sz = bases[canonical_base]["sizes"][size_key]
+            if is_sale: sz["sale_rev"] += rev; sz["sale_qty"] += qty
+            else:       sz["ret_rev"]  += rev; sz["ret_qty"]  += qty
+
+    total_sales = sum(d["sale_rev"] for d in bases.values())
+    total_returns = sum(d["ret_rev"] for d in bases.values())
+    total_sales_qty = sum(d["sale_qty"] for d in bases.values())
+    total_returns_qty = sum(d["ret_qty"] for d in bases.values())
+
+    items = []
+    for base, d in bases.items():
+        net = d["sale_rev"] - d["ret_rev"]
+        sizes = sorted([
+            {"name": sk, "sale_rev": sv["sale_rev"], "sale_qty": sv["sale_qty"],
+             "ret_rev": sv["ret_rev"], "ret_qty": sv["ret_qty"],
+             "net": sv["sale_rev"] - sv["ret_rev"]}
+            for sk, sv in d["sizes"].items()
+        ], key=lambda x: x["net"], reverse=True)
+        items.append({
+            "base": base, "sale_rev": d["sale_rev"], "sale_qty": d["sale_qty"],
+            "ret_rev": d["ret_rev"], "ret_qty": d["ret_qty"], "net": net, "sizes": sizes
+        })
+    items.sort(key=lambda x: x["net"], reverse=True)
+
+    return {
+        "months": months, "month": month,
+        "summary": {"sales": total_sales, "returns": total_returns,
+                    "net": total_sales - total_returns,
+                    "sales_qty": total_sales_qty, "returns_qty": total_returns_qty},
+        "items": items
+    }
 
 @app.get("/forecast")
 def serve_forecast():
