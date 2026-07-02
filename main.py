@@ -216,9 +216,9 @@ def rebuild_analytics_json(conn):
 
     # Load sales data for all SKUs
     sales_rows = conn.execute(
-        "SELECT sku_name, SUM(CASE WHEN doc_type='sale' THEN qty ELSE 0 END) as nq, "
-        "SUM(CASE WHEN doc_type='sale' THEN revenue ELSE 0 END) as nr, "
-        "SUM(CASE WHEN doc_type='sale' THEN revenue ELSE 0 END) / NULLIF(SUM(CASE WHEN doc_type='sale' THEN qty ELSE 0 END),0) as ap "
+        "SELECT sku_name, SUM(CASE WHEN doc_type='sale' THEN qty ELSE -qty END) as nq, "
+        "SUM(CASE WHEN doc_type='sale' THEN revenue ELSE -revenue END) as nr, "
+        "SUM(CASE WHEN doc_type='sale' THEN revenue ELSE -revenue END) / NULLIF(SUM(CASE WHEN doc_type='sale' THEN qty ELSE -qty END),0) as ap "
         "FROM sales_data GROUP BY sku_name"
     ).fetchall()
     sales_by_sku = {r["sku_name"]: {"nq": r["nq"] or 0, "nr": r["nr"] or 0, "ap": r["ap"] or 0} for r in sales_rows}
@@ -226,10 +226,10 @@ def rebuild_analytics_json(conn):
     # Load seasonal sales data
     sea_rows = conn.execute(
         "SELECT sku_name, "
-        "SUM(CASE WHEN CAST(substr(date,6,2) AS INT) IN (12,1,2) AND doc_type='sale' THEN revenue ELSE 0 END) as winter, "
-        "SUM(CASE WHEN CAST(substr(date,6,2) AS INT) BETWEEN 3 AND 5 AND doc_type='sale' THEN revenue ELSE 0 END) as spring, "
-        "SUM(CASE WHEN CAST(substr(date,6,2) AS INT) BETWEEN 6 AND 8 AND doc_type='sale' THEN revenue ELSE 0 END) as summer, "
-        "SUM(CASE WHEN CAST(substr(date,6,2) AS INT) BETWEEN 9 AND 11 AND doc_type='sale' THEN revenue ELSE 0 END) as autumn "
+        "SUM(CASE WHEN CAST(substr(date,6,2) AS INT) IN (12,1,2) THEN (CASE WHEN doc_type='sale' THEN revenue ELSE -revenue END) ELSE 0 END) as winter, "
+        "SUM(CASE WHEN CAST(substr(date,6,2) AS INT) BETWEEN 3 AND 5 THEN (CASE WHEN doc_type='sale' THEN revenue ELSE -revenue END) ELSE 0 END) as spring, "
+        "SUM(CASE WHEN CAST(substr(date,6,2) AS INT) BETWEEN 6 AND 8 THEN (CASE WHEN doc_type='sale' THEN revenue ELSE -revenue END) ELSE 0 END) as summer, "
+        "SUM(CASE WHEN CAST(substr(date,6,2) AS INT) BETWEEN 9 AND 11 THEN (CASE WHEN doc_type='sale' THEN revenue ELSE -revenue END) ELSE 0 END) as autumn "
         "FROM sales_data GROUP BY sku_name"
     ).fetchall()
     sea_by_sku = {r["sku_name"]: {"winter": r["winter"] or 0, "spring": r["spring"] or 0,
@@ -804,10 +804,9 @@ async def check_bestsellers():
     """).fetchall()
     # Берём продажи за последние 90 дней для расчёта дневных продаж
     sales = conn.execute("""
-        SELECT sku_name, SUM(qty) as total_qty
+        SELECT sku_name, SUM(CASE WHEN doc_type='sale' THEN qty ELSE -qty END) as total_qty
         FROM sales_data
-        WHERE doc_type = 'sale'
-          AND date >= date('now', '-90 days')
+        WHERE date >= date('now', '-90 days')
         GROUP BY sku_name
     """).fetchall()
     conn.close()
