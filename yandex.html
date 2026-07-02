@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Chernim Cherno · Яндекс</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0 }
+    body { font-family: Helvetica, 'Helvetica Neue', Arial, sans-serif; min-height: 100vh; background: #272b08; color: white; }
+
+    .gradient-bg { position: fixed; inset: 0; z-index: 0; overflow: hidden; background: #272b08; }
+    .gradient-bg::before, .gradient-bg::after, .b1, .b2, .b3 {
+      position: absolute; border-radius: 50%; filter: blur(90px); opacity: 0.9;
+    }
+    .gradient-bg::before { content: ''; width: 70vw; height: 70vw;
+      background: radial-gradient(circle, #60886a, transparent 70%);
+      top: -20%; left: -10%; animation: blob1 11s ease-in-out infinite alternate; }
+    .gradient-bg::after { content: ''; width: 60vw; height: 60vw;
+      background: radial-gradient(circle, #79a28e, transparent 70%);
+      bottom: -15%; right: -10%; animation: blob2 14s ease-in-out infinite alternate; }
+    .b1 { width: 55vw; height: 55vw; background: radial-gradient(circle, #466030, transparent 70%);
+      top: 30%; left: 30%; animation: blob3 9s ease-in-out infinite alternate; }
+    .b2 { width: 45vw; height: 45vw; background: radial-gradient(circle, #9ad5c8, transparent 70%);
+      top: -10%; right: 10%; animation: blob4 13s ease-in-out infinite alternate; }
+    .b3 { width: 50vw; height: 50vw; background: radial-gradient(circle, #1a2008, transparent 70%);
+      bottom: 10%; left: 20%; animation: blob5 16s ease-in-out infinite alternate; }
+    .vignette { position: fixed; inset: 0; z-index: 1; pointer-events: none;
+      background: radial-gradient(ellipse at center, transparent 40%, rgba(10,12,4,0.55) 100%); }
+    .grain { position: fixed; inset: 0; z-index: 2; pointer-events: none; }
+    .grain::before { content: ''; position: absolute; inset: -50%; width: 200%; height: 200%;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='grain'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23grain)'/%3E%3C/svg%3E");
+      background-size: 200px 200px; opacity: 0.12; mix-blend-mode: overlay;
+      animation: grain-shift 0.15s steps(1) infinite; }
+    @keyframes grain-shift {
+      0%{transform:translate(0,0)} 10%{transform:translate(-3%,-4%)} 20%{transform:translate(4%,2%)}
+      30%{transform:translate(-2%,5%)} 40%{transform:translate(5%,-3%)} 50%{transform:translate(-4%,4%)}
+      60%{transform:translate(3%,-2%)} 70%{transform:translate(-5%,3%)} 80%{transform:translate(2%,-5%)}
+      90%{transform:translate(-3%,2%)} 100%{transform:translate(4%,-4%)} }
+    @keyframes blob1 { 0%{transform:translate(0,0) scale(1)} 33%{transform:translate(8vw,5vh) scale(1.1)} 66%{transform:translate(-5vw,10vh) scale(0.95)} 100%{transform:translate(10vw,-8vh) scale(1.05)} }
+    @keyframes blob2 { 0%{transform:translate(0,0) scale(1)} 33%{transform:translate(-10vw,-6vh) scale(1.08)} 66%{transform:translate(6vw,-12vh) scale(1.12)} 100%{transform:translate(-8vw,5vh) scale(0.92)} }
+    @keyframes blob3 { 0%{transform:translate(0,0) scale(1)} 50%{transform:translate(-12vw,8vh) scale(1.15)} 100%{transform:translate(8vw,-10vh) scale(0.9)} }
+    @keyframes blob4 { 0%{transform:translate(0,0) scale(0.9)} 50%{transform:translate(10vw,12vh) scale(1.1)} 100%{transform:translate(-6vw,6vh) scale(1)} }
+    @keyframes blob5 { 0%{transform:translate(0,0) scale(1.1)} 50%{transform:translate(14vw,-8vh) scale(0.9)} 100%{transform:translate(-10vw,-12vh) scale(1.05)} }
+
+    .header {
+      position: sticky; top: 0; z-index: 200;
+      padding: 0 28px; height: 56px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .logo { text-decoration: none; display:flex; align-items:center;
+      font-family: Helvetica, 'Helvetica Neue', Arial, sans-serif;
+      font-size: 15px; font-weight: 400; letter-spacing: 0.12em; color: rgba(255,255,255,0.88); }
+    .nav { display: flex; gap: 20px }
+    .nav a {
+      font-size: 13px; font-weight: 400; letter-spacing: 0.05em;
+      color: rgba(255,255,255,0.3); text-decoration: none; transition: color .2s;
+    }
+    .nav a:hover { color: rgba(255,255,255,0.7) }
+    .nav a.active { color: rgba(255,255,255,0.92); font-weight: 500; }
+
+    /* Month selector bar */
+    .month-bar {
+      position: relative; z-index: 10;
+      padding: 12px 28px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
+      border-bottom: 1px solid rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.04); backdrop-filter: blur(10px);
+    }
+    .month-btn {
+      font-size: 12px; font-weight: 500; padding: 5px 14px; border-radius: 20px;
+      border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.06);
+      color: rgba(255,255,255,0.5); cursor: pointer; transition: all .15s; white-space: nowrap;
+      font-family: inherit;
+    }
+    .month-btn:hover { background: rgba(255,255,255,0.14); color: white }
+    .month-btn.active { background: rgba(255,255,255,0.18); color: white; border-color: rgba(255,255,255,0.35) }
+
+    /* Summary cards */
+    .summary {
+      position: relative; z-index: 10;
+      padding: 14px 28px; display: flex; gap: 14px;
+      background: rgba(0,0,0,0.15); border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+    .scard {
+      background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 10px; padding: 12px 18px; min-width: 160px;
+    }
+    .scard-label { font-size: 10px; font-weight: 600; color: rgba(255,255,255,0.35);
+      text-transform: uppercase; letter-spacing: .08em; margin-bottom: 6px; }
+    .scard-value { font-size: 22px; font-weight: 700; color: rgba(255,255,255,0.92); font-variant-numeric: tabular-nums; }
+    .scard-sub { font-size: 11px; color: rgba(255,255,255,0.35); margin-top: 3px; }
+    .scard.green { border-color: rgba(134,239,172,0.3); }
+    .scard.green .scard-value { color: rgba(134,239,172,0.95); }
+    .scard.red { border-color: rgba(248,113,113,0.3); }
+    .scard.red .scard-value { color: rgba(248,113,113,0.9); }
+    .scard.gold { border-color: rgba(250,204,21,0.3); }
+    .scard.gold .scard-value { color: rgba(250,204,21,0.95); }
+
+    /* Main content */
+    .main { padding: 16px 28px; position: relative; z-index: 3; }
+
+    /* Table */
+    .table-outer {
+      background: rgba(255,255,255,0.05); backdrop-filter: blur(16px);
+      border: 1px solid rgba(255,255,255,0.12); border-radius: 12px;
+      overflow: auto; max-height: calc(100vh - 240px);
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 700px; }
+    thead th {
+      background: rgba(30,38,18,0.9); backdrop-filter: blur(16px);
+      padding: 10px 12px; text-align: right;
+      font-size: 10px; font-weight: 600; color: rgba(255,255,255,0.4);
+      letter-spacing: 0.07em; text-transform: uppercase;
+      white-space: nowrap; position: sticky; top: 0; z-index: 10;
+      border-bottom: 1px solid rgba(255,255,255,0.12);
+    }
+    thead th:first-child { text-align: left; padding-left: 16px; min-width: 280px; width: 40%; }
+    thead th:nth-child(2) { min-width: 70px; }
+
+    /* Base rows */
+    tbody tr.pr td {
+      padding: 9px 12px; border-bottom: 1px solid rgba(255,255,255,0.07);
+      text-align: right; vertical-align: middle; color: rgba(255,255,255,0.85);
+    }
+    tbody tr.pr td:first-child { text-align: left; padding-left: 16px; cursor: pointer; }
+    tbody tr.pr:hover td { background: rgba(255,255,255,0.06); }
+    .pr.expanded > td { border-bottom: none; }
+
+    /* Size sub-rows */
+    tbody tr.sr { display: none; }
+    tbody tr.sr.open { display: table-row; }
+    tbody tr.sr td {
+      padding: 5px 12px; border-bottom: 1px solid rgba(255,255,255,0.05);
+      font-size: 11px; text-align: right; color: rgba(255,255,255,0.55);
+      background: rgba(0,0,0,0.12);
+    }
+    tbody tr.sr td:first-child {
+      padding-left: 36px; text-align: left; color: rgba(255,255,255,0.35); font-style: italic;
+    }
+    tbody tr.sr:last-of-type td { border-bottom: 1px solid rgba(255,255,255,0.1); }
+    tbody tr.sr:hover td { background: rgba(255,255,255,0.05); }
+
+    /* Row rank colours */
+    .r-top td { background: rgba(120,255,80,0.1); }
+    .r-top:hover td { background: rgba(120,255,80,0.18) !important; }
+    .r-high td { background: rgba(134,239,172,0.07); }
+    .r-high:hover td { background: rgba(134,239,172,0.14) !important; }
+    .r-ret td { background: rgba(248,113,113,0.08); }
+    .r-ret:hover td { background: rgba(248,113,113,0.15) !important; }
+
+    .pname { font-weight: 500; font-size: 12px; color: rgba(255,255,255,0.9); }
+    .ei { font-size: 9px; margin-right: 6px; color: rgba(255,255,255,0.25); display:inline-block; transition: transform .15s; }
+    .ei.open { transform: rotate(90deg); color: rgba(255,255,255,0.5); }
+    .nb { font-variant-numeric: tabular-nums; }
+    .ret-val { color: rgba(248,113,113,0.85); }
+    .net-pos { color: rgba(134,239,172,0.9); font-weight: 600; }
+    .net-neg { color: rgba(248,113,113,0.85); font-weight: 600; }
+    .rank { display: inline-block; font-size: 9px; font-weight: 700;
+      background: rgba(255,255,255,0.1); border-radius: 4px;
+      padding: 1px 5px; margin-right: 7px; color: rgba(255,255,255,0.3); }
+    .loading { text-align:center; padding:60px; color:rgba(255,255,255,0.3); font-size:13px; }
+    .no-data { text-align:center; padding:40px; color:rgba(255,255,255,0.3); font-size:13px; }
+    /* ── Яндекс: доп. стили ── */
+    .month-bar { position: relative; z-index: 3; padding: 12px 28px 0; display: flex; flex-wrap: wrap; gap: 8px; }
+    .mchip { font-size: 12px; padding: 6px 14px; border-radius: 999px; cursor: pointer;
+      background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.12); color: rgba(255,255,255,0.6); }
+    .mchip:hover { background: rgba(255,255,255,0.14); }
+    .mchip.active { background: rgba(255,255,255,0.92); color: #272b08; font-weight: 600; }
+    .summary { position: relative; z-index: 3; flex-wrap: wrap; }
+    .svc-block { position: relative; z-index: 3; margin: 0 28px 4px; padding: 12px 18px;
+      background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; }
+    .svc-title { font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase;
+      color: rgba(255,255,255,0.35); margin-bottom: 8px; cursor: pointer; user-select: none; }
+    .svc-list { display: none; flex-wrap: wrap; gap: 6px 18px; }
+    .svc-list.open { display: flex; }
+    .svc-item { font-size: 11px; color: rgba(255,255,255,0.6); }
+    .svc-item b { color: rgba(248,113,113,0.85); font-weight: 600; font-variant-numeric: tabular-nums; }
+    .upload-mini { position: relative; z-index: 3; margin: 10px 28px; padding: 10px 16px;
+      border: 1px dashed rgba(255,255,255,0.25); border-radius: 10px; font-size: 12px;
+      color: rgba(255,255,255,0.5); cursor: pointer; }
+    .upload-mini:hover { border-color: rgba(255,255,255,0.5); color: rgba(255,255,255,0.8); }
+    .upload-mini.drag { border-color: rgba(134,239,172,0.8); background: rgba(134,239,172,0.08); }
+    .toolbar { position: relative; z-index: 3; padding: 0 28px 10px; display: flex; gap: 12px; align-items: center; }
+    .search { background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 8px; padding: 7px 12px; font-size: 12px; color: white; width: 260px; outline: none; }
+    .flt { font-size: 11px; padding: 5px 12px; border-radius: 999px; cursor: pointer;
+      background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.12); color: rgba(255,255,255,0.55); }
+    .flt.active { background: rgba(248,113,113,0.2); border-color: rgba(248,113,113,0.5); color: rgba(248,113,113,0.95); }
+    tr.row-loss td { background: rgba(248,113,113,0.10); }
+    tr.row-loss:hover td { background: rgba(248,113,113,0.18) !important; }
+    tr.row-nocost td { background: rgba(250,204,21,0.05); }
+    .cost-input { width: 72px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 6px; color: white; font-size: 11px; padding: 4px 6px; text-align: right; outline: none; }
+    .cost-input:focus { border-color: rgba(134,239,172,0.6); }
+    .buy-pct { font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 600; }
+    .buy-good { background: rgba(134,239,172,0.15); color: rgba(134,239,172,0.9); }
+    .buy-mid { background: rgba(250,204,21,0.12); color: rgba(250,204,21,0.9); }
+    .buy-bad { background: rgba(248,113,113,0.15); color: rgba(248,113,113,0.9); }
+  </style>
+</head>
+<body>
+<div class="gradient-bg"><div class="b1"></div><div class="b2"></div><div class="b3"></div></div>
+<div class="vignette"></div>
+<div class="grain"></div>
+
+<header class="header">
+  <a class="logo" href="/">Chernim Cherno</a>
+  <nav class="nav">
+    <a href="/">Data</a>
+    <a href="/analytics">Остатки</a>
+    <a href="/turnover">Оборачиваемость</a>
+    <a href="/order">Заказ</a>
+    <a href="/forecast">Прогноз</a>
+    <a href="/revenue">Оборот</a>
+    <a href="/transfers">Перемещения</a>
+    <a href="/sales">Продажи</a>
+    <a href="/yandex" class="active">Яндекс</a>
+  </nav>
+</header>
+
+<div class="upload-mini" id="uploadZone">
+  ↑ Загрузить отчёт «По заказам» из кабинета Маркета (Финансы → Финансовые отчёты → По заказам, файл united_orders_*.xlsx)
+  <input type="file" id="fileInput" accept=".xlsx" style="display:none"/>
+  <span id="uploadStatus"></span>
+</div>
+
+<div class="month-bar" id="monthBar"><div class="loading" style="padding:4px 0; font-size:12px;">Загрузка…</div></div>
+
+<div class="summary" id="summary" style="display:none;">
+  <div class="scard green">
+    <div class="scard-label">Выкуплено</div>
+    <div class="scard-value nb" id="cRev">—</div>
+    <div class="scard-sub" id="cRevSub">—</div>
+  </div>
+  <div class="scard red">
+    <div class="scard-label">Услуги Маркета</div>
+    <div class="scard-value nb" id="cSvc">—</div>
+    <div class="scard-sub" id="cSvcSub">—</div>
+  </div>
+  <div class="scard red">
+    <div class="scard-label">Невыкупы и возвраты</div>
+    <div class="scard-value nb" id="cNb">—</div>
+    <div class="scard-sub" id="cNbSub">—</div>
+  </div>
+  <div class="scard gold">
+    <div class="scard-label">Доход после услуг</div>
+    <div class="scard-value nb" id="cIncome">—</div>
+    <div class="scard-sub">выкуплено − услуги Маркета</div>
+  </div>
+  <div class="scard" id="cProfitCard">
+    <div class="scard-label">Прибыль (− себес)</div>
+    <div class="scard-value nb" id="cProfit">—</div>
+    <div class="scard-sub" id="cProfitSub">—</div>
+  </div>
+</div>
+
+<div class="svc-block" id="svcBlock" style="display:none;">
+  <div class="svc-title" id="svcToggle">▸ Из чего состоят услуги Маркета</div>
+  <div class="svc-list" id="svcList"></div>
+</div>
+
+<div class="toolbar">
+  <input class="search" id="search" placeholder="Поиск по названию…"/>
+  <div class="flt" id="fltLoss">только минус / ноль</div>
+  <div class="flt" id="fltNoCost">без себестоимости</div>
+</div>
+
+<div class="main">
+  <div class="table-outer">
+    <table id="tbl">
+      <thead>
+        <tr>
+          <th>Позиция</th>
+          <th>Выкуплено шт</th>
+          <th>Выручка ₽</th>
+          <th>Невыкуп шт</th>
+          <th>Выкуп %</th>
+          <th>Услуги ₽</th>
+          <th>Себес ₽/шт</th>
+          <th>Прибыль ₽</th>
+          <th>₽/шт</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"><tr><td colspan="9" class="loading">Загрузка…</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+const MONTHS_RU = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+let DATA = null, curMonth = null;
+
+function fmt(n){ if(n===null||n===undefined) return '—'; return Math.round(n).toLocaleString('ru-RU')+' ₽'; }
+function fmtN(n){ if(n===null||n===undefined) return '—'; return Math.round(n).toLocaleString('ru-RU'); }
+function mLabel(m){ if(m==='all') return 'Весь период'; const [y,mo]=m.split('-'); return MONTHS_RU[+mo-1]+' '+y; }
+
+async function load(month){
+  const q = month ? ('?month='+month) : '';
+  const r = await fetch('/api/yandex/summary'+q);
+  DATA = await r.json();
+  curMonth = DATA.month;
+  render();
+}
+
+function render(){
+  const mb = document.getElementById('monthBar');
+  if(!DATA.months.length){
+    mb.innerHTML = '<div class="no-data">Нет данных — загрузите отчёт «По заказам» выше</div>';
+    document.getElementById('tbody').innerHTML = '';
+    return;
+  }
+  mb.innerHTML='';
+  const all = document.createElement('div');
+  all.className = 'mchip'+(curMonth==='all'?' active':''); all.textContent='Весь период';
+  all.onclick = ()=>load('all'); mb.appendChild(all);
+  DATA.months.forEach(m=>{
+    const c=document.createElement('div');
+    c.className='mchip'+(m===curMonth?' active':''); c.textContent=mLabel(m);
+    c.onclick=()=>load(m); mb.appendChild(c);
+  });
+
+  const s = DATA.summary;
+  document.getElementById('summary').style.display='flex';
+  document.getElementById('cRev').textContent = fmt(s.delivered_rev);
+  document.getElementById('cRevSub').textContent = fmtN(s.delivered_qty)+' шт · '+fmtN(s.orders)+' заказов';
+  document.getElementById('cSvc').textContent = '−'+fmt(s.services_total);
+  document.getElementById('cSvcSub').textContent = (s.services_pct!==null? s.services_pct+'% от выкупленного':'');
+  document.getElementById('cNb').textContent = fmtN(s.nonbuyout_qty + s.return_qty)+' шт';
+  document.getElementById('cNbSub').textContent = 'выкуп '+(s.buyout_rate??'—')+'% · на '+fmt(s.nonbuyout_rev + s.return_rev);
+  document.getElementById('cIncome').textContent = fmt(s.income);
+  const pc = document.getElementById('cProfitCard');
+  pc.className = 'scard '+(s.profit>0?'green':'red');
+  document.getElementById('cProfit').textContent = fmt(s.profit);
+  document.getElementById('cProfitSub').textContent = s.no_cost_skus
+    ? '⚠ без себеса у '+s.no_cost_skus+' позиций — заполните в таблице' : 'себес учтён по всем позициям';
+
+  const sb = document.getElementById('svcBlock'); sb.style.display='block';
+  document.getElementById('svcList').innerHTML = DATA.services.map(x=>
+    '<div class="svc-item">'+x.name+' <b>−'+fmt(x.sum)+'</b></div>').join('');
+
+  renderTable();
+}
+
+let fLoss=false, fNoCost=false;
+function renderTable(){
+  const q = document.getElementById('search').value.trim().toLowerCase();
+  const tb = document.getElementById('tbody');
+  let rows = DATA.items;
+  if(q) rows = rows.filter(r=>r.base.toLowerCase().includes(q));
+  if(fLoss) rows = rows.filter(r=>r.flag==='loss' || (r.cost>0 && r.profit<=0));
+  if(fNoCost) rows = rows.filter(r=>r.flag==='nocost');
+  if(!rows.length){ tb.innerHTML='<tr><td colspan="9" class="no-data">Ничего не найдено</td></tr>'; return; }
+  tb.innerHTML = rows.map((r,i)=>{
+    const cls = r.flag==='loss'?'row-loss':(r.flag==='nocost'?'row-nocost':'');
+    const bo = r.buyout===null?'—':
+      '<span class="buy-pct '+(r.buyout>=60?'buy-good':(r.buyout>=40?'buy-mid':'buy-bad'))+'">'+r.buyout+'%</span>';
+    const pu = r.profit_unit===null?'—':fmt(r.profit_unit);
+    return '<tr class="pr '+cls+'">'
+      +'<td><span class="rank">'+(i+1)+'</span><span class="pname">'+r.base+'</span>'
+      +(r.flag==='loss'?' <span style="color:rgba(248,113,113,0.9);font-size:10px;font-weight:700;">МИНУС</span>':'')
+      +'</td>'
+      +'<td class="nb">'+fmtN(r.delivered_qty)+'</td>'
+      +'<td class="nb">'+fmt(r.delivered_rev)+'</td>'
+      +'<td class="nb'+(r.nonbuyout_qty? ' ret-val':'')+'">'+fmtN(r.nonbuyout_qty + r.return_qty)+'</td>'
+      +'<td class="nb">'+bo+'</td>'
+      +'<td class="nb ret-val">−'+fmt(r.services)+'</td>'
+      +'<td class="nb"><input class="cost-input" data-sku="'+r.base.replace(/"/g,'&quot;')+'" value="'+(r.cost||'')+'" placeholder="—"/></td>'
+      +'<td class="nb '+(r.profit>0?'net-pos':'net-neg')+'">'+fmt(r.profit)+'</td>'
+      +'<td class="nb '+(r.profit_unit>0?'net-pos':'net-neg')+'">'+pu+'</td>'
+      +'</tr>';
+  }).join('');
+  tb.querySelectorAll('.cost-input').forEach(inp=>{
+    inp.addEventListener('change', async e=>{
+      const v = parseFloat(e.target.value.replace(',','.'))||0;
+      await fetch('/api/costs',{method:'POST',headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({sku_base: e.target.dataset.sku, cost: v})});
+      load(curMonth);
+    });
+  });
+}
+
+document.getElementById('search').addEventListener('input', renderTable);
+document.getElementById('fltLoss').onclick = function(){ fLoss=!fLoss; this.classList.toggle('active',fLoss); renderTable(); };
+document.getElementById('fltNoCost').onclick = function(){ fNoCost=!fNoCost; this.classList.toggle('active',fNoCost); renderTable(); };
+document.getElementById('svcToggle').onclick = function(){
+  const l = document.getElementById('svcList'); l.classList.toggle('open');
+  this.textContent = (l.classList.contains('open')?'▾':'▸')+' Из чего состоят услуги Маркета';
+};
+
+const zone = document.getElementById('uploadZone'), fi = document.getElementById('fileInput');
+zone.onclick = ()=>fi.click();
+zone.ondragover = e=>{ e.preventDefault(); zone.classList.add('drag'); };
+zone.ondragleave = ()=>zone.classList.remove('drag');
+zone.ondrop = e=>{ e.preventDefault(); zone.classList.remove('drag'); if(e.dataTransfer.files[0]) upload(e.dataTransfer.files[0]); };
+fi.onchange = ()=>{ if(fi.files[0]) upload(fi.files[0]); };
+async function upload(file){
+  const st = document.getElementById('uploadStatus');
+  st.textContent = ' · загружаю…';
+  const fd = new FormData(); fd.append('file', file);
+  try{
+    const r = await fetch('/api/yandex/upload',{method:'POST',body:fd});
+    const j = await r.json();
+    if(j.error){ st.textContent=' · ошибка: '+j.error; return; }
+    st.textContent = ' · загружено: '+j.orders+' заказов, '+j.items+' товаров ('+j.date_from+' — '+j.date_to+')';
+    load('all');
+  }catch(e){ st.textContent=' · ошибка загрузки'; }
+}
+
+load();
+</script>
+</body>
+</html>

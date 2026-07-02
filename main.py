@@ -1349,6 +1349,331 @@ def clear_sales_data():
     conn.commit(); conn.close()
     return {"deleted": all_, "old_schema_rows": old, "message": "Залейте CSV заново."}
 
+# ===================== ЯНДЕКС МАРКЕТ =====================
+# Данные из финансового отчёта «По заказам» (united_orders_*.xlsx)
+# Листы: «Услуги и маржа по заказам» (заказ + все услуги Маркета),
+#        «Транзакции по заказам и товарам» (потоварные строки, 1 строка = 1 шт)
+import json as _json
+
+def _init_yandex():
+    conn = get_db()
+    conn.execute("""CREATE TABLE IF NOT EXISTS ym_orders (
+        order_id TEXT PRIMARY KEY,
+        date TEXT,
+        status TEXT,
+        price REAL DEFAULT 0,
+        services REAL DEFAULT 0,
+        svc_json TEXT DEFAULT '{}')""")
+    conn.execute("""CREATE TABLE IF NOT EXISTS ym_items (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        order_id TEXT,
+        date TEXT,
+        sku TEXT,
+        name TEXT,
+        price REAL DEFAULT 0,
+        status TEXT)""")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_ym_items_order ON ym_items(order_id)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_ym_orders_date ON ym_orders(date)")
+    conn.commit(); conn.close()
+
+_init_yandex()
+
+YM_SERVICES = [
+    "Размещение товаров на витрине",
+    "Складская обработка",
+    "Программа лояльности и отзывы",
+    "Буст продаж",
+    "Рассрочка",
+    "Доставка покупателю",
+    "Доставка (средняя миля)",
+    "Экспресс-доставка покупателю",
+    "Доставка из-за рубежа",
+    "Приём платежа покупателя",
+    "Перевод платежа покупателя",
+    "Организация забора заказов",
+    "Обработка заказов в СЦ или ПВЗ",
+    "Вывоз со склада, СЦ, ПВЗ",
+    "Хранение невыкупов и возвратов",
+    "Обработка заказов на складе",
+    "Вознаграждение за продажу товара",
+]
+
+def _ym_date(v):
+    s = str(v or "").strip()
+    m = _re.match(r"(\d{2})\.(\d{2})\.(\d{4})", s)
+    if m:
+        return f"{m.group(3)}-{m.group(2)}-{m.group(1)}"
+    m = _re.match(r"(\d{4})-(\d{2})-(\d{2})", s)
+    if m:
+        return s[:10]
+    return None
+
+def _ym_num(v):
+    if v is None or v == "":
+        return 0.0
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return 0.0
+
+_YM_SIZE_RE = _re.compile(r"[\s,]+(?:XS|S|M|L|XL|XXL|XXXL|2XL|3XL|4XL|One\s?Size|ONE\s?SIZE|OS|\d{2}(?:-\d{2})?|\d{3}-\d{3})\s*$", _re.I)
+def _ym_base(n):
+    """Яндекс-название -> каноническое имя: убираем бренд, размеры и рост в конце."""
+    n = _re.sub(r"\s*Chernim\s*Cherno\s*", " ", str(n or ""), flags=_re.I)
+    prev = None
+    while prev != n:
+        prev = n
+        n = _re.sub(r"\s*\([^)]*\)\s*$", "", n).strip()
+        n = _YM_SIZE_RE.sub("", n).strip().rstrip(",")
+    n = _re.sub(r"\s{2,}", " ", n).strip()
+    return _canon_name(n) if n else n
+
+def _ym_cls(status):
+    s = str(status or "")
+    if s.startswith("Доставлен"):
+        return "delivered"
+    if "Невыкуп" in s:
+        return "nonbuyout"
+    if "Возврат" in s:
+        return "return"
+    if s in ("Отменён", "Отменен", "Удалён", "Удален"):
+        return "cancel"
+    return "transit"
+
+def _ym_find_header(ws, first_col_value, max_scan=20):
+    for i, row in enumerate(ws.iter_rows(min_row=1, max_row=max_scan, values_only=True), start=1):
+        if row and str(row[0] or "").strip() == first_col_value:
+            return i, [str(c or "").strip() for c in row]
+    return None, None
+
+@app.post("/api/yandex/upload")
+async def yandex_upload(file: UploadFile = File(...)):
+    import openpyxl, warnings as _w
+    _w.filterwarnings("ignore")
+    raw = await file.read()
+    tmp = tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False)
+    tmp.write(raw); tmp.close()
+    try:
+        wb = openpyxl.load_workbook(tmp.name, data_only=True)
+    except Exception as e:
+        os.unlink(tmp.name)
+        return {"error": f"Не удалось открыть файл: {e}"}
+    need = ["Услуги и маржа по заказам", "Транзакции по заказам и товарам"]
+    if any(s not in wb.sheetnames for s in need):
+        os.unlink(tmp.name)
+        return {"error": "Это не отчёт «По заказам» из кабинета Маркета (нет нужных листов)"}
+
+    # ---- Лист услуг: заказ → все услуги ----
+    ws = wb["Услуги и маржа по заказам"]
+    hrow, hdr = _ym_find_header(ws, "ID бизнес-аккаунта")
+    if not hrow:
+        os.unlink(tmp.name)
+        return {"error": "Не найдена шапка листа «Услуги и маржа по заказам»"}
+    def col(name_part):
+        for i, h in enumerate(hdr):
+            if h.startswith(name_part):
+                return i
+        return None
+    c_order = col("Номер заказа"); c_status = col("Статус заказа")
+    c_date = col("Дата оформления"); c_total = col("Все услуги Маркета")
+    c_price = col("Цена продажи")
+    svc_cols = {}
+    for s in YM_SERVICES:
+        i = col(s)
+        if i is not None:
+            svc_cols[s] = i
+
+    orders = {}
+    for row in ws.iter_rows(min_row=hrow + 1, values_only=True):
+        oid = row[c_order]
+        if oid is None:
+            continue
+        oid = str(oid).split(".")[0]
+        svc = {}
+        for name, i in svc_cols.items():
+            v = _ym_num(row[i])
+            if v:
+                svc[name] = round(v, 2)
+        orders[oid] = {
+            "date": _ym_date(row[c_date]),
+            "status": str(row[c_status] or ""),
+            "price": _ym_num(row[c_price]),
+            "services": _ym_num(row[c_total]),
+            "svc": svc,
+        }
+
+    # ---- Лист транзакций: потоварные строки ----
+    ws2 = wb["Транзакции по заказам и товарам"]
+    hrow2, hdr2 = _ym_find_header(ws2, "ID бизнес-аккаунта")
+    if not hrow2:
+        os.unlink(tmp.name)
+        return {"error": "Не найдена шапка листа «Транзакции по заказам и товарам»"}
+    def col2(name_part):
+        for i, h in enumerate(hdr2):
+            if h.startswith(name_part):
+                return i
+        return None
+    t_order = col2("Номер заказа"); t_date = col2("Дата оформления")
+    t_sku = col2("Ваш SKU"); t_name = col2("Название товара")
+    t_price = col2("Цена продажи"); t_status = col2("Статус товара")
+
+    items = []
+    for row in ws2.iter_rows(min_row=hrow2 + 2, values_only=True):
+        oid = row[t_order]
+        if oid is None:
+            continue
+        oid = str(oid).split(".")[0]
+        name = str(row[t_name] or "").strip()
+        if not name:
+            continue
+        d = _ym_date(row[t_date]) or (orders.get(oid) or {}).get("date")
+        items.append((oid, d, str(row[t_sku] or "").strip(), name,
+                      _ym_num(row[t_price]), str(row[t_status] or "")))
+    os.unlink(tmp.name)
+
+    if not orders or not items:
+        return {"error": "В отчёте не нашлось данных"}
+
+    conn = get_db()
+    oids = list(orders.keys())
+    CH = 500
+    for i in range(0, len(oids), CH):
+        chunk = oids[i:i + CH]
+        ph = ",".join("?" * len(chunk))
+        conn.execute(f"DELETE FROM ym_orders WHERE order_id IN ({ph})", chunk)
+        conn.execute(f"DELETE FROM ym_items WHERE order_id IN ({ph})", chunk)
+    conn.executemany(
+        "INSERT OR REPLACE INTO ym_orders (order_id, date, status, price, services, svc_json) VALUES (?,?,?,?,?,?)",
+        [(o, d["date"], d["status"], d["price"], d["services"], _json.dumps(d["svc"], ensure_ascii=False))
+         for o, d in orders.items()])
+    conn.executemany(
+        "INSERT INTO ym_items (order_id, date, sku, name, price, status) VALUES (?,?,?,?,?,?)",
+        items)
+    conn.commit()
+    dates = sorted([d["date"] for d in orders.values() if d["date"]])
+    conn.close()
+    return {"ok": True, "orders": len(orders), "items": len(items),
+            "date_from": dates[0] if dates else None, "date_to": dates[-1] if dates else None}
+
+@app.get("/api/yandex/summary")
+def yandex_summary(month: Optional[str] = None):
+    conn = get_db()
+    months = [r[0] for r in conn.execute(
+        "SELECT DISTINCT substr(date,1,7) m FROM ym_orders WHERE date IS NOT NULL ORDER BY m DESC").fetchall()]
+    if not months:
+        conn.close()
+        return {"months": [], "month": None, "summary": None, "services": [], "items": []}
+    sel_all = (month == "all")
+    if not sel_all and (not month or month not in months):
+        month = months[0]
+
+    if sel_all:
+        orows = conn.execute("SELECT * FROM ym_orders").fetchall()
+        irows = conn.execute("SELECT * FROM ym_items").fetchall()
+    else:
+        orows = conn.execute("SELECT * FROM ym_orders WHERE substr(date,1,7)=?", (month,)).fetchall()
+        irows = conn.execute(
+            "SELECT i.* FROM ym_items i JOIN ym_orders o ON o.order_id=i.order_id WHERE substr(o.date,1,7)=?",
+            (month,)).fetchall()
+    costs = {r["sku_base"]: r["cost"] for r in conn.execute("SELECT sku_base, cost FROM sku_costs").fetchall()}
+    conn.close()
+
+    # Аллокация услуг заказа на товары пропорционально цене
+    order_items = {}
+    for it in irows:
+        order_items.setdefault(it["order_id"], []).append(it)
+
+    svc_totals = {}
+    total_services = 0.0
+    for o in orows:
+        total_services += o["services"] or 0
+        for k, v in _json.loads(o["svc_json"] or "{}").items():
+            svc_totals[k] = svc_totals.get(k, 0) + v
+
+    skus = {}
+    tot = {"delivered_qty": 0, "delivered_rev": 0.0, "nonbuyout_qty": 0, "nonbuyout_rev": 0.0,
+           "return_qty": 0, "return_rev": 0.0, "cancel_qty": 0, "transit_qty": 0}
+
+    omap = {o["order_id"]: o for o in orows}
+    for oid, its in order_items.items():
+        o = omap.get(oid)
+        osvc = (o["services"] or 0) if o else 0
+        psum = sum(max(i["price"] or 0, 0) for i in its)
+        for it in its:
+            share = ((it["price"] or 0) / psum) if psum > 0 else (1.0 / len(its))
+            alloc = osvc * share
+            base = _ym_base(it["name"])
+            s = skus.setdefault(base, {
+                "base": base, "delivered_qty": 0, "delivered_rev": 0.0,
+                "nonbuyout_qty": 0, "return_qty": 0, "cancel_qty": 0, "transit_qty": 0,
+                "services": 0.0})
+            s["services"] += alloc
+            cls = _ym_cls(it["status"])
+            price = it["price"] or 0
+            if cls == "delivered":
+                s["delivered_qty"] += 1; s["delivered_rev"] += price
+                tot["delivered_qty"] += 1; tot["delivered_rev"] += price
+            elif cls == "nonbuyout":
+                s["nonbuyout_qty"] += 1
+                tot["nonbuyout_qty"] += 1; tot["nonbuyout_rev"] += price
+            elif cls == "return":
+                s["return_qty"] += 1
+                tot["return_qty"] += 1; tot["return_rev"] += price
+            elif cls == "cancel":
+                s["cancel_qty"] += 1; tot["cancel_qty"] += 1
+            else:
+                s["transit_qty"] += 1; tot["transit_qty"] += 1
+
+    items_out = []
+    total_cost = 0.0
+    no_cost = 0
+    for base, s in skus.items():
+        cost = costs.get(base) or 0
+        cost_total = cost * s["delivered_qty"]
+        profit = s["delivered_rev"] - s["services"] - cost_total
+        attempted = s["delivered_qty"] + s["nonbuyout_qty"] + s["return_qty"]
+        buyout = (s["delivered_qty"] / attempted * 100) if attempted else None
+        if s["delivered_qty"] > 0:
+            total_cost += cost_total
+            if not cost:
+                no_cost += 1
+        items_out.append({
+            **{k: (round(v, 2) if isinstance(v, float) else v) for k, v in s.items()},
+            "cost": cost, "cost_total": round(cost_total, 2),
+            "profit": round(profit, 2),
+            "profit_unit": round(profit / s["delivered_qty"], 2) if s["delivered_qty"] else None,
+            "buyout": round(buyout, 1) if buyout is not None else None,
+            "flag": ("loss" if (profit < 0 or (cost and profit <= 0 and s["delivered_qty"] > 0))
+                     else ("nocost" if (not cost and s["delivered_qty"] > 0) else "ok")),
+        })
+    items_out.sort(key=lambda x: x["profit"], reverse=True)
+
+    income = tot["delivered_rev"] - total_services
+    summary = {
+        **{k: (round(v, 2) if isinstance(v, float) else v) for k, v in tot.items()},
+        "orders": len(orows),
+        "services_total": round(total_services, 2),
+        "services_pct": round(total_services / tot["delivered_rev"] * 100, 1) if tot["delivered_rev"] else None,
+        "income": round(income, 2),
+        "cost_total": round(total_cost, 2),
+        "profit": round(income - total_cost, 2),
+        "no_cost_skus": no_cost,
+        "buyout_rate": round(tot["delivered_qty"] /
+                             (tot["delivered_qty"] + tot["nonbuyout_qty"] + tot["return_qty"]) * 100, 1)
+                       if (tot["delivered_qty"] + tot["nonbuyout_qty"] + tot["return_qty"]) else None,
+    }
+    services = sorted([{"name": k, "sum": round(v, 2)} for k, v in svc_totals.items()],
+                      key=lambda x: -x["sum"])
+    return {"months": months, "month": ("all" if sel_all else month),
+            "summary": summary, "services": services, "items": items_out}
+
+@app.get("/yandex")
+def serve_yandex():
+    if os.path.exists("yandex.html"):
+        return FileResponse("yandex.html", media_type="text/html")
+    return FileResponse("index.html", media_type="text/html")
+
+
 @app.get("/{full_path:path}")
 def serve_frontend(full_path: str):
     if os.path.exists("index.html"):
