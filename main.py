@@ -1372,6 +1372,14 @@ def _init_yandex():
         name TEXT,
         price REAL DEFAULT 0,
         status TEXT)""")
+    conn.execute("""CREATE TABLE IF NOT EXISTS ym_money (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        order_id TEXT,
+        kind TEXT,
+        amount REAL DEFAULT 0,
+        pp_date TEXT)""")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_ym_money_date ON ym_money(pp_date)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_ym_money_order ON ym_money(order_id)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_ym_items_order ON ym_items(order_id)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_ym_orders_date ON ym_orders(date)")
     conn.commit(); conn.close()
@@ -1517,7 +1525,26 @@ async def yandex_upload(file: UploadFile = File(...)):
     t_sku = col2("Ваш SKU"); t_name = col2("Название товара")
     t_price = col2("Цена продажи"); t_status = col2("Статус товара")
 
+    # Группы платёжных колонок: (колонка суммы, колонка даты п/п, колонка даты реестра, тип)
+    pay_groups = []
+    grp_hdr = [str(c or "").strip() for c in next(ws2.iter_rows(min_row=hrow2 - 1, max_row=hrow2 - 1, values_only=True))]
+    cur = ""
+    sub = hdr2
+    KIND = {"Платёж покупателя": "payment", "Платёж за скидку Маркета": "comp_market",
+            "Платёж за скидку по бонусам СберСпасибо": "comp_sber", "Платёж за скидку Яндекс Плюс": "comp_plus",
+            "Возврат платежа покупателя": "refund", "Возврат платежа за скидку Маркета": "refund_market",
+            "Возврат платежа за скидку по бонусам СберСпасибо": "refund_sber",
+            "Возврат платежа за скидку Яндекс Плюс": "refund_plus"}
+    for i, g in enumerate(grp_hdr):
+        if g:
+            cur = g
+        if sub[i].startswith("Сумма платежа") or sub[i].startswith("Сумма возврата") or sub[i].startswith("Удержанная сумма"):
+            kind = KIND.get(cur, "withheld" if sub[i].startswith("Удержанная") else None)
+            if kind:
+                pay_groups.append((i, i + 2, i + 4, kind))
+
     items = []
+    money = []
     for row in ws2.iter_rows(min_row=hrow2 + 2, values_only=True):
         oid = row[t_order]
         if oid is None:
@@ -1529,6 +1556,12 @@ async def yandex_upload(file: UploadFile = File(...)):
         d = _ym_date(row[t_date]) or (orders.get(oid) or {}).get("date")
         items.append((oid, d, str(row[t_sku] or "").strip(), name,
                       _ym_num(row[t_price]), str(row[t_status] or "")))
+        for ci, di, ri, kind in pay_groups:
+            v = _ym_num(row[ci])
+            if v:
+                pd = _ym_date(row[di]) or _ym_date(row[ri])
+                if pd:
+                    money.append((oid, kind, v, pd))
     os.unlink(tmp.name)
 
     if not orders or not items:
@@ -1549,6 +1582,13 @@ async def yandex_upload(file: UploadFile = File(...)):
     conn.executemany(
         "INSERT INTO ym_items (order_id, date, sku, name, price, status) VALUES (?,?,?,?,?,?)",
         items)
+    for i in range(0, len(oids), CH):
+        chunk = oids[i:i + CH]
+        ph = ",".join("?" * len(chunk))
+        conn.execute(f"DELETE FROM ym_money WHERE order_id IN ({ph})", chunk)
+    conn.executemany(
+        "INSERT INTO ym_money (order_id, kind, amount, pp_date) VALUES (?,?,?,?)",
+        money)
     conn.commit()
     dates = sorted([d["date"] for d in orders.values() if d["date"]])
     conn.close()
@@ -1648,10 +1688,13 @@ def yandex_summary(month: Optional[str] = None):
         })
     items_out.sort(key=lambda x: x["profit"], reverse=True)
 
+    ordered_rev = tot["delivered_rev"] + tot["nonbuyout_rev"] + tot["return_rev"]
+    ordered_qty = tot["delivered_qty"] + tot["nonbuyout_qty"] + tot["return_qty"] + tot["cancel_qty"] + tot["transit_qty"]
     income = tot["delivered_rev"] - total_services
     summary = {
         **{k: (round(v, 2) if isinstance(v, float) else v) for k, v in tot.items()},
         "orders": len(orows),
+        "ordered_rev": round(ordered_rev, 2), "ordered_qty": ordered_qty,
         "services_total": round(total_services, 2),
         "services_pct": round(total_services / tot["delivered_rev"] * 100, 1) if tot["delivered_rev"] else None,
         "income": round(income, 2),
@@ -1666,6 +1709,41 @@ def yandex_summary(month: Optional[str] = None):
                       key=lambda x: -x["sum"])
     return {"months": months, "month": ("all" if sel_all else month),
             "summary": summary, "services": services, "items": items_out}
+
+@app.get("/api/yandex/money")
+def yandex_money(month: Optional[str] = None):
+    """Реальные деньги по датам платёжных поручений (возвраты в данных отрицательные)."""
+    conn = get_db()
+    months = [r[0] for r in conn.execute(
+        "SELECT DISTINCT substr(pp_date,1,7) m FROM ym_money ORDER BY m DESC").fetchall()]
+    if not months:
+        conn.close()
+        return {"months": [], "month": None, "money": None}
+    sel_all = (month == "all")
+    if not sel_all and (not month or month not in months):
+        month = months[0]
+    if sel_all:
+        rows = conn.execute("SELECT kind, SUM(amount) s FROM ym_money GROUP BY kind").fetchall()
+        svc = conn.execute("SELECT SUM(services) s FROM ym_orders").fetchone()["s"] or 0
+    else:
+        rows = conn.execute(
+            "SELECT kind, SUM(amount) s FROM ym_money WHERE substr(pp_date,1,7)=? GROUP BY kind",
+            (month,)).fetchall()
+        svc = conn.execute(
+            "SELECT SUM(services) s FROM ym_orders WHERE substr(date,1,7)=?", (month,)).fetchone()["s"] or 0
+    conn.close()
+    k = {r["kind"]: round(r["s"], 2) for r in rows}
+    payments = k.get("payment", 0)
+    comps = k.get("comp_market", 0) + k.get("comp_sber", 0) + k.get("comp_plus", 0)
+    refunds = k.get("refund", 0) + k.get("refund_market", 0) + k.get("refund_sber", 0) + k.get("refund_plus", 0)
+    withheld = k.get("withheld", 0)
+    gross = payments + comps + refunds + withheld  # возвраты/удержания отрицательные в данных
+    return {"months": months, "month": ("all" if sel_all else month),
+            "money": {"payments": payments, "compensations": round(comps, 2),
+                      "refunds": round(refunds, 2), "withheld": round(withheld, 2),
+                      "gross": round(gross, 2),
+                      "services_hint": round(svc, 2),
+                      "net_estimate": round(gross - svc, 2)}}
 
 @app.get("/yandex")
 def serve_yandex():

@@ -226,6 +226,11 @@
 <div class="month-bar" id="monthBar"><div class="loading" style="padding:4px 0; font-size:12px;">Загрузка…</div></div>
 
 <div class="summary" id="summary" style="display:none;">
+  <div class="scard">
+    <div class="scard-label">Заказано всего</div>
+    <div class="scard-value nb" id="cOrd">—</div>
+    <div class="scard-sub" id="cOrdSub">—</div>
+  </div>
   <div class="scard green">
     <div class="scard-label">Выкуплено</div>
     <div class="scard-value nb" id="cRev">—</div>
@@ -250,6 +255,14 @@
     <div class="scard-label">Прибыль (− себес)</div>
     <div class="scard-value nb" id="cProfit">—</div>
     <div class="scard-sub" id="cProfitSub">—</div>
+  </div>
+</div>
+
+<div class="svc-block" id="moneyBlock" style="display:none;">
+  <div class="svc-title" style="cursor:default;">Деньги по платёжным поручениям — то, что реально перечисляет Яндекс (за <span id="mLabel">—</span>)</div>
+  <div class="svc-list open" id="moneyList"></div>
+  <div style="font-size:10px; color:rgba(255,255,255,0.3); margin-top:8px;">
+    Заказы месяца доезжают и оплачиваются позже, поэтому деньги месяца ≠ доход по заказам месяца. Возвраты денег — за товары, проданные ранее. Услуги — по заказам месяца (оценка).
   </div>
 </div>
 
@@ -293,10 +306,15 @@ function fmt(n){ if(n===null||n===undefined) return '—'; return Math.round(n).
 function fmtN(n){ if(n===null||n===undefined) return '—'; return Math.round(n).toLocaleString('ru-RU'); }
 function mLabel(m){ if(m==='all') return 'Весь период'; const [y,mo]=m.split('-'); return MONTHS_RU[+mo-1]+' '+y; }
 
+let MONEY = null;
 async function load(month){
   const q = month ? ('?month='+month) : '';
-  const r = await fetch('/api/yandex/summary'+q);
+  const [r, rm] = await Promise.all([
+    fetch('/api/yandex/summary'+q),
+    fetch('/api/yandex/money'+q)
+  ]);
   DATA = await r.json();
+  MONEY = await rm.json();
   curMonth = DATA.month;
   render();
 }
@@ -332,6 +350,31 @@ function render(){
   document.getElementById('cProfit').textContent = fmt(s.profit);
   document.getElementById('cProfitSub').textContent = s.no_cost_skus
     ? '⚠ без себеса у '+s.no_cost_skus+' позиций — заполните в таблице' : 'себес учтён по всем позициям';
+
+  document.getElementById('cOrd').textContent = fmt(s.ordered_rev);
+  document.getElementById('cOrdSub').textContent = fmtN(s.ordered_qty)+' шт с отменами и в пути';
+
+  const mb2 = document.getElementById('moneyBlock');
+  if(MONEY && MONEY.money){
+    mb2.style.display='block';
+    document.getElementById('mLabel').textContent = curMonth==='all' ? 'весь период' : mLabel(curMonth);
+    const mo = MONEY.money;
+    const items = [
+      ['Перечислено платежей покупателей', mo.payments],
+      ['Компенсации скидок (Маркет, Сбер, Плюс)', mo.compensations],
+      ['Возвраты денег покупателям', mo.refunds],
+      ['Удержания', mo.withheld],
+      ['= Деньгами до услуг', mo.gross],
+      ['− Услуги Маркета (по заказам месяца, оценка)', -Math.abs(mo.services_hint)],
+      ['≈ К выплате', mo.net_estimate],
+    ];
+    document.getElementById('moneyList').innerHTML = items.map(([n,v])=>{
+      const neg = v<0;
+      const strong = n.startsWith('=')||n.startsWith('≈');
+      return '<div class="svc-item"'+(strong?' style="font-weight:700;color:rgba(250,204,21,0.9);"':'')+'>'
+        +n+' <b style="color:'+(neg?'rgba(248,113,113,0.85)':'rgba(134,239,172,0.9)')+'">'+fmt(v)+'</b></div>';
+    }).join('');
+  } else { mb2.style.display='none'; }
 
   const sb = document.getElementById('svcBlock'); sb.style.display='block';
   document.getElementById('svcList').innerHTML = DATA.services.map(x=>
