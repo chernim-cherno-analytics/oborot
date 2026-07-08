@@ -168,6 +168,13 @@
     tbody tr.sr td { padding: 5px 10px; border-bottom: 1px solid rgba(255,255,255,0.05); font-size:11px; text-align:center; color: rgba(255,255,255,0.6) }
     tbody tr.sr td:first-child { padding-left: 32px; color: rgba(255,255,255,0.35); text-align:left; font-style:italic }
     tbody tr.sr:hover td { background: rgba(255,255,255,0.05) }
+    .disc-in { width: 52px; text-align: center; font-size: 12px; font-weight: 700;
+      border: 1px solid rgba(26,42,58,0.25); border-radius: 6px; padding: 4px 4px;
+      background: rgba(255,255,255,0.7); color: inherit; outline: none; }
+    .disc-in:focus { border-color: rgba(26,42,58,0.6); background: #fff; }
+    .def-disc-btn { border: 1px solid rgba(26,42,58,0.3); border-radius: 8px; padding: 7px 14px;
+      background: rgba(255,255,255,0.65); font-size: 12px; font-weight: 600; cursor: pointer; }
+    .def-disc-btn:hover { background: #fff; }
   </style>
 </head>
 <body>
@@ -193,6 +200,7 @@
   <div class="upload-bar" style="display:none">
     <input type="file" id="si" accept=".csv" multiple>
     <button class="upload-btn" onclick="document.getElementById('si').click()">↑ Загрузить CSV продаж</button>
+    <button class="def-disc-btn" id="defDiscBtn" onclick="applyDefaultDiscounts()">% Дефолтные скидки</button>
     <span id="us" style="color:rgba(26,42,58,0.45)">Обновление данных продаж из МоегоСклада</span>
   </div>
   <div class="table-outer">
@@ -203,6 +211,7 @@
         <col style="width:70px"><col style="width:70px"><col style="width:55px">
         <col style="width:55px"><col style="width:72px"><col style="width:60px">
         <col style="width:50px"><col style="width:50px"><col style="width:50px"><col style="width:50px">
+        <col style="width:68px">
       </colgroup>
       <thead>
         <tr>
@@ -222,9 +231,10 @@
           <th>Лето<br><span class="sub">заказ</span></th>
           <th>Осень<br><span class="sub">заказ</span></th>
           <th>Зима<br><span class="sub">заказ</span></th>
+          <th>Скидка<br><span class="sub">%</span></th>
         </tr>
       </thead>
-      <tbody id="tb"><tr><td colspan="16" class="loading">Загружаю данные...</td></tr></tbody>
+      <tbody id="tb"><tr><td colspan="17" class="loading">Загружаю данные...</td></tr></tbody>
     </table>
   </div>
 </div>
@@ -255,6 +265,58 @@ const CAT_ORDER = ["Верхняя одежда","Костюмы","Брюки","
 const SEASON_DAYS = {winter:90,spring:92,summer:92,autumn:91};
 
 let stockData = {}, allDates = [], hiddenItems = new Set(), currentCat = "Верхняя одежда", computed = {};
+let DISCOUNTS = {};
+async function loadDiscounts(){ try { DISCOUNTS = await (await fetch("/api/discounts")).json(); } catch(e) { DISCOUNTS = {}; } }
+async function saveDiscount(base, val){
+  try { await fetch("/api/discounts",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({sku_base:base,discount:val})}); } catch(e){ alert("Не сохранилось — проверьте интернет"); }
+}
+// Правила дефолтных скидок. Значение приоритетно перезаписывается этой функцией по кнопке.
+function defaultDiscount(d){
+  if (!d) return null;
+  if ((d.cs||0) <= 0) return null;              // нет остатка — нечего скидывать
+  if ((d.dis||0) < 30) return 10;               // новинка: меньше месяца в стоке
+  const turn = d.turn||0;
+  const zat = (d.zat===null||d.zat===undefined) ? 999 : d.zat;  // нет продаж → как затоварка
+  if (turn > 2000)  return zat < 100 ? 15 : 20; // топ продаж
+  if (turn >= 1000) return zat < 100 ? 30 : 40;
+  return zat < 100 ? 50 : 60;
+}
+async function applyDefaultDiscounts(){
+  if(!confirm("Все ручные скидки будут сброшены и расставлены по правилам. Продолжить?")) return;
+  const out = {};
+  for (const [base, d] of Object.entries(computed)){
+    if (hiddenItems.has(base)) continue;
+    if (!getCat(base)) continue;
+    const v = defaultDiscount(d);
+    if (v) out[base] = v;
+  }
+  const btn = document.getElementById("defDiscBtn");
+  btn.disabled = true; btn.textContent = "Сохраняю…";
+  try {
+    await fetch("/api/discounts/bulk",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({discounts: out})});
+    DISCOUNTS = out;
+    render();
+    btn.textContent = "✓ Скидки расставлены";
+    setTimeout(()=>{btn.textContent="% Дефолтные скидки"; btn.disabled=false;}, 2000);
+  } catch(e){
+    alert("Ошибка сохранения"); btn.textContent="% Дефолтные скидки"; btn.disabled=false;
+  }
+}
+function discInput(base){
+  const v = DISCOUNTS[base];
+  const esc = base.replace(/"/g,'&quot;');
+  return `<input class="disc-in" data-base="${esc}" value="${v?Math.round(v):''}" placeholder="—" inputmode="numeric">`;
+}
+document.addEventListener("change", async (e)=>{
+  if(!e.target.classList || !e.target.classList.contains("disc-in")) return;
+  const base = e.target.dataset.base;
+  let v = parseFloat(String(e.target.value).replace(",",".").replace("%",""));
+  if (isNaN(v) || v<=0){ v=null; e.target.value=""; delete DISCOUNTS[base]; }
+  else { v=Math.min(Math.round(v),99); e.target.value=v; DISCOUNTS[base]=v; }
+  e.target.style.background="rgba(251,191,36,0.35)";
+  await saveDiscount(base, v);
+  e.target.style.background="";
+});
 
 function getCat(n) {
   const nl = n.toLowerCase();
@@ -285,7 +347,7 @@ async function loadHidden() {
 }
 
 async function loadStock() {
-  document.getElementById("tb").innerHTML=`<tr><td colspan="16" class="loading">Загружаю данные с сервера...</td></tr>`;
+  document.getElementById("tb").innerHTML=`<tr><td colspan="17" class="loading">Загружаю данные с сервера...</td></tr>`;
   try {
     const [analyticsRes, turnoverRes] = await Promise.all([
       fetch("/api/analytics-data"),
@@ -303,7 +365,7 @@ async function loadStock() {
     }
   } catch(e) {
     console.error("loadStock error:", e);
-    document.getElementById("tb").innerHTML=`<tr><td colspan="16" class="loading">Ошибка загрузки: ${e.message}</td></tr>`;
+    document.getElementById("tb").innerHTML=`<tr><td colspan="17" class="loading">Ошибка загрузки: ${e.message}</td></tr>`;
   }
 }
 
@@ -456,7 +518,7 @@ function render() {
   const items=Object.entries(computed)
     .filter(([b])=>getCat(b)===currentCat&&!hiddenItems.has(b))
     .sort((a,b)=>(b[1].turn||0)-(a[1].turn||0));
-  if(!items.length){tb.innerHTML=`<tr><td colspan="16" class="loading">Нет данных</td></tr>`;return;}
+  if(!items.length){tb.innerHTML=`<tr><td colspan="17" class="loading">Нет данных</td></tr>`;return;}
 
   const withS=items.filter(([,d])=>d.nr>0);
   const noS=items.filter(([,d])=>d.nr===0);
@@ -491,12 +553,13 @@ function render() {
         <td><span class="oc">${d.ord.spring}</span></td>
         <td><span class="oc">${d.ord.summer}</span></td>
         <td><span class="oc">${d.ord.autumn}</span></td>
-        <td><span class="oc">${d.ord.winter}</span></td>`;
+        <td><span class="oc">${d.ord.winter}</span></td>
+        <td>${discInput(base)}</td>`;
       tb.appendChild(tr);
 
       // Detail row
       const dtr=document.createElement("tr"); dtr.className="dr"; dtr.style.display="none";
-      const dtd=document.createElement("td"); dtd.colSpan=16;
+      const dtd=document.createElement("td"); dtd.colSpan=17;
       const SIZE_COLORS=["rgba(251,191,36,0.9)","rgba(239,68,68,0.9)","rgba(167,139,250,0.9)","rgba(56,189,248,0.9)","rgba(251,113,133,0.9)"];
       const szKeys=Object.keys(stockData).filter(k=>stripSize(k)===base&&k!==base);
       const szHtml=szKeys.length?`<div class="size-sel"><span class="size-sel-lbl">Размер</span>${szKeys.map((s,i)=>{const m=s.match(/\(([^)]+)\)$/);const c=SIZE_COLORS[i%SIZE_COLORS.length];const esc=s.replace(/"/g,'&quot;');return m?`<button class="sz-btn active" data-sku="${esc}" data-idx="${i}" style="--sc:${c}"><span class="sz-dot"></span>${m[1]}</button>`:""}).join("")}</div>`:"";
@@ -554,7 +617,8 @@ function render() {
           <td><span class="oc" style="font-size:10px;padding:1px 5px">${sd.ord.spring}</span></td>
           <td><span class="oc" style="font-size:10px;padding:1px 5px">${sd.ord.summer}</span></td>
           <td><span class="oc" style="font-size:10px;padding:1px 5px">${sd.ord.autumn}</span></td>
-          <td><span class="oc" style="font-size:10px;padding:1px 5px">${sd.ord.winter}</span></td>`;
+          <td><span class="oc" style="font-size:10px;padding:1px 5px">${sd.ord.winter}</span></td>
+          <td></td>`;
         tb.appendChild(sztr);
       }
 
@@ -728,10 +792,10 @@ document.getElementById("si").addEventListener("change",async e=>{
 });
 
 async function init(){
-  document.getElementById("tb").innerHTML=`<tr><td colspan="16" class="loading">Загружаю остатки...</td></tr>`;
+  document.getElementById("tb").innerHTML=`<tr><td colspan="17" class="loading">Загружаю остатки...</td></tr>`;
   await loadHidden();
-  await loadStock();
-  document.getElementById("tb").innerHTML=`<tr><td colspan="16" class="loading">Считаю метрики...</td></tr>`;
+  await Promise.all([loadStock(), loadDiscounts()]);
+  document.getElementById("tb").innerHTML=`<tr><td colspan="17" class="loading">Считаю метрики...</td></tr>`;
   compute();
   buildTabs();
   render();

@@ -1744,6 +1744,49 @@ def yandex_money(month: Optional[str] = None):
                       "services_hint": round(svc, 2),
                       "net_estimate": round(gross - svc, 2)}}
 
+# ─── Скидки (ручные, общие для всех устройств) ────────────────────────────────
+def _init_discounts():
+    conn = get_db()
+    conn.execute("""CREATE TABLE IF NOT EXISTS sku_discounts (
+        sku_base TEXT PRIMARY KEY,
+        discount REAL NOT NULL DEFAULT 0,
+        updated_at TEXT NOT NULL)""")
+    conn.commit(); conn.close()
+_init_discounts()
+
+@app.get("/api/discounts")
+def get_discounts():
+    conn = get_db()
+    rows = conn.execute("SELECT sku_base, discount FROM sku_discounts").fetchall()
+    conn.close()
+    return {r["sku_base"]: r["discount"] for r in rows}
+
+@app.post("/api/discounts")
+async def set_discount(data: dict):
+    conn = get_db()
+    base = data["sku_base"]
+    val = data.get("discount", None)
+    if val is None or val == "" or float(val) <= 0:
+        conn.execute("DELETE FROM sku_discounts WHERE sku_base=?", (base,))
+    else:
+        conn.execute("INSERT OR REPLACE INTO sku_discounts (sku_base, discount, updated_at) VALUES (?,?,?)",
+                     (base, float(val), datetime.now().isoformat()))
+    conn.commit(); conn.close()
+    return {"ok": True}
+
+@app.post("/api/discounts/bulk")
+async def set_discounts_bulk(data: dict):
+    """Полная замена всех скидок (кнопка «Дефолтные скидки»)."""
+    discounts = data.get("discounts", {})
+    conn = get_db()
+    conn.execute("DELETE FROM sku_discounts")
+    now = datetime.now().isoformat()
+    conn.executemany(
+        "INSERT OR REPLACE INTO sku_discounts (sku_base, discount, updated_at) VALUES (?,?,?)",
+        [(k, float(v), now) for k, v in discounts.items() if v and float(v) > 0])
+    conn.commit(); conn.close()
+    return {"ok": True, "count": len(discounts)}
+
 @app.get("/yandex")
 def serve_yandex():
     if os.path.exists("yandex.html"):
