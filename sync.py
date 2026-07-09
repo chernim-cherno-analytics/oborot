@@ -172,8 +172,8 @@ def _fetch_docs(pg, head_table: str, days_back: int):
                SUM(p.price * p.quantity * (1 - COALESCE(p.discount,0)/100.0)) / 100.0 AS rev
         FROM {pos_table} p
         JOIN {head_table} h ON h.id = p.id
-        LEFT JOIN lenvariant v ON v.id = p.assortment_id
-        LEFT JOIN lenproduct pr ON pr.id = p.assortment_id
+        LEFT JOIN lenvariant v ON v.id = RIGHT(p.assortment_id, 36)
+        LEFT JOIN lenproduct pr ON pr.id = RIGHT(p.assortment_id, 36)
         WHERE (h.moment)::date >= %s
           AND COALESCE(v.name, pr.name) IS NOT NULL
         GROUP BY 1, 2

@@ -1947,8 +1947,8 @@ def stocks_bystore():
                     FROM lendemand_position dp
                     JOIN lendemand h ON h.id = dp.id
                     JOIN lenstore st ON st.id = h.store_id
-                    LEFT JOIN lenvariant v ON v.id = dp.assortment_id
-                    LEFT JOIN lenproduct p ON p.id = dp.assortment_id
+                    LEFT JOIN lenvariant v ON v.id = RIGHT(dp.assortment_id, 36)
+                    LEFT JOIN lenproduct p ON p.id = RIGHT(dp.assortment_id, 36)
                     WHERE COALESCE(v.name, p.name) IS NOT NULL
                     GROUP BY 1, 2
                     UNION ALL
@@ -1956,8 +1956,8 @@ def stocks_bystore():
                     FROM lenretaildemand_position rp
                     JOIN lenretaildemand h ON h.id = rp.id
                     JOIN lenstore st ON st.id = h.store_id
-                    LEFT JOIN lenvariant v ON v.id = rp.assortment_id
-                    LEFT JOIN lenproduct p ON p.id = rp.assortment_id
+                    LEFT JOIN lenvariant v ON v.id = RIGHT(rp.assortment_id, 36)
+                    LEFT JOIN lenproduct p ON p.id = RIGHT(rp.assortment_id, 36)
                     WHERE COALESCE(v.name, p.name) IS NOT NULL
                     GROUP BY 1, 2
                 ) t GROUP BY 1, 2
