@@ -1845,13 +1845,23 @@ def stocks_bystore():
                 if c in cols: return c
             return None
         name_c = pick(["name", "assortment_name", "product_name", "assortment"])
-        store_c = pick(["store_name", "store", "storename"])
+        store_c = pick(["store_name", "storename"])
         qty_c  = pick(["stock", "quantity", "balance", "qty"])
-        if not (name_c and store_c and qty_c):
+        if not (name_c and qty_c):
             pg.close()
             return {"error": f"Не нашёл колонки, есть: {cols}", "stores": [], "skus": {}}
-        cur.execute(f"SELECT {name_c}, {store_c}, SUM(COALESCE({qty_c},0)) "
-                    f"FROM lenreport_stock_bystore GROUP BY 1, 2")
+        if store_c:
+            cur.execute(f"SELECT {name_c}, {store_c}, SUM(COALESCE({qty_c},0)) "
+                        f"FROM lenreport_stock_bystore GROUP BY 1, 2")
+        elif "store_id" in cols:
+            # склад хранится ссылкой — джойним справочник складов lenstore
+            cur.execute(f"""SELECT r.{name_c}, st.name, SUM(COALESCE(r.{qty_c},0))
+                        FROM lenreport_stock_bystore r
+                        JOIN lenstore st ON st.id = r.store_id
+                        GROUP BY 1, 2""")
+        else:
+            pg.close()
+            return {"error": f"Нет колонки склада, есть: {cols}", "stores": [], "skus": {}}
         rows = cur.fetchall()
         pg.close()
         # какие склады попали под фильтр
