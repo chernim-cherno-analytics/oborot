@@ -7,7 +7,7 @@
   
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0 }
-    body { font-family: Helvetica, 'Helvetica Neue', Arial, sans-serif; min-height: 100vh; background: #272b08; color: white; }
+    body { font-family: Helvetica, 'Helvetica Neue', Arial, sans-serif; min-height: 100vh; background: #f3e9e0; color:#1f1f1f; }
     
     
     .header {
@@ -17,132 +17,132 @@
     }
     .logo { text-decoration: none; display: flex; align-items: center; }
     .logo img { height: 26px; display: block; }
-    .hstats { font-size: 11px; color: rgba(255,255,255,0.4) }
+    .hstats { font-size: 11px; color: rgba(31,31,31,0.45) }
     .nav { display: flex; gap: 20px }
     .nav a {
       font-size: 13px; font-weight: 400; letter-spacing: 0.05em;
-      color: rgba(255,255,255,0.3);
+      color: rgba(31,31,31,0.45);
       text-decoration: none; transition: color .2s;
     }
-    .nav a:hover { color: rgba(255,255,255,0.7) }
-    .nav a.active { color: rgba(255,255,255,0.92); font-weight: 500; }
+    .nav a:hover { color: #434446 }
+    .nav a.active { color: #1f1f1f; font-weight: 500; }
 
     .main { max-width: 1400px; margin: 0 auto; padding: 28px; display: flex; flex-direction: column; gap: 18px }
 
     .upload-zone {
-      background: rgba(255,255,255,0.15);
+      background: rgba(31,31,31,0.09);
       backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
-      border: 1px dashed rgba(255,255,255,0.4);
+      border: 1px dashed rgba(31,31,31,0.45);
       border-radius: 14px; padding: 36px;
       text-align: center; cursor: pointer; transition: all .2s;
     }
     .upload-zone:hover, .upload-zone.drag {
-      background: rgba(255,255,255,0.25);
-      border-color: rgba(255,255,255,0.7);
+      background: rgba(31,31,31,0.45);
+      border-color: #434446;
     }
     .upload-zone.uploading { cursor: default; opacity: 0.7 }
     .upload-icon { font-size: 28px; margin-bottom: 10px; opacity: 0.8 }
     .upload-zone.uploading .upload-icon { animation: spin 1s linear infinite; display: inline-block }
     @keyframes spin { to { transform: rotate(360deg) } }
     .upload-text { font-size: 14px; font-weight: 500; margin-bottom: 6px }
-    .upload-hint { font-size: 12px; color: rgba(255,255,255,0.6) }
+    .upload-hint { font-size: 12px; color: #434446 }
 
     .msg { border-radius: 10px; padding: 14px 40px 14px 16px; position: relative; font-size: 12px; display: none }
     .msg.show { display: block }
-    .msg.ok { background: rgba(255,255,255,0.2); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.3) }
+    .msg.ok { background: rgba(31,31,31,0.16); backdrop-filter: blur(12px); border: 1px solid rgba(31,31,31,0.45) }
     .msg.err { background: rgba(255,80,80,0.2); border: 1px solid rgba(255,100,100,0.3) }
     .msg-title { font-weight: 600; font-size: 13px; margin-bottom: 6px }
-    .msg-details { color: rgba(255,255,255,0.8); line-height: 1.7 }
-    .close-btn { position: absolute; top: 10px; right: 12px; background: none; border: none; color: rgba(255,255,255,0.6); cursor: pointer; font-size: 14px }
+    .msg-details { color: #434446; line-height: 1.7 }
+    .close-btn { position: absolute; top: 10px; right: 12px; background: none; border: none; color: #434446; cursor: pointer; font-size: 14px }
 
     .controls { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap }
     .date-tabs { display: flex; flex-wrap: wrap; gap: 6px; flex: 1 }
     .date-tab {
-      background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.25);
-      color: rgba(255,255,255,0.7); padding: 6px 12px;
+      background: rgba(31,31,31,0.09); border: 1px solid rgba(31,31,31,0.45);
+      color: #434446; padding: 6px 12px;
       font-size: 11px; font-weight: 500; cursor: pointer; border-radius: 16px;
       display: flex; align-items: center; gap: 6px; transition: all .15s;
       font-family: Helvetica, 'Helvetica Neue', Arial, sans-serif;
     }
-    .date-tab:hover { background: rgba(255,255,255,0.25); color: white }
-    .date-tab.active { background: white; color: #6a9ab8; border-color: white }
+    .date-tab:hover { background: rgba(31,31,31,0.45); color:#1f1f1f }
+    .date-tab.active { background: white; color: #6a9ab8; border-color:#1f1f1f }
     .dtc { font-size: 10px; opacity: 0.6 }
     .date-tab.active .dtc { color: #8ab8d4 }
 
     .search-wrap { position: relative; min-width: 260px }
     .search-input {
       width: 100%;
-      background: rgba(255,255,255,0.15); backdrop-filter: blur(12px);
-      border: 1px solid rgba(255,255,255,0.3); color: white;
+      background: rgba(31,31,31,0.09); backdrop-filter: blur(12px);
+      border: 1px solid rgba(31,31,31,0.45); color:#1f1f1f;
       padding: 8px 32px 8px 14px; font-size: 12px; border-radius: 20px;
       outline: none; transition: all .2s; font-family: Helvetica, 'Helvetica Neue', Arial, sans-serif;
     }
-    .search-input:focus { background: rgba(255,255,255,0.22); border-color: rgba(255,255,255,0.6) }
-    .search-input::placeholder { color: rgba(255,255,255,0.5) }
-    .search-clear { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; color: rgba(255,255,255,0.5); cursor: pointer; font-size: 12px; display: none }
+    .search-input:focus { background: rgba(31,31,31,0.16); border-color: #434446 }
+    .search-input::placeholder { color: rgba(31,31,31,0.62) }
+    .search-clear { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; color: rgba(31,31,31,0.62); cursor: pointer; font-size: 12px; display: none }
 
     .table-wrap {
-      background: rgba(255,255,255,0.14);
+      background: rgba(31,31,31,0.09);
       backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
-      border: 1px solid rgba(255,255,255,0.22);
+      border: 1px solid rgba(31,31,31,0.16);
       border-radius: 14px; overflow: hidden;
     }
-    .table-meta { padding: 12px 18px; border-bottom: 1px solid rgba(255,255,255,0.15); font-size: 12px; color: rgba(255,255,255,0.6) }
-    .table-meta b { color: white }
+    .table-meta { padding: 12px 18px; border-bottom: 1px solid rgba(31,31,31,0.09); font-size: 12px; color: #434446 }
+    .table-meta b { color:#1f1f1f }
     table { width: 100%; border-collapse: collapse }
     th {
       padding: 10px 18px; text-align: left;
-      font-size: 11px; font-weight: 500; color: rgba(255,255,255,0.5);
+      font-size: 11px; font-weight: 500; color: rgba(31,31,31,0.62);
       letter-spacing: 0.08em; text-transform: uppercase;
-      border-bottom: 1px solid rgba(255,255,255,0.15);
+      border-bottom: 1px solid rgba(31,31,31,0.09);
     }
-    td { padding: 9px 18px; border-bottom: 1px solid rgba(255,255,255,0.08); font-size: 13px }
+    td { padding: 9px 18px; border-bottom: 1px solid rgba(255,255,255,0.55); font-size: 13px }
     tr:last-child td { border-bottom: none }
-    tbody tr:hover td { background: rgba(255,255,255,0.08) }
+    tbody tr:hover td { background: rgba(255,255,255,0.55) }
     .zero td { opacity: 0.35 }
     .col-name { width: 100% }
     .col-qty { white-space: nowrap; text-align: right }
     .badge {
       font-size: 12px; font-weight: 500; padding: 2px 10px;
-      border-radius: 10px; background: rgba(255,255,255,0.15);
+      border-radius: 10px; background: rgba(31,31,31,0.09);
     }
     .badge.zero { opacity: 0.4 }
     .badge.low { background: rgba(240,150,80,0.3); color: #ffd4a0 }
-    .placeholder { text-align: center; padding: 48px; color: rgba(255,255,255,0.4); font-size: 13px }
+    .placeholder { text-align: center; padding: 48px; color: rgba(31,31,31,0.45); font-size: 13px }
     .pagination {
       display: flex; align-items: center; justify-content: center;
-      gap: 16px; padding: 14px; border-top: 1px solid rgba(255,255,255,0.1);
+      gap: 16px; padding: 14px; border-top: 1px solid rgba(31,31,31,0.09);
     }
     .pagination button {
-      background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.25);
-      color: rgba(255,255,255,0.8); padding: 6px 16px;
+      background: rgba(31,31,31,0.09); border: 1px solid rgba(31,31,31,0.45);
+      color: #434446; padding: 6px 16px;
       font-size: 13px; cursor: pointer; border-radius: 16px;
       font-family: Helvetica, 'Helvetica Neue', Arial, sans-serif; transition: all .15s;
     }
     .pagination button:hover:not(:disabled) { background: white; color: #6a9ab8 }
     .pagination button:disabled { opacity: 0.3; cursor: default }
-    .pagination span { font-size: 12px; color: rgba(255,255,255,0.5) }
+    .pagination span { font-size: 12px; color: rgba(31,31,31,0.62) }
   
   /* ── Animated mesh blobs ── */
-  .gradient-bg { position: fixed; inset: 0; z-index: 0; overflow: hidden; background: #272b08; }
+  .gradient-bg { position: fixed; inset: 0; z-index: 0; overflow: hidden; background: #f3e9e0; }
   .gradient-bg::before, .gradient-bg::after, .b1, .b2, .b3 {
     position: absolute; border-radius: 50%; filter: blur(90px); opacity: 0.9;
   }
   .gradient-bg::before { content: ''; width: 70vw; height: 70vw;
-    background: radial-gradient(circle, #60886a, transparent 70%);
+    background: radial-gradient(circle, #efe5db, transparent 70%);
     top: -20%; left: -10%; animation: blob1 11s ease-in-out infinite alternate; }
   .gradient-bg::after { content: ''; width: 60vw; height: 60vw;
-    background: radial-gradient(circle, #79a28e, transparent 70%);
+    background: radial-gradient(circle, #e2d8cf, transparent 70%);
     bottom: -15%; right: -10%; animation: blob2 14s ease-in-out infinite alternate; }
-  .b1 { width: 55vw; height: 55vw; background: radial-gradient(circle, #466030, transparent 70%);
+  .b1 { width: 55vw; height: 55vw; background: radial-gradient(circle, #d3c9c2, transparent 70%);
     top: 30%; left: 30%; animation: blob3 9s ease-in-out infinite alternate; }
-  .b2 { width: 45vw; height: 45vw; background: radial-gradient(circle, #9ad5c8, transparent 70%);
+  .b2 { width: 45vw; height: 45vw; background: radial-gradient(circle, #c1b8b3, transparent 70%);
     top: -10%; right: 10%; animation: blob4 13s ease-in-out infinite alternate; }
-  .b3 { width: 50vw; height: 50vw; background: radial-gradient(circle, #1a2008, transparent 70%);
+  .b3 { width: 50vw; height: 50vw; background: radial-gradient(circle, #aba3a0, transparent 70%);
     bottom: 10%; left: 20%; animation: blob5 16s ease-in-out infinite alternate; }
   /* ── Vignette ── */
   .vignette { position: fixed; inset: 0; z-index: 1; pointer-events: none;
-    background: radial-gradient(ellipse at center, transparent 40%, rgba(10,12,4,0.55) 100%); }
+    background: radial-gradient(ellipse at center, transparent 40%, rgba(171,163,160,0.35) 100%); }
   /* ── Film grain ── */
   .grain { position: fixed; inset: 0; z-index: 2; pointer-events: none; }
   .grain::before { content: ''; position: absolute; inset: -50%; width: 200%; height: 200%;
@@ -167,7 +167,7 @@
 <div class="vignette"></div>
 <div class="grain"></div>
 <div class="header">
-  <a class="logo" href="/" style="font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;font-size:15px;font-weight:400;letter-spacing:0.12em;color:rgba(255,255,255,0.88);text-decoration:none;">Chernim Cherno</a>
+  <a class="logo" href="/" style="font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;font-size:15px;font-weight:400;letter-spacing:0.12em;color:#1f1f1f;text-decoration:none;">Chernim Cherno</a>
   <div class="hstats" id="hstats"></div>
   <nav class="nav">
     <a href="/" class="active">Data</a>
@@ -184,9 +184,9 @@
 <div class="main" style="position:relative;z-index:3;">
 
   <!-- Instructions -->
-  <div style="margin-bottom:16px;padding:16px 20px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);border-radius:8px;font-size:12px;color:rgba(255,255,255,0.5);line-height:1.8">
+  <div style="margin-bottom:16px;padding:16px 20px;background:rgba(255,255,255,0.55);border:1px solid rgba(31,31,31,0.09);border-radius:8px;font-size:12px;color:rgba(31,31,31,0.62);line-height:1.8">
     Сюда необходимо загрузить остатки из МоегоСклада. Выгрузка остатков происходит по дням — например, если нужно 10 дней, надо выгрузить 10 файлов.<br>
-    Заходим в <a href="https://www.moysklad.ru/" target="_blank" style="color:rgba(255,255,255,0.75);text-underline-offset:3px">МойСклад</a>, выбираем нужную нам дату, ставим фильтр по складам: только <b style="color:rgba(255,255,255,0.7);font-weight:500">Гороховая</b>, <b style="color:rgba(255,255,255,0.7);font-weight:500">Мясницкая</b> и <b style="color:rgba(255,255,255,0.7);font-weight:500">Интернет-магазин</b>.<br>
+    Заходим в <a href="https://www.moysklad.ru/" target="_blank" style="color:#434446;text-underline-offset:3px">МойСклад</a>, выбираем нужную нам дату, ставим фильтр по складам: только <b style="color:#434446;font-weight:500">Гороховая</b>, <b style="color:#434446;font-weight:500">Мясницкая</b> и <b style="color:#434446;font-weight:500">Интернет-магазин</b>.<br>
     Загружаем файлы в поле ниже. Последнюю загруженную дату можно видеть в списке подгруженных дат.
   </div>
 
@@ -197,17 +197,17 @@
     <div class="upload-hint">Отчёты остатков из МоегоСклада · Гороховая, Мясницкая, Интернет-магазин</div>
   </div>
   <!-- CSV Sales Upload -->
-  <div style="margin-top:12px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:8px;padding:14px 18px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+  <div style="margin-top:12px;background:rgba(255,255,255,0.55);border:1px solid rgba(31,31,31,0.09);border-radius:8px;padding:14px 18px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
     <input type="file" id="csv-input" accept=".csv" multiple style="display:none">
-    <button onclick="document.getElementById('csv-input').click()" style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);color:white;padding:7px 16px;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;font-family:Helvetica,sans-serif;white-space:nowrap;transition:background .15s" onmouseover="this.style.background='rgba(255,255,255,0.25)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'">↑ Загрузить CSV продаж</button>
-    <button onclick="rebuildCache(event)" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);color:rgba(255,255,255,0.5);padding:7px 14px;border-radius:6px;font-size:12px;cursor:pointer;font-family:Helvetica,sans-serif;white-space:nowrap" title="Пересобрать кеш если новые позиции не отображаются">🔄 Пересобрать кеш</button>
-    <button onclick="fixMojibake(event)" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);color:rgba(255,255,255,0.5);padding:7px 14px;border-radius:6px;font-size:12px;cursor:pointer;font-family:Helvetica,sans-serif;white-space:nowrap" title="Удалить сломанные записи с кириллицей и перезалить">🔧 Починить кодировку</button>
+    <button onclick="document.getElementById('csv-input').click()" style="background:rgba(31,31,31,0.09);border:1px solid rgba(31,31,31,0.45);color:#1f1f1f;padding:7px 16px;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;font-family:Helvetica,sans-serif;white-space:nowrap;transition:background .15s" onmouseover="this.style.background='rgba(31,31,31,0.45)'" onmouseout="this.style.background='rgba(31,31,31,0.09)'">↑ Загрузить CSV продаж</button>
+    <button onclick="rebuildCache(event)" style="background:rgba(255,255,255,0.55);border:1px solid rgba(31,31,31,0.09);color:rgba(31,31,31,0.62);padding:7px 14px;border-radius:6px;font-size:12px;cursor:pointer;font-family:Helvetica,sans-serif;white-space:nowrap" title="Пересобрать кеш если новые позиции не отображаются">🔄 Пересобрать кеш</button>
+    <button onclick="fixMojibake(event)" style="background:rgba(255,255,255,0.55);border:1px solid rgba(31,31,31,0.09);color:rgba(31,31,31,0.62);padding:7px 14px;border-radius:6px;font-size:12px;cursor:pointer;font-family:Helvetica,sans-serif;white-space:nowrap" title="Удалить сломанные записи с кириллицей и перезалить">🔧 Починить кодировку</button>
     <input type="file" id="test-xls-input" accept=".xls" style="display:none">
-    <button onclick="document.getElementById('test-xls-input').click()" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);color:rgba(255,255,255,0.5);padding:7px 14px;border-radius:6px;font-size:12px;cursor:pointer;font-family:Helvetica,sans-serif;white-space:nowrap">🔍 Тест кодировки XLS</button>
-    <span style="font-size:12px;color:rgba(255,255,255,0.45);line-height:1.6">
-      Для обновления перейдите по <a href="https://docs.google.com/spreadsheets/d/1mjz4Zjcq86TqkIbjc-s4nZyGUHAR0kLiNY1NH-MnBpk/edit?gid=1082363897#gid=1082363897" target="_blank" style="color:rgba(255,255,255,0.7);text-underline-offset:3px">ссылке</a>, нажмите «Экспорт», сохраните CSV. Нужно два листа: <b style="color:rgba(255,255,255,0.65);font-weight:500">Продажи</b> и <b style="color:rgba(255,255,255,0.65);font-weight:500">Возвраты</b>.
+    <button onclick="document.getElementById('test-xls-input').click()" style="background:rgba(255,255,255,0.55);border:1px solid rgba(31,31,31,0.09);color:rgba(31,31,31,0.62);padding:7px 14px;border-radius:6px;font-size:12px;cursor:pointer;font-family:Helvetica,sans-serif;white-space:nowrap">🔍 Тест кодировки XLS</button>
+    <span style="font-size:12px;color:rgba(31,31,31,0.62);line-height:1.6">
+      Для обновления перейдите по <a href="https://docs.google.com/spreadsheets/d/1mjz4Zjcq86TqkIbjc-s4nZyGUHAR0kLiNY1NH-MnBpk/edit?gid=1082363897#gid=1082363897" target="_blank" style="color:#434446;text-underline-offset:3px">ссылке</a>, нажмите «Экспорт», сохраните CSV. Нужно два листа: <b style="color:#434446;font-weight:500">Продажи</b> и <b style="color:#434446;font-weight:500">Возвраты</b>.
     </span>
-    <span id="csv-status" style="font-size:11px;color:rgba(255,255,255,0.5);font-family:monospace"></span>
+    <span id="csv-status" style="font-size:11px;color:rgba(31,31,31,0.62);font-family:monospace"></span>
   </div>
 
   <div class="msg ok" id="msg-ok"><div class="msg-title" id="msg-title"></div><div class="msg-details" id="msg-details"></div><button class="close-btn" onclick="document.getElementById('msg-ok').classList.remove('show')">✕</button></div>
@@ -250,10 +250,10 @@ async function loadDates(){
       btn.onclick=()=>{selectedDate=d.date;currentPage=1;loadDates();loadStocks();};
       const del=document.createElement("button");
       del.title="Удалить остатки за эту дату"; del.textContent="×";
-      del.style.cssText="padding:2px 6px;border-radius:0 8px 8px 0;border:1px solid rgba(255,255,255,0.15);border-left:none;"+
-        "background:rgba(239,68,68,0.12);color:rgba(239,68,68,0.7);cursor:pointer;font-size:13px;line-height:1;height:100%";
-      del.onmouseenter=()=>{del.style.background="rgba(239,68,68,0.3)";del.style.color="white"};
-      del.onmouseleave=()=>{del.style.background="rgba(239,68,68,0.12)";del.style.color="rgba(239,68,68,0.7)"};
+      del.style.cssText="padding:2px 6px;border-radius:0 8px 8px 0;border:1px solid rgba(31,31,31,0.09);border-left:none;"+
+        "background:rgba(221,0,4,0.12);color:#dd0004;cursor:pointer;font-size:13px;line-height:1;height:100%";
+      del.onmouseenter=()=>{del.style.background="rgba(221,0,4,0.3)";del.style.color="white"};
+      del.onmouseleave=()=>{del.style.background="rgba(221,0,4,0.12)";del.style.color="#dd0004"};
       del.onclick=async(e)=>{
         e.stopPropagation();
         if(!confirm("Удалить все остатки за "+p[2]+"."+p[1]+"."+p[0]+"?\nПосле этого можно перезалить файлы заново.")) return;

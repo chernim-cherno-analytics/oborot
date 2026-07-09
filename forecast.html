@@ -6,26 +6,26 @@
   <title>Chernim Cherno · Прогноз</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0 }
-    body { font-family: Helvetica, 'Helvetica Neue', Arial, sans-serif; min-height: 100vh; background: #272b08; color: white; }
+    body { font-family: Helvetica, 'Helvetica Neue', Arial, sans-serif; min-height: 100vh; background: #f3e9e0; color:#1f1f1f; }
 
-    .gradient-bg { position: fixed; inset: 0; z-index: 0; overflow: hidden; background: #272b08; }
+    .gradient-bg { position: fixed; inset: 0; z-index: 0; overflow: hidden; background: #f3e9e0; }
     .gradient-bg::before, .gradient-bg::after, .b1, .b2, .b3 {
       position: absolute; border-radius: 50%; filter: blur(90px); opacity: 0.9;
     }
     .gradient-bg::before { content: ''; width: 70vw; height: 70vw;
-      background: radial-gradient(circle, #60886a, transparent 70%);
+      background: radial-gradient(circle, #efe5db, transparent 70%);
       top: -20%; left: -10%; animation: blob1 11s ease-in-out infinite alternate; }
     .gradient-bg::after { content: ''; width: 60vw; height: 60vw;
-      background: radial-gradient(circle, #79a28e, transparent 70%);
+      background: radial-gradient(circle, #e2d8cf, transparent 70%);
       bottom: -15%; right: -10%; animation: blob2 14s ease-in-out infinite alternate; }
-    .b1 { width: 55vw; height: 55vw; background: radial-gradient(circle, #466030, transparent 70%);
+    .b1 { width: 55vw; height: 55vw; background: radial-gradient(circle, #d3c9c2, transparent 70%);
       top: 30%; left: 30%; animation: blob3 9s ease-in-out infinite alternate; }
-    .b2 { width: 45vw; height: 45vw; background: radial-gradient(circle, #9ad5c8, transparent 70%);
+    .b2 { width: 45vw; height: 45vw; background: radial-gradient(circle, #c1b8b3, transparent 70%);
       top: -10%; right: 10%; animation: blob4 13s ease-in-out infinite alternate; }
-    .b3 { width: 50vw; height: 50vw; background: radial-gradient(circle, #1a2008, transparent 70%);
+    .b3 { width: 50vw; height: 50vw; background: radial-gradient(circle, #aba3a0, transparent 70%);
       bottom: 10%; left: 20%; animation: blob5 16s ease-in-out infinite alternate; }
     .vignette { position: fixed; inset: 0; z-index: 1; pointer-events: none;
-      background: radial-gradient(ellipse at center, transparent 40%, rgba(10,12,4,0.55) 100%); }
+      background: radial-gradient(ellipse at center, transparent 40%, rgba(171,163,160,0.35) 100%); }
     .grain { position: fixed; inset: 0; z-index: 2; pointer-events: none; }
     .grain::before { content: ''; position: absolute; inset: -50%; width: 200%; height: 200%;
       background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='grain'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23grain)'/%3E%3C/svg%3E");
@@ -44,73 +44,73 @@
 
     .header { position: sticky; top: 0; z-index: 200; padding: 0 28px; height: 56px;
       display: flex; align-items: center; justify-content: space-between; }
-    .logo { text-decoration: none; font-size: 15px; font-weight: 400; letter-spacing: 0.12em; color: rgba(255,255,255,0.88); }
+    .logo { text-decoration: none; font-size: 15px; font-weight: 400; letter-spacing: 0.12em; color: #1f1f1f; }
     .nav { display: flex; gap: 20px }
-    .nav a { font-size: 13px; color: rgba(255,255,255,0.3); text-decoration: none; transition: color .2s; }
-    .nav a:hover { color: rgba(255,255,255,0.7) }
-    .nav a.active { color: rgba(255,255,255,0.92); font-weight: 500; }
+    .nav a { font-size: 13px; color: rgba(31,31,31,0.45); text-decoration: none; transition: color .2s; }
+    .nav a:hover { color: #434446 }
+    .nav a.active { color: #1f1f1f; font-weight: 500; }
 
     /* ─── Controls bar ─── */
     .controls {
       position: relative; z-index: 10;
       padding: 12px 28px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
-      border-bottom: 1px solid rgba(255,255,255,0.1);
-      background: rgba(255,255,255,0.04); backdrop-filter: blur(10px);
+      border-bottom: 1px solid rgba(31,31,31,0.09);
+      background: rgba(255,255,255,0.55); backdrop-filter: blur(10px);
     }
     .ctrl-group { display: flex; align-items: center; gap: 8px; }
-    .ctrl-label { font-size: 10px; font-weight: 600; color: rgba(255,255,255,0.3); letter-spacing: .08em; text-transform: uppercase; }
+    .ctrl-label { font-size: 10px; font-weight: 600; color: rgba(31,31,31,0.45); letter-spacing: .08em; text-transform: uppercase; }
     .ctrl-date {
-      background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15);
+      background: rgba(255,255,255,0.55); border: 1px solid rgba(31,31,31,0.09);
       border-radius: 8px; padding: 6px 10px; font-size: 12px; font-weight: 500;
-      color: white; font-family: inherit; outline: none; cursor: pointer;
+      color:#1f1f1f; font-family: inherit; outline: none; cursor: pointer;
     }
-    .ctrl-date:focus { border-color: rgba(134,239,172,0.4); }
+    .ctrl-date:focus { border-color: rgba(75,122,0,0.4); }
     .ctrl-date::-webkit-calendar-picker-indicator { filter: invert(0.7); }
-    .sep { width: 1px; height: 24px; background: rgba(255,255,255,0.1); }
+    .sep { width: 1px; height: 24px; background: rgba(31,31,31,0.09); }
     .add-supply-btn {
       margin-left: auto;
       font-size: 12px; font-weight: 500; padding: 6px 16px; border-radius: 20px;
-      border: 1px solid rgba(134,239,172,0.4); background: rgba(134,239,172,0.1);
-      color: rgba(134,239,172,0.9); cursor: pointer; transition: all .15s; font-family: inherit;
+      border: 1px solid rgba(75,122,0,0.4); background: rgba(75,122,0,0.1);
+      color: #4b7a00; cursor: pointer; transition: all .15s; font-family: inherit;
     }
-    .add-supply-btn:hover { background: rgba(134,239,172,0.2); }
+    .add-supply-btn:hover { background: rgba(75,122,0,0.2); }
 
     /* ─── Summary cards ─── */
     .summary { position: relative; z-index: 4; padding: 14px 28px; display: flex; gap: 10px; flex-wrap: wrap; }
     .scard {
-      background: rgba(255,255,255,0.05); backdrop-filter: blur(12px);
-      border: 1px solid rgba(255,255,255,0.1); border-radius: 10px;
+      background: rgba(255,255,255,0.55); backdrop-filter: blur(12px);
+      border: 1px solid rgba(31,31,31,0.09); border-radius: 10px;
       padding: 12px 16px; min-width: 150px; flex: 1;
     }
-    .scard-label { font-size: 10px; font-weight: 600; color: rgba(255,255,255,0.3); letter-spacing: .08em; text-transform: uppercase; margin-bottom: 5px; }
-    .scard-val { font-size: 20px; font-weight: 700; color: rgba(255,255,255,0.95); }
-    .scard-sub { font-size: 10px; color: rgba(255,255,255,0.3); margin-top: 2px; }
-    .scard.warn .scard-val { color: rgba(251,146,60,0.95); }
-    .scard.good .scard-val { color: rgba(134,239,172,0.95); }
+    .scard-label { font-size: 10px; font-weight: 600; color: rgba(31,31,31,0.45); letter-spacing: .08em; text-transform: uppercase; margin-bottom: 5px; }
+    .scard-val { font-size: 20px; font-weight: 700; color: #1f1f1f; }
+    .scard-sub { font-size: 10px; color: rgba(31,31,31,0.45); margin-top: 2px; }
+    .scard.warn .scard-val { color: #b99a00; }
+    .scard.good .scard-val { color: #4b7a00; }
 
     /* ─── Table ─── */
     .main { padding: 0 28px 28px; position: relative; z-index: 3; }
     .table-outer {
-      background: rgba(255,255,255,0.04); backdrop-filter: blur(16px);
-      border: 1px solid rgba(255,255,255,0.1); border-radius: 12px;
+      background: rgba(255,255,255,0.55); backdrop-filter: blur(16px);
+      border: 1px solid rgba(31,31,31,0.09); border-radius: 12px;
       overflow: auto; max-height: calc(100vh - 250px);
     }
     table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 1200px; }
     thead th {
       background: rgba(20,28,10,0.95); padding: 9px 10px; text-align: center;
-      font-size: 10px; font-weight: 500; color: rgba(255,255,255,0.4);
+      font-size: 10px; font-weight: 500; color: rgba(31,31,31,0.45);
       letter-spacing: 0.07em; text-transform: uppercase; white-space: nowrap;
       position: sticky; top: 0; z-index: 10;
-      border-bottom: 1px solid rgba(255,255,255,0.1);
+      border-bottom: 1px solid rgba(31,31,31,0.09);
     }
     thead th:first-child { text-align: left; padding-left: 14px; width: 220px; }
     thead th .sub { display:block; font-size:9px; opacity:0.4; text-transform:none; letter-spacing:0; margin-top:1px; }
     tbody td {
-      padding: 7px 10px; border-bottom: 1px solid rgba(255,255,255,0.06);
-      text-align: center; vertical-align: middle; color: rgba(255,255,255,0.82);
+      padding: 7px 10px; border-bottom: 1px solid rgba(255,255,255,0.55);
+      text-align: center; vertical-align: middle; color: #434446;
     }
     tbody td:first-child { text-align: left; padding-left: 14px; }
-    tbody tr:hover td { background: rgba(255,255,255,0.04); }
+    tbody tr:hover td { background: rgba(255,255,255,0.55); }
     tbody tr.excluded td { opacity: 0.3; }
     tbody tr.excluded td:first-child { opacity: 1; }
     .nb { font-variant-numeric: tabular-nums; }
@@ -122,73 +122,73 @@
 
     /* Badge */
     .badge { display:inline-block; font-size:10px; font-weight:700; padding:2px 7px; border-radius:9px; white-space:nowrap; }
-    .badge-ok   { background:rgba(134,239,172,0.15); color:rgba(134,239,172,0.9); }
-    .badge-warn { background:rgba(251,146,60,0.15);  color:rgba(251,146,60,0.9); }
-    .badge-dead { background:rgba(239,68,68,0.12);   color:rgba(239,68,68,0.8); }
+    .badge-ok   { background:rgba(75,122,0,0.15); color:#4b7a00; }
+    .badge-warn { background:rgba(233,208,0,0.15);  color:#b99a00; }
+    .badge-dead { background:rgba(221,0,4,0.12);   color:#dd0004; }
 
     /* Exclude btn */
     .excl-btn {
       font-size:10px; padding:2px 8px; border-radius:8px; cursor:pointer;
-      border: 1px solid rgba(255,255,255,0.12); background:rgba(255,255,255,0.05);
-      color:rgba(255,255,255,0.35); font-family:inherit; transition: all .15s;
+      border: 1px solid rgba(31,31,31,0.09); background:rgba(255,255,255,0.55);
+      color:rgba(31,31,31,0.45); font-family:inherit; transition: all .15s;
     }
-    .excl-btn:hover { background:rgba(239,68,68,0.15); border-color:rgba(239,68,68,0.3); color:rgba(239,68,68,0.8); }
-    .excl-btn.is-excl { background:rgba(134,239,172,0.1); border-color:rgba(134,239,172,0.3); color:rgba(134,239,172,0.7); }
-    .excl-btn.is-excl:hover { background:rgba(134,239,172,0.18); }
+    .excl-btn:hover { background:rgba(221,0,4,0.15); border-color:rgba(221,0,4,0.3); color:#dd0004; }
+    .excl-btn.is-excl { background:rgba(75,122,0,0.1); border-color:rgba(75,122,0,0.3); color:#4b7a00; }
+    .excl-btn.is-excl:hover { background:rgba(75,122,0,0.18); }
 
     /* Editable rate */
     .rate-cell { position:relative; display:flex; align-items:center; justify-content:center; gap:4px; }
-    .rate-val { cursor:pointer; border-bottom:1px dashed rgba(255,255,255,0.2); }
-    .rate-val:hover { border-bottom-color:rgba(134,239,172,0.6); color:rgba(134,239,172,0.9); }
+    .rate-val { cursor:pointer; border-bottom:1px dashed rgba(31,31,31,0.16); }
+    .rate-val:hover { border-bottom-color:#4b7a00; color:#4b7a00; }
     .rate-input {
-      width:60px; background:rgba(255,255,255,0.1); border:1px solid rgba(134,239,172,0.5);
-      border-radius:5px; padding:2px 6px; font-size:12px; color:white; font-family:inherit;
+      width:60px; background:rgba(31,31,31,0.09); border:1px solid rgba(75,122,0,0.5);
+      border-radius:5px; padding:2px 6px; font-size:12px; color:#1f1f1f; font-family:inherit;
       text-align:center; outline:none;
     }
-    .rate-reset { font-size:10px; cursor:pointer; color:rgba(255,255,255,0.2); }
-    .rate-reset:hover { color:rgba(239,68,68,0.7); }
+    .rate-reset { font-size:10px; cursor:pointer; color:rgba(31,31,31,0.16); }
+    .rate-reset:hover { color:#dd0004; }
 
     /* Supply chip */
     .supply-chip {
       display:inline-flex; align-items:center; gap:4px;
-      background:rgba(134,239,172,0.1); border:1px solid rgba(134,239,172,0.2);
-      border-radius:10px; padding:2px 7px; font-size:10px; color:rgba(134,239,172,0.8);
+      background:rgba(75,122,0,0.1); border:1px solid rgba(75,122,0,0.2);
+      border-radius:10px; padding:2px 7px; font-size:10px; color:#4b7a00;
       white-space:nowrap; margin:1px;
     }
     .supply-chip .dx { cursor:pointer; opacity:0.4; font-size:12px; }
-    .supply-chip .dx:hover { opacity:1; color:white; }
+    .supply-chip .dx:hover { opacity:1; color:#1f1f1f; }
 
     /* Modal */
     .modal-bg { display:none; position:fixed; inset:0; z-index:500;
       background:rgba(0,0,0,0.55); backdrop-filter:blur(4px);
       align-items:center; justify-content:center; }
     .modal-bg.open { display:flex; }
-    .modal { background:#1c2210; border:1px solid rgba(255,255,255,0.12);
+    .modal { background:#ece4d8; border:1px solid rgba(31,31,31,0.09);
       border-radius:14px; padding:26px; width:400px; max-width:94vw; }
-    .modal h2 { font-size:14px; font-weight:600; color:rgba(255,255,255,0.9); margin-bottom:16px; }
-    .modal label { display:block; font-size:10px; font-weight:600; color:rgba(255,255,255,0.35);
+    .modal h2 { font-size:14px; font-weight:600; color:#1f1f1f; margin-bottom:16px; }
+    .modal label { display:block; font-size:10px; font-weight:600; color:rgba(31,31,31,0.45);
       letter-spacing:.07em; text-transform:uppercase; margin-bottom:5px; }
     .modal input, .modal select {
-      width:100%; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.12);
-      border-radius:8px; padding:8px 11px; font-size:13px; color:white; font-family:inherit;
+      width:100%; background:rgba(255,255,255,0.55); border:1px solid rgba(31,31,31,0.09);
+      border-radius:8px; padding:8px 11px; font-size:13px; color:#1f1f1f; font-family:inherit;
       outline:none; margin-bottom:12px;
     }
-    .modal input:focus { border-color:rgba(134,239,172,0.4); }
+    .modal input:focus { border-color:rgba(75,122,0,0.4); }
     .modal input[type="date"]::-webkit-calendar-picker-indicator { filter:invert(0.7); }
     .modal-row { display:flex; gap:10px; }
     .modal-col { flex:1; }
     .modal-actions { display:flex; gap:10px; margin-top:4px; }
-    .btn-save { flex:1; background:rgba(134,239,172,0.15); border:1px solid rgba(134,239,172,0.3);
-      color:rgba(134,239,172,0.95); border-radius:8px; padding:9px; font-size:13px;
+    .btn-save { flex:1; background:rgba(75,122,0,0.15); border:1px solid rgba(75,122,0,0.3);
+      color:#4b7a00; border-radius:8px; padding:9px; font-size:13px;
       font-weight:600; cursor:pointer; font-family:inherit; }
-    .btn-save:hover { background:rgba(134,239,172,0.25); }
-    .btn-cancel { background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1);
-      color:rgba(255,255,255,0.4); border-radius:8px; padding:9px 18px; font-size:13px;
+    .btn-save:hover { background:rgba(75,122,0,0.25); }
+    .btn-cancel { background:rgba(255,255,255,0.55); border:1px solid rgba(31,31,31,0.09);
+      color:rgba(31,31,31,0.45); border-radius:8px; padding:9px 18px; font-size:13px;
       cursor:pointer; font-family:inherit; }
-    #sku-suggestions div { padding:7px 11px; cursor:pointer; font-size:12px; color:rgba(255,255,255,0.75); }
-    #sku-suggestions div:hover { background:rgba(255,255,255,0.07); }
+    #sku-suggestions div { padding:7px 11px; cursor:pointer; font-size:12px; color:#434446; }
+    #sku-suggestions div:hover { background:rgba(255,255,255,0.55); }
 
-    .loading { text-align:center; padding:60px; color:rgba(255,255,255,0.25); font-size:13px; }
+    .loading { text-align:center; padding:60px; color:rgba(31,31,31,0.45); font-size:13px; }
   </style>
 </head>
 <body>
@@ -221,7 +221,7 @@
     <input type="date" class="ctrl-date" id="date-to" onchange="render()"/>
   </div>
   <div class="sep"></div>
-  <span style="font-size:11px;color:rgba(255,255,255,0.25)" id="period-desc"></span>
+  <span style="font-size:11px;color:rgba(31,31,31,0.45)" id="period-desc"></span>
   <button class="add-supply-btn" onclick="openModal()">+ Добавить поставку</button>
 </div>
 
@@ -275,7 +275,7 @@
     <h2>Ожидаемая поставка</h2>
     <label>Товар</label>
     <input type="text" id="modal-sku" placeholder="Начните вводить..." autocomplete="off" oninput="suggestSku(this.value)"/>
-    <div id="sku-suggestions" style="margin-top:-8px;margin-bottom:10px;background:rgba(20,28,10,0.98);border:1px solid rgba(255,255,255,0.1);border-radius:8px;display:none;max-height:160px;overflow:auto;"></div>
+    <div id="sku-suggestions" style="margin-top:-8px;margin-bottom:10px;background:rgba(20,28,10,0.98);border:1px solid rgba(31,31,31,0.09);border-radius:8px;display:none;max-height:160px;overflow:auto;"></div>
     <div class="modal-row">
       <div class="modal-col">
         <label>Количество (шт)</label>
@@ -543,10 +543,10 @@ function render() {
     const isExcl = excluded.has(name);
     const barW   = Math.round((f.totalRev / maxRev) * 110);
     const supBarW = maxRev > 0 ? Math.round((f.revFromSupplies / maxRev) * 110) : 0;
-    const barColor = isExcl ? 'rgba(255,255,255,0.1)' : 'rgba(134,239,172,0.5)';
+    const barColor = isExcl ? 'rgba(31,31,31,0.09)' : 'rgba(75,122,0,0.5)';
 
     // Supply chips
-    let supplyCell = '<span style="color:rgba(255,255,255,0.2);font-size:11px">—</span>';
+    let supplyCell = '<span style="color:rgba(31,31,31,0.16);font-size:11px">—</span>';
     if (f.periodSupplies.length > 0) {
       supplyCell = f.periodSupplies.map(s =>
         `<span class="supply-chip">+${s.qty}шт · ${fmtD(s.date)}
@@ -567,21 +567,21 @@ function render() {
 
     const selloutStr = f.selloutDate ? fmtD(f.selloutDate) : (f.cs === 0 ? '—' : '> периода');
     const selloutColor = f.daysStockLasts < f.periodDays && !isExcl
-      ? 'rgba(251,146,60,0.9)' : 'rgba(255,255,255,0.5)';
+      ? '#b99a00' : 'rgba(31,31,31,0.62)';
 
     const tr = document.createElement('tr');
     if (isExcl) tr.classList.add('excluded');
     tr.innerHTML = `
       <td style="font-weight:500">${name}</td>
       <td class="nb" style="font-weight:700">${f.cs}</td>
-      <td class="nb" style="color:rgba(255,255,255,0.6)">${f.stockAtStart}</td>
+      <td class="nb" style="color:#434446">${f.stockAtStart}</td>
       <td>${rateCell}</td>
-      <td class="nb" style="color:rgba(255,255,255,0.6)">${f.qtyPerDay > 0 ? f.qtyPerDay.toFixed(2) : '—'}</td>
+      <td class="nb" style="color:#434446">${f.qtyPerDay > 0 ? f.qtyPerDay.toFixed(2) : '—'}</td>
       <td>
-        ${isExcl ? '<span style="color:rgba(255,255,255,0.2);font-size:11px">исключён</span>' : `
+        ${isExcl ? '<span style="color:rgba(31,31,31,0.16);font-size:11px">исключён</span>' : `
         <div class="rev-bar">
           <div class="rev-fill" style="width:${barW}px;background:${barColor}"></div>
-          ${supBarW > 0 ? `<div class="rev-fill" style="width:${supBarW}px;background:rgba(134,239,172,0.2)"></div>` : ''}
+          ${supBarW > 0 ? `<div class="rev-fill" style="width:${supBarW}px;background:rgba(75,122,0,0.2)"></div>` : ''}
           <span class="rev-label">${fmt(f.totalRev)} ₽</span>
         </div>`}
       </td>

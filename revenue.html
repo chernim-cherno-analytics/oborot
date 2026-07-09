@@ -6,26 +6,26 @@
   <title>Chernim Cherno · Оборот</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0 }
-    body { font-family: Helvetica, 'Helvetica Neue', Arial, sans-serif; min-height: 100vh; background: #272b08; color: white; }
+    body { font-family: Helvetica, 'Helvetica Neue', Arial, sans-serif; min-height: 100vh; background: #f3e9e0; color:#1f1f1f; }
 
-    .gradient-bg { position: fixed; inset: 0; z-index: 0; overflow: hidden; background: #272b08; }
+    .gradient-bg { position: fixed; inset: 0; z-index: 0; overflow: hidden; background: #f3e9e0; }
     .gradient-bg::before, .gradient-bg::after, .b1, .b2, .b3 {
       position: absolute; border-radius: 50%; filter: blur(90px); opacity: 0.9;
     }
     .gradient-bg::before { content: ''; width: 70vw; height: 70vw;
-      background: radial-gradient(circle, #60886a, transparent 70%);
+      background: radial-gradient(circle, #efe5db, transparent 70%);
       top: -20%; left: -10%; animation: blob1 11s ease-in-out infinite alternate; }
     .gradient-bg::after { content: ''; width: 60vw; height: 60vw;
-      background: radial-gradient(circle, #79a28e, transparent 70%);
+      background: radial-gradient(circle, #e2d8cf, transparent 70%);
       bottom: -15%; right: -10%; animation: blob2 14s ease-in-out infinite alternate; }
-    .b1 { width: 55vw; height: 55vw; background: radial-gradient(circle, #466030, transparent 70%);
+    .b1 { width: 55vw; height: 55vw; background: radial-gradient(circle, #d3c9c2, transparent 70%);
       top: 30%; left: 30%; animation: blob3 9s ease-in-out infinite alternate; }
-    .b2 { width: 45vw; height: 45vw; background: radial-gradient(circle, #9ad5c8, transparent 70%);
+    .b2 { width: 45vw; height: 45vw; background: radial-gradient(circle, #c1b8b3, transparent 70%);
       top: -10%; right: 10%; animation: blob4 13s ease-in-out infinite alternate; }
-    .b3 { width: 50vw; height: 50vw; background: radial-gradient(circle, #1a2008, transparent 70%);
+    .b3 { width: 50vw; height: 50vw; background: radial-gradient(circle, #aba3a0, transparent 70%);
       bottom: 10%; left: 20%; animation: blob5 16s ease-in-out infinite alternate; }
     .vignette { position: fixed; inset: 0; z-index: 1; pointer-events: none;
-      background: radial-gradient(ellipse at center, transparent 40%, rgba(10,12,4,0.55) 100%); }
+      background: radial-gradient(ellipse at center, transparent 40%, rgba(171,163,160,0.35) 100%); }
     .grain { position: fixed; inset: 0; z-index: 2; pointer-events: none; }
     .grain::before { content: ''; position: absolute; inset: -50%; width: 200%; height: 200%;
       background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='grain'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23grain)'/%3E%3C/svg%3E");
@@ -48,104 +48,104 @@
       display: flex; align-items: center; justify-content: space-between;
     }
     .logo { text-decoration: none; display:flex; align-items:center;
-      font-size: 15px; font-weight: 400; letter-spacing: 0.12em; color: rgba(255,255,255,0.88); }
+      font-size: 15px; font-weight: 400; letter-spacing: 0.12em; color: #1f1f1f; }
     .nav { display: flex; gap: 20px }
     .nav a {
       font-size: 13px; font-weight: 400; letter-spacing: 0.05em;
-      color: rgba(255,255,255,0.3); text-decoration: none; transition: color .2s;
+      color: rgba(31,31,31,0.45); text-decoration: none; transition: color .2s;
     }
-    .nav a:hover { color: rgba(255,255,255,0.7) }
-    .nav a.active { color: rgba(255,255,255,0.92); font-weight: 500; }
+    .nav a:hover { color: #434446 }
+    .nav a.active { color: #1f1f1f; font-weight: 500; }
 
     .cat-bar {
       position: relative; z-index: 10;
       padding: 14px 28px; display: flex; gap: 8px; flex-wrap: wrap;
-      border-bottom: 1px solid rgba(255,255,255,0.15);
-      background: rgba(255,255,255,0.05); backdrop-filter: blur(10px);
+      border-bottom: 1px solid rgba(31,31,31,0.09);
+      background: rgba(255,255,255,0.55); backdrop-filter: blur(10px);
     }
     .cat-btn {
       font-size: 12px; font-weight: 500; padding: 5px 14px; border-radius: 20px;
-      border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.07);
-      color: rgba(255,255,255,0.6); cursor: pointer; transition: all .15s; white-space: nowrap;
+      border: 1px solid rgba(31,31,31,0.09); background: rgba(255,255,255,0.55);
+      color: #434446; cursor: pointer; transition: all .15s; white-space: nowrap;
     }
-    .cat-btn:hover { background: rgba(255,255,255,0.15); color: white }
-    .cat-btn.active { background: rgba(255,255,255,0.2); color: white; border-color: rgba(255,255,255,0.4) }
+    .cat-btn:hover { background: rgba(31,31,31,0.09); color:#1f1f1f }
+    .cat-btn.active { background: rgba(31,31,31,0.16); color:#1f1f1f; border-color: rgba(31,31,31,0.45) }
     .cat-btn .cnt { font-size: 10px; opacity: 0.6; margin-left: 3px }
 
     .main { padding: 20px 28px; max-width: 1600px; margin: 0 auto; position: relative; z-index: 3; }
 
     .summary-row { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
     .sum-card {
-      background: rgba(255,255,255,0.06); backdrop-filter: blur(12px);
-      border: 1px solid rgba(255,255,255,0.12); border-radius: 10px;
+      background: rgba(255,255,255,0.55); backdrop-filter: blur(12px);
+      border: 1px solid rgba(31,31,31,0.09); border-radius: 10px;
       padding: 12px 18px; flex: 1; min-width: 140px;
     }
-    .sum-label { font-size: 10px; font-weight: 600; color: rgba(255,255,255,0.35); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 4px }
-    .sum-value { font-size: 20px; font-weight: 700; color: rgba(255,255,255,0.9) }
-    .sum-sub { font-size: 11px; color: rgba(255,255,255,0.35); margin-top: 2px }
+    .sum-label { font-size: 10px; font-weight: 600; color: rgba(31,31,31,0.45); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 4px }
+    .sum-value { font-size: 20px; font-weight: 700; color: #1f1f1f }
+    .sum-sub { font-size: 11px; color: rgba(31,31,31,0.45); margin-top: 2px }
 
     .table-outer {
-      background: rgba(255,255,255,0.05); backdrop-filter: blur(16px);
-      border: 1px solid rgba(255,255,255,0.12); border-radius: 12px;
+      background: rgba(255,255,255,0.55); backdrop-filter: blur(16px);
+      border: 1px solid rgba(31,31,31,0.09); border-radius: 12px;
       overflow: auto; max-height: calc(100vh - 240px);
     }
     table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 780px; }
     thead th {
       background: rgba(30,38,18,0.88); backdrop-filter: blur(16px);
       padding: 10px 12px; text-align: right;
-      font-size: 10px; font-weight: 500; color: rgba(255,255,255,0.45);
+      font-size: 10px; font-weight: 500; color: rgba(31,31,31,0.62);
       letter-spacing: 0.07em; text-transform: uppercase;
       white-space: nowrap; position: sticky; top: 0; z-index: 10;
-      border-bottom: 1px solid rgba(255,255,255,0.12);
+      border-bottom: 1px solid rgba(31,31,31,0.09);
       cursor: pointer; user-select: none; transition: color .15s;
     }
-    thead th:hover { color: rgba(255,255,255,0.75) }
-    thead th.sorted { color: rgba(255,255,255,0.9) }
+    thead th:hover { color: #434446 }
+    thead th.sorted { color: #1f1f1f }
     thead th.sorted::after { content: ' ↓'; font-size: 9px; }
     thead th:first-child { text-align: left; padding-left: 14px; min-width: 220px; cursor: default }
     thead th:first-child::after { content: '' !important }
     .sub-th { font-size: 9px; font-weight: 400; letter-spacing: 0; text-transform: none; opacity: 0.45; display: block; margin-top: 2px; }
 
     tbody tr.pr td {
-      padding: 8px 12px; border-bottom: 1px solid rgba(255,255,255,0.07);
-      text-align: right; vertical-align: middle; color: rgba(255,255,255,0.85);
+      padding: 8px 12px; border-bottom: 1px solid rgba(255,255,255,0.55);
+      text-align: right; vertical-align: middle; color: #1f1f1f;
     }
     tbody tr.pr td:first-child { text-align: left; padding-left: 14px; cursor: pointer; }
-    tbody tr.pr:hover td { background: rgba(255,255,255,0.08) }
+    tbody tr.pr:hover td { background: rgba(255,255,255,0.55) }
 
-    tbody tr.sr td { padding: 5px 12px; border-bottom: 1px solid rgba(255,255,255,0.05); font-size:11px; text-align:right; color: rgba(255,255,255,0.5) }
-    tbody tr.sr td:first-child { padding-left: 32px; color: rgba(255,255,255,0.28); text-align:left; font-style:italic }
-    tbody tr.sr:hover td { background: rgba(255,255,255,0.04) }
+    tbody tr.sr td { padding: 5px 12px; border-bottom: 1px solid rgba(255,255,255,0.55); font-size:11px; text-align:right; color: rgba(31,31,31,0.62) }
+    tbody tr.sr td:first-child { padding-left: 32px; color: rgba(31,31,31,0.45); text-align:left; font-style:italic }
+    tbody tr.sr:hover td { background: rgba(255,255,255,0.55) }
 
     tbody tr.cat-total td {
-      padding: 7px 12px; border-bottom: 2px solid rgba(255,255,255,0.15); border-top: 1px solid rgba(255,255,255,0.1);
-      text-align: right; font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.45);
-      background: rgba(255,255,255,0.03);
+      padding: 7px 12px; border-bottom: 2px solid rgba(31,31,31,0.09); border-top: 1px solid rgba(31,31,31,0.09);
+      text-align: right; font-size: 11px; font-weight: 700; color: rgba(31,31,31,0.62);
+      background: rgba(255,255,255,0.55);
     }
-    tbody tr.cat-total td:first-child { text-align: left; padding-left: 14px; color: rgba(255,255,255,0.3); }
+    tbody tr.cat-total td:first-child { text-align: left; padding-left: 14px; color: rgba(31,31,31,0.45); }
 
-    .pname { font-weight: 500; font-size: 12px; color: rgba(255,255,255,0.9) }
-    .ei { font-size: 9px; margin-right: 5px; color: rgba(255,255,255,0.3); display:inline-block; transition: transform .15s }
+    .pname { font-weight: 500; font-size: 12px; color: #1f1f1f }
+    .ei { font-size: 9px; margin-right: 5px; color: rgba(31,31,31,0.45); display:inline-block; transition: transform .15s }
     .ei.open { transform: rotate(90deg) }
     .nb { font-variant-numeric: tabular-nums }
     .nbig { font-weight: 700; font-size: 13px }
 
-    .ret-val { color: rgba(239,68,68,0.8); font-weight: 600; }
-    .ret-pct { font-size: 10px; color: rgba(239,68,68,0.55) }
-    .zero { color: rgba(255,255,255,0.2) }
+    .ret-val { color: #dd0004; font-weight: 600; }
+    .ret-pct { font-size: 10px; color: rgba(221,0,4,0.55) }
+    .zero { color: rgba(31,31,31,0.16) }
 
     /* row tinting by net revenue */
     .rg2 td { background: rgba(120,255,80,0.10) }
-    .rg1 td { background: rgba(134,239,172,0.06) }
-    .ro  td { background: rgba(251,146,60,0.08) }
-    .rr  td { background: rgba(239,68,68,0.06) }
+    .rg1 td { background: rgba(75,122,0,0.06) }
+    .ro  td { background: rgba(233,208,0,0.08) }
+    .rr  td { background: rgba(221,0,4,0.06) }
     .rz  td { opacity: 0.4 }
     .rg2:hover td { background: rgba(120,255,80,0.20) !important }
-    .rg1:hover td { background: rgba(134,239,172,0.15) !important }
-    .ro:hover  td { background: rgba(251,146,60,0.17) !important }
-    .rr:hover  td { background: rgba(239,68,68,0.14) !important }
+    .rg1:hover td { background: rgba(75,122,0,0.15) !important }
+    .ro:hover  td { background: rgba(233,208,0,0.17) !important }
+    .rr:hover  td { background: rgba(221,0,4,0.14) !important }
 
-    .loading { text-align:center; padding:60px; color:rgba(255,255,255,0.3); font-size:13px }
+    .loading { text-align:center; padding:60px; color:rgba(31,31,31,0.45); font-size:13px }
   </style>
 </head>
 <body>
@@ -168,7 +168,7 @@
   </nav>
 </div>
 
-<div class="cat-bar" id="cat-bar"><span style="font-size:12px;color:rgba(255,255,255,0.3)">Загрузка...</span></div>
+<div class="cat-bar" id="cat-bar"><span style="font-size:12px;color:rgba(31,31,31,0.45)">Загрузка...</span></div>
 
 <div class="main">
   <div class="summary-row" id="summary-row"></div>
@@ -407,12 +407,12 @@ function updateSummary(saleRev, retRev, net, qty, count) {
     </div>
     <div class="sum-card">
       <div class="sum-label">Возвраты</div>
-      <div class="sum-value" style="color:rgba(239,68,68,0.85)">−${fmt(retRev)} ₽</div>
+      <div class="sum-value" style="color:#dd0004">−${fmt(retRev)} ₽</div>
       <div class="sum-sub">${retPct}% от продаж</div>
     </div>
     <div class="sum-card">
       <div class="sum-label">Чистый оборот</div>
-      <div class="sum-value" style="color:rgba(134,239,172,0.9)">${fmt(net)} ₽</div>
+      <div class="sum-value" style="color:#4b7a00">${fmt(net)} ₽</div>
       <div class="sum-sub">продажи − возвраты</div>
     </div>`;
 }
