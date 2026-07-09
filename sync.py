@@ -159,21 +159,23 @@ def sync_stock(dry: bool = False):
 
 def _fetch_docs(pg, head_table: str, days_back: int):
     """Позиции документов, агрегированные по (день, имя SKU).
+    Схема LensSklad: у таблицы позиций id = id документа-родителя,
+    товар — через assortment_id → lenvariant/lenproduct.
     Выручка = price*quantity*(1-discount/100)/100  (копейки → рубли)."""
-    s = SCHEMA
-    parent = head_table.replace("len", "", 1)
-    pos_table = head_table + s["positions_suffix"]
-    fk = s["pos_parent_id"].format(parent=parent)
+    pos_table = head_table + "_position"
     cutoff = (date.today() - timedelta(days=days_back)).isoformat()
     cur = pg.cursor()
     cur.execute(f"""
-        SELECT (h.{s['moment']})::date AS d,
-               p.{s['pos_assortment']} AS sku,
-               SUM(p.{s['qty']}) AS qty,
-               SUM(p.{s['price']} * p.{s['qty']} * (1 - COALESCE(p.{s['discount']},0)/100.0)) / 100.0 AS rev
+        SELECT (h.moment)::date AS d,
+               COALESCE(v.name, pr.name) AS sku,
+               SUM(p.quantity) AS qty,
+               SUM(p.price * p.quantity * (1 - COALESCE(p.discount,0)/100.0)) / 100.0 AS rev
         FROM {pos_table} p
-        JOIN {head_table} h ON h.id = p.{fk}
-        WHERE (h.{s['moment']})::date >= %s
+        JOIN {head_table} h ON h.id = p.id
+        LEFT JOIN lenvariant v ON v.id = p.assortment_id
+        LEFT JOIN lenproduct pr ON pr.id = p.assortment_id
+        WHERE (h.moment)::date >= %s
+          AND COALESCE(v.name, pr.name) IS NOT NULL
         GROUP BY 1, 2
     """, (cutoff,))
     rows = cur.fetchall()
