@@ -4,17 +4,12 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
   <title>Chernim Cherno · Остатки</title>
-  
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0 }
-
-    body { font-family: Helvetica, 'Helvetica Neue', Arial, sans-serif; min-height: 100vh; background: #f3e9e0; color:#1f1f1f; }
-
-    /* ── Animated mesh blobs ── */
+    body { font-family: Helvetica, 'Helvetica Neue', Arial, sans-serif; min-height: 100vh; background: #f3e9e0; color: #1f1f1f; }
     .gradient-bg { position: fixed; inset: 0; z-index: 0; overflow: hidden; background: #f3e9e0; }
     .gradient-bg::before, .gradient-bg::after, .b1, .b2, .b3 {
-      position: absolute; border-radius: 50%; filter: blur(90px); opacity: 0.9;
-    }
+      position: absolute; border-radius: 50%; filter: blur(90px); opacity: 0.9; }
     .gradient-bg::before { content: ''; width: 70vw; height: 70vw;
       background: radial-gradient(circle, #efe5db, transparent 70%);
       top: -20%; left: -10%; animation: blob1 11s ease-in-out infinite alternate; }
@@ -27,10 +22,8 @@
       top: -10%; right: 10%; animation: blob4 13s ease-in-out infinite alternate; }
     .b3 { width: 50vw; height: 50vw; background: radial-gradient(circle, #aba3a0, transparent 70%);
       bottom: 10%; left: 20%; animation: blob5 16s ease-in-out infinite alternate; }
-    /* ── Vignette ── */
     .vignette { position: fixed; inset: 0; z-index: 1; pointer-events: none;
       background: radial-gradient(ellipse at center, transparent 40%, rgba(171,163,160,0.35) 100%); }
-    /* ── Film grain ── */
     .grain { position: fixed; inset: 0; z-index: 2; pointer-events: none; }
     .grain::before { content: ''; position: absolute; inset: -50%; width: 200%; height: 200%;
       background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='grain'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23grain)'/%3E%3C/svg%3E");
@@ -46,187 +39,76 @@
     @keyframes blob3 { 0%{transform:translate(0,0) scale(1)} 50%{transform:translate(-12vw,8vh) scale(1.15)} 100%{transform:translate(8vw,-10vh) scale(0.9)} }
     @keyframes blob4 { 0%{transform:translate(0,0) scale(0.9)} 50%{transform:translate(10vw,12vh) scale(1.1)} 100%{transform:translate(-6vw,6vh) scale(1)} }
     @keyframes blob5 { 0%{transform:translate(0,0) scale(1.1)} 50%{transform:translate(14vw,-8vh) scale(0.9)} 100%{transform:translate(-10vw,-12vh) scale(1.05)} }
-
-    /* ── Top bar ── */
-    .topbar {
-      position: sticky; top: 0; z-index: 200;
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 0 28px; height: 56px;
-    }
-    .logo-text {
-      font-family: Helvetica, 'Helvetica Neue', Arial, sans-serif;
-      font-size: 15px; font-weight: 400; letter-spacing: 0.12em;
-      color: #1f1f1f; text-decoration: none;
-    }
+    .header { position: sticky; top: 0; z-index: 200; padding: 0 28px; height: 56px;
+      display: flex; align-items: center; justify-content: space-between; }
+    .logo { text-decoration: none; display:flex; align-items:center;
+      font-size: 15px; font-weight: 400; letter-spacing: 0.12em; color: #1f1f1f; }
     .nav { display: flex; gap: 20px }
-    .nav a {
-      font-size: 13px; font-weight: 400; letter-spacing: 0.05em;
-      color: rgba(31,31,31,0.45);
-      text-decoration: none; transition: color .2s;
-    }
-    .nav a:hover { color: #434446; }
-    .nav a.active {
-      color: #1f1f1f; font-weight: 500;
-    }
-
-    /* ── Category bar ── */
-    .cat-bar {
-      position: sticky; top: 56px; z-index: 100;
-      padding: 12px 28px;
-      display: flex; gap: 6px; flex-wrap: wrap;
-      border-bottom: 1px solid rgba(31,31,31,0.09);
-      background: rgba(39,43,8,0.6);
+    .nav a { font-size: 13px; font-weight: 400; letter-spacing: 0.05em;
+      color: rgba(31,31,31,0.45); text-decoration: none; transition: color .2s; }
+    .nav a:hover { color: #434446 }
+    .nav a.active { color: #1f1f1f; font-weight: 500; }
+    .main { padding: 20px 28px; max-width: 1500px; margin: 0 auto; position: relative; z-index: 3; }
+    .summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 20px; }
+    .sum-card { border-radius: 14px; padding: 18px 20px; backdrop-filter: blur(10px);
+      border: 1px solid rgba(31,31,31,0.07); }
+    .sum-card .lbl { font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; margin-bottom: 4px; }
+    .sum-card .cond { font-size: 10px; opacity: .55; margin-bottom: 10px; }
+    .sum-card .val { font-size: 30px; font-weight: 700; line-height: 1; }
+    .sum-card .sub { font-size: 11px; opacity: .55; margin-top: 6px; }
+    .sc-best  { background: rgba(143,233,0,0.4); }
+    .sc-good  { background: rgba(75,122,0,0.14); }
+    .sc-mid   { background: rgba(233,208,0,0.22); }
+    .sc-bad   { background: rgba(221,0,4,0.12); }
+    .sc-best .lbl { color: #3c6300 } .sc-good .lbl { color: #4b7a00 }
+    .sc-mid .lbl  { color: #8a7b00 } .sc-bad .lbl  { color: #dd0004 }
+    .tools { display:flex; align-items:center; gap:12px; margin-bottom: 14px; }
+    .search { flex: 0 0 320px; padding: 8px 14px; border-radius: 10px; font-size: 13px;
+      border: 1px solid rgba(31,31,31,0.16); background: rgba(255,255,255,0.7); color:#1f1f1f; outline:none; }
+    .search:focus { border-color: rgba(31,31,31,0.45) }
+    .note { font-size: 11px; color: rgba(31,31,31,0.45) }
+    .warn { padding: 10px 16px; border-radius: 10px; background: rgba(233,208,0,0.22);
+      font-size: 12px; color: #434446; margin-bottom: 14px; display: none; }
+    .twrap { background: rgba(255,255,255,0.55); backdrop-filter: blur(10px);
+      border: 1px solid rgba(31,31,31,0.09); border-radius: 12px;
+      overflow: auto; max-height: calc(100vh - 300px); }
+    table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+    thead th { background: rgba(255,255,255,0.85);
       backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
-    }
-
-    .cat-btn {
-      font-size: 12px; font-weight: 400; letter-spacing: 0.04em;
-      padding: 5px 14px; border-radius: 20px;
-      border: 1px solid transparent;
-      background: transparent;
-      color: rgba(31,31,31,0.45);
-      cursor: pointer; transition: all .2s; white-space: nowrap;
-    }
-    .cat-btn:hover { color: #434446; border-color: rgba(31,31,31,0.16) }
-    .cat-btn.active {
-      color: #1f1f1f;
-      border-color: rgba(31,31,31,0.45);
-      background: rgba(31,31,31,0.09);
-      font-weight: 600;
-    }
-    .cat-btn .count { font-size: 10px; opacity: 0.5; margin-left: 3px }
-    .cat-btn.active .count { opacity: 0.6 }
-
-    /* ── Intro text ── */
-    .intro {
-      padding: 18px 28px 0;
-      font-size: 12px; color: rgba(31,31,31,0.62); line-height: 1.75;
-      max-width: 820px; position: relative; z-index: 3;
-    }
-
-    /* ── Main ── */
-    .main { padding: 16px 28px 40px; max-width: 1600px; margin: 0 auto; position: relative; z-index: 3; }
-
-    /* ── Product list ── */
-    .product-list { display: flex; flex-direction: column; gap: 3px }
-
-    .product-row {
-      background: rgba(31,31,31,0.09);
-      backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-      border: 1px solid rgba(31,31,31,0.09);
-      border-radius: 10px; overflow: hidden; transition: background .15s;
-    }
-    .product-row:hover { background: rgba(31,31,31,0.09) }
-
-    .product-header {
-      display: flex; align-items: center; gap: 12px;
-      padding: 10px 14px; cursor: pointer;
-    }
-
-    .expand-icon {
-      font-size: 9px; color: rgba(31,31,31,0.45);
-      width: 14px; flex-shrink: 0; transition: transform .15s;
-    }
-    .expand-icon.open { transform: rotate(90deg) }
-
-    .product-name { font-size: 13px; font-weight: 400; flex: 1; min-width: 0; color: #1f1f1f }
-    .product-total { font-size: 12px; font-weight: 500; color: #434446; white-space: nowrap; }
-
-    /* ── Hide button ── */
-    .hide-btn {
-      background: rgba(31,31,31,0.09);
-      border: 1px solid rgba(31,31,31,0.16);
-      color: rgba(31,31,31,0.62);
-      cursor: pointer; font-size: 10px; font-weight: 500;
-      padding: 3px 10px; border-radius: 12px;
-      opacity: 0; transition: all .15s; white-space: nowrap;
-      font-family: Helvetica, 'Helvetica Neue', Arial, sans-serif;
-    }
-    .product-header:hover .hide-btn { opacity: 1 }
-    .hide-btn:hover { background: rgba(255,80,80,0.25); border-color: rgba(255,100,100,0.5); color:#1f1f1f }
-
-    /* ── Chart wrapper ── */
-    .chart-wrap { position: relative; height: 48px; flex: 1; min-width: 150px; max-width: 600px; cursor: zoom-in }
-
-    /* ── Chart modal ── */
-    .chart-modal {
-      display: none; position: fixed; inset: 0; z-index: 500;
-      background: rgba(20,28,8,0.65);
-      backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-      align-items: center; justify-content: center;
-    }
-    .chart-modal.open { display: flex }
-    .chart-modal-inner {
-      background: rgba(31,31,31,0.09);
-      backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
-      border: 1px solid rgba(31,31,31,0.45);
-      border-radius: 16px; padding: 28px;
-      width: 90vw; max-width: 1000px;
-    }
-    .chart-modal-title {
-      font-size: 16px; font-weight: 600; color:#1f1f1f;
-      margin-bottom: 20px;
-    }
-    .chart-modal-close {
-      float: right; background: rgba(31,31,31,0.09);
-      border: 1px solid rgba(31,31,31,0.45);
-      color:#1f1f1f; cursor: pointer; padding: 4px 12px;
-      border-radius: 12px; font-size: 12px;
-      font-family: Helvetica, 'Helvetica Neue', Arial, sans-serif;
-    }
-
-    /* ── Sizes section ── */
-    .sizes-section {
-      padding: 4px 14px 12px 40px;
-      display: flex; flex-direction: column; gap: 4px;
-      border-top: 1px solid rgba(255,255,255,0.55);
-    }
-    .size-row { display: flex; align-items: center; gap: 12px }
-    .size-label { font-size: 11px; color: rgba(31,31,31,0.62); width: 80px; flex-shrink: 0 }
-    .size-stock { font-size: 11px; color: rgba(31,31,31,0.62); width: 36px; text-align: right; flex-shrink: 0 }
-
-    /* ── Hidden panel ── */
-    .hidden-panel {
-      margin-top: 20px;
-      background: rgba(255,255,255,0.55);
-      backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-      border: 1px solid rgba(31,31,31,0.09);
-      border-radius: 10px; overflow: hidden;
-    }
-    .hidden-panel-header {
-      padding: 12px 16px; cursor: pointer;
-      display: flex; justify-content: space-between; align-items: center;
-      font-size: 12px; color: #434446; font-weight: 500;
-    }
-    .hidden-panel-header:hover { background: rgba(255,255,255,0.55) }
-    .hidden-list { display: none; flex-direction: column }
-    .hidden-item {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 10px 16px; border-top: 1px solid rgba(255,255,255,0.55);
-      font-size: 12px; color: #434446;
-    }
-    .restore-btn {
-      background: #1f1f1f; border: none; color: #ece4d8;
-      cursor: pointer; font-size: 11px; font-weight: 600;
-      padding: 4px 12px; border-radius: 12px;
-      font-family: Helvetica, 'Helvetica Neue', Arial, sans-serif; transition: opacity .15s;
-    }
-    .restore-btn:hover { opacity: 0.8 }
-
-    .loading { text-align: center; padding: 60px; color: rgba(31,31,31,0.62); font-size: 13px; }
-    .empty { text-align: center; padding: 40px; color: rgba(31,31,31,0.45); font-size: 12px }
-    .progress-bar { height: 2px; background: rgba(31,31,31,0.09); border-radius: 1px; margin: 12px 0; overflow: hidden; }
-    .progress-fill { height: 100%; background: rgba(31,31,31,0.62); border-radius: 1px; transition: width .3s; }
+      padding: 10px; text-align: center; font-size: 10px; font-weight: 500;
+      color: rgba(31,31,31,0.62); letter-spacing: 0.07em; text-transform: uppercase;
+      white-space: nowrap; position: sticky; top: 0; z-index: 10;
+      border-bottom: 1px solid rgba(31,31,31,0.09); }
+    thead th:first-child { text-align: left; padding-left: 14px; }
+    thead th .sub { display:block; font-size:9px; font-weight:400; letter-spacing:0; text-transform:none; opacity:0.45; margin-top:2px; }
+    tbody td { padding: 8px 10px; border-bottom: 1px solid rgba(31,31,31,0.07);
+      text-align: center; vertical-align: middle; color: #1f1f1f; }
+    tbody td:first-child { text-align: left; padding-left: 14px; font-weight: 500; }
+    .rg2 td { background: rgba(143,233,0,0.35) }
+    .rg1 td { background: rgba(75,122,0,0.1) }
+    .ro  td { background: rgba(233,208,0,0.12) }
+    .rr  td { background: rgba(221,0,4,0.1) }
+    .rgr td { background: rgba(255,255,255,0.55); opacity: 0.5 }
+    .rg2:hover td { background: rgba(143,233,0,0.5) }
+    .rg1:hover td { background: rgba(75,122,0,0.18) }
+    .ro:hover  td { background: rgba(233,208,0,0.22) }
+    .rr:hover  td { background: rgba(221,0,4,0.16) }
+    .qty { font-weight: 700; font-size: 13px; }
+    .qty.zero { opacity: 0.3; font-weight: 400; }
+    .zbar { position:relative; width:88px; height:20px; border-radius:4px; overflow:hidden; background:rgba(255,255,255,0.7); margin:0 auto }
+    .zfill { position:absolute; left:0; top:0; height:100%; border-radius:4px }
+    .ztxt { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:700 }
+    .defwrap { display:flex; align-items:center; justify-content:center; gap:5px }
+    .defbox { width:36px; height:14px; border-radius:3px }
+    .loading { text-align:center; padding:60px; color:rgba(31,31,31,0.45); font-size:13px }
   </style>
 </head>
 <body>
 <div class="gradient-bg"><div class="b1"></div><div class="b2"></div><div class="b3"></div></div>
-<div class="vignette"></div>
-<div class="grain"></div>
+<div class="vignette"></div><div class="grain"></div>
 
-<!-- Top bar: logo + nav -->
-<div class="topbar" style="position:sticky;top:0;z-index:200">
-  <a class="logo-text" href="/">Chernim Cherno</a>
+<div class="header">
+  <a class="logo" href="/">Chernim&nbsp;Cherno</a>
   <nav class="nav">
     <a href="/">Data</a>
     <a href="/analytics" class="active">Остатки</a>
@@ -240,436 +122,172 @@
   </nav>
 </div>
 
-<!-- Category bar -->
-<div class="cat-bar" id="cat-bar">
-  <div style="color:rgba(31,31,31,0.45);font-size:12px;padding:4px 0">Загрузка...</div>
-</div>
-
-<!-- Intro text -->
-<div class="intro">
-  На этой странице можно видеть динамику наличия позиции на протяжении сезонов.<br>
-  Тут можно отправить позицию в архив, и она исчезнет из таблицы оборачиваемости.<br>
-  Это стоит делать с вещами, которые более невозможно перепроизвести: сэмплы и брак.<br>
-  В архив стоит отправлять также единичные позиции — их оборачиваемость не репрезентативна.<br>
-  Вернуть вещь из архива можно внизу страницы.
-</div>
-
 <div class="main">
-  <div id="product-list" class="product-list">
-    <div class="loading">
-      <div>Загружаю данные...</div>
-      <div class="progress-bar"><div class="progress-fill" id="progress" style="width:0%"></div></div>
-      <div id="progress-text" style="font-size:11px;margin-top:8px;opacity:0.5"></div>
-    </div>
+  <div class="summary" id="summary">
+    <div class="sum-card sc-best"><div class="lbl">Бестселлеры</div><div class="cond">&gt; 5 000 &#8381;/день</div><div class="val" id="v-best">&mdash;</div><div class="sub" id="s-best"></div></div>
+    <div class="sum-card sc-good"><div class="lbl">Хорошие</div><div class="cond">2 000 &ndash; 5 000 &#8381;/день</div><div class="val" id="v-good">&mdash;</div><div class="sub" id="s-good"></div></div>
+    <div class="sum-card sc-mid"><div class="lbl">Средние</div><div class="cond">1 000 &ndash; 2 000 &#8381;/день</div><div class="val" id="v-mid">&mdash;</div><div class="sub" id="s-mid"></div></div>
+    <div class="sum-card sc-bad"><div class="lbl">Слабые</div><div class="cond">&lt; 1 000 &#8381;/день</div><div class="val" id="v-bad">&mdash;</div><div class="sub" id="s-bad"></div></div>
   </div>
-  <div class="hidden-panel" id="hidden-panel" style="display:none">
-    <div class="hidden-panel-header" onclick="toggleHiddenPanel()">
-      <span>Скрытые позиции — <span id="hidden-count">0</span></span>
-      <span style="opacity:0.4">▼</span>
-    </div>
-    <div class="hidden-list" id="hidden-list"></div>
-  </div>
-</div>
 
-<!-- Chart modal -->
-<div class="chart-modal" id="chart-modal" onclick="closeModal()">
-  <div class="chart-modal-inner" onclick="event.stopPropagation()">
-    <div class="chart-modal-title" id="modal-title">
-      <button class="chart-modal-close" onclick="closeModal()">✕ Закрыть</button>
-    </div>
-    <canvas id="modal-canvas" style="width:100%;height:300px;display:block"></canvas>
+  <div class="warn" id="warn"></div>
+
+  <div class="tools">
+    <input class="search" id="search" placeholder="Поиск по названию..." oninput="render()">
+    <span class="note" id="note"></span>
+  </div>
+
+  <div class="twrap">
+    <table>
+      <thead id="thead"></thead>
+      <tbody id="tb"><tr><td colspan="6" class="loading">Загружаю данные...</td></tr></tbody>
+    </table>
   </div>
 </div>
 
 <script>
-const CATEGORIES = {
-  "Верхняя одежда": ["бомбер","куртка","тренч","пальто","ветровка","олимпийка","комбинезон","фрак","меховой пиджак"],
-  "Костюмы": ["пиджак","жилет-галстук","корсетный жилет"],
-  "Брюки": ["брюки","спортивные брюки"],
-  "Рубашки": ["рубашка","рубашка-оригами"],
-  "Свитера": ["свитер"],
-  "Худи и свитшоты": ["худи","свитшот"],
-  "Шорты": ["шорты"],
-  "Майки": ["майка","топ","лонгслив","кроп кольчуга","манишка кольчуга","майка кольчуга","укороченная"],
-  "Футболки": ["футболка"],
-  "Джинсы": ["джинсы"],
-  "Сумки": ["сумка","клатч"],
-  "Аксессуары": ["ремень","шарф","шапка","меховой ворот","воротник","очки"],
-  "Украшения": ["браслет","кольцо","подвеска","кафф","цепь","цепочка","сет из","серьга","серёжка","пирсинг"],
-  "Нижнее белье": ["боксер","боксёр","брифы","комплект нижнег","трусы","носки"],
-  "Прочее": []
-};
-const CAT_ORDER = ["Верхняя одежда","Костюмы","Брюки","Рубашки","Свитера","Худи и свитшоты","Шорты","Майки","Футболки","Сумки","Аксессуары","Украшения","Нижнее белье","Очки","Прочее"];
+let allDates=[], stockData={}, SKUS={}, hiddenItems=new Set();
+let STORES=[], BYSTORE={}, hasStores=false;
+let computed={};
 
-let allDates = [];
-let stockData = {};
-let currentCat = "Верхняя одежда";
-let hiddenItems = new Set();
+const NON_MERCH=["сертификат","кошелек","sample","сэмпл","упаковоч","пакет","коробк","вешалк","бирк","кофр","наклейк","кейс для","чехол для","нитк","бумага тишью"];
+function isMerch(n){ const nl=n.toLowerCase(); return !NON_MERCH.some(k=>nl.includes(k)); }
+function fmt(n){ return Math.round(n||0).toLocaleString("ru-RU"); }
+function shortStore(s){
+  const sl=s.toLowerCase();
+  if(sl.includes("мясницк")) return "Мясницкая";
+  if(sl.includes("горохов")) return "Гороховая";
+  if(sl.includes("интернет")) return "Интернет-магазин";
+  return s;
+}
 
-function getCategory(name) {
-  const nl = name.toLowerCase();
-  if (nl.includes("sample")) return null;
-  if (nl.includes("сертификат") || nl.includes("кошелек")) return "Прочее";
-  for (const [cat, kws] of Object.entries(CATEGORIES)) {
-    if (cat === "Прочее") continue;
-    if (kws.some(k => nl.includes(k))) return cat;
+async function loadAll(){
+  try{
+    const [aRes,tRes,hRes,bRes]=await Promise.all([
+      fetch("/api/analytics-data"), fetch("/api/turnover-data"),
+      fetch("/api/hidden"), fetch("/api/stocks-bystore")
+    ]);
+    const a=await aRes.json(), t=await tRes.json();
+    allDates=a.dates||[]; stockData=a.stock||{};
+    if(t&&t.skus) SKUS=t.skus;
+    try{ hiddenItems=new Set(await hRes.json()); }catch(e){}
+    try{
+      const b=await bRes.json();
+      if(b&&b.stores&&b.stores.length){ STORES=b.stores; BYSTORE=b.skus||{}; hasStores=true; }
+      else if(b&&b.error){ showWarn("Остатки по складам из МойСклад пока недоступны ("+b.error+") — показан общий остаток из последней загрузки."); }
+    }catch(e){ showWarn("Остатки по складам недоступны — показан общий остаток."); }
+  }catch(e){
+    document.getElementById("tb").innerHTML='<tr><td colspan="6" class="loading">Ошибка загрузки: '+e.message+'</td></tr>';
+    throw e;
   }
-  return "Прочее";
 }
 
-function stripSize(name) { return name.replace(/\s*\([^)]*\)\s*$/, '').trim() }
-function getSize(name) { const m = name.match(/\(([^)]+)\)\s*$/); return m ? m[1] : null }
-function getSeason(d) {
-  const m = parseInt(d.split('-')[1]);
-  if (m===12||m<=2) return 'winter';
-  if (m<=5) return 'spring';
-  if (m<=8) return 'summer';
-  return 'autumn';
-}
+function showWarn(msg){ const w=document.getElementById("warn"); w.textContent=msg; w.style.display="block"; }
 
-const SEASON_LABELS = { winter:'Зима', spring:'Весна', summer:'Лето', autumn:'Осень' };
-
-async function loadHidden() {
-  try {
-    const r = await fetch('/api/hidden');
-    const data = await r.json();
-    hiddenItems = new Set(data);
-    renderHiddenPanel();
-  } catch(e) {}
-}
-
-async function hideItem(name) {
-  hiddenItems.add(name);
-  await fetch('/api/hide', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({sku_base: name})});
-  renderCategory(currentCat);
-  renderHiddenPanel();
-}
-
-async function restoreItem(name) {
-  hiddenItems.delete(name);
-  await fetch(`/api/hide/${encodeURIComponent(name)}`, {method:'DELETE'});
-  renderCategory(currentCat);
-  renderHiddenPanel();
-}
-
-function toggleHiddenPanel() {
-  const list = document.getElementById('hidden-list');
-  const isOpen = list.style.display === 'flex';
-  list.style.display = isOpen ? 'none' : 'flex';
-  if (!isOpen) list.style.flexDirection = 'column';
-}
-
-function renderHiddenPanel() {
-  const panel = document.getElementById('hidden-panel');
-  const list = document.getElementById('hidden-list');
-  document.getElementById('hidden-count').textContent = hiddenItems.size;
-  panel.style.display = hiddenItems.size > 0 ? 'block' : 'none';
-  list.innerHTML = [...hiddenItems].sort().map(name =>
-    `<div class="hidden-item">
-      <span>${name}</span>
-      <button class="restore-btn" data-name="${name.replace(/"/g,'&quot;').replace(/'/g,'&#39;')}" onclick="restoreItem(this.dataset.name)">Восстановить</button>
-    </div>`
-  ).join('');
-}
-
-function openModal(name, dateMap) {
-  document.getElementById('modal-title').innerHTML =
-    `<button class="chart-modal-close" onclick="closeModal()">✕</button>${name}`;
-  document.getElementById('chart-modal').classList.add('open');
-  const canvas = document.getElementById('modal-canvas');
-  canvas.width = canvas.offsetWidth;
-  canvas.height = 300;
-  drawChart(canvas, dateMap, allDates, false, true);
-}
-function closeModal() {
-  document.getElementById('chart-modal').classList.remove('open');
-}
-
-async function loadAllData() {
-  document.getElementById('product-list').innerHTML = `
-    <div class="loading">
-      <div>Загружаю данные...</div>
-      <div class="progress-bar"><div class="progress-fill" style="width:60%;transition:none"></div></div>
-      <div style="font-size:11px;margin-top:8px;opacity:0.5">Подготовка данных на сервере...</div>
-    </div>`;
-
-  try {
-    const res = await fetch('/api/analytics-data');
-    const data = await res.json();
-    allDates = data.dates || [];
-    stockData = data.stock || {};
-
-    if (allDates.length === 0) {
-      document.getElementById('product-list').innerHTML = '<div class="empty">Нет данных. Загрузите отчёты на странице Data.</div>';
-      return;
-    }
-  } catch(e) {
-    document.getElementById('product-list').innerHTML = '<div class="empty">Ошибка загрузки данных</div>';
-    return;
+function compute(){
+  computed={};
+  for(const base of Object.keys(stockData)){
+    const stripped=base.replace(/\s*\([^)]*\)\s*$/,"").trim();
+    if(base!==stripped&&(stockData[stripped]||SKUS[stripped])) continue;
+    if(!isMerch(base)) continue;
+    const dm=stockData[base]||{};
+    const sk=SKUS[base]||{nq:0,nr:0};
+    let dis=0,prev=0;
+    for(const d of allDates){const s=dm[d]!==undefined?dm[d]:prev;if(s>=3)dis++;prev=s;}
+    const turn=dis>0?(sk.nr||0)/dis:0;
+    let cs=0;
+    for(let i=allDates.length-1;i>=0;i--){if(dm[allDates[i]]!==undefined){cs=dm[allDates[i]];break;}}
+    const dsq=dis>0?(sk.nq||0)/dis:0;
+    const sup=dsq>0?Math.round(cs/dsq):null;
+    const zat=sup!==null?Math.round(sup/90*100):null;
+    const needed=Math.round(dsq*90);
+    const defq=Math.max(0,needed-cs);
+    const defp=needed>0?Math.round(defq/needed*100):0;
+    const bs=BYSTORE[base];
+    const per=bs?bs.per_store:null;
+    const total=bs?bs.total:cs;
+    computed[base]={turn,cs,zat,defq,defp,nr:sk.nr||0,per,total};
   }
-
-  buildCategoryTabs();
-  renderCategory(currentCat);
 }
 
-function buildCategoryTabs() {
-  const allSkus = Object.keys(stockData);
-  const catCounts = {};
-  const seen = {};
-  for (const sku of allSkus) {
-    const base = stripSize(sku);
-    const cat = getCategory(base);
-    if (!cat) continue;
-    if (!seen[base]) { catCounts[cat] = (catCounts[cat]||0)+1; seen[base]=true; }
+function grade(d){
+  if(d.nr===0) return "none";
+  if(d.turn>=5000) return "best";
+  if(d.turn>=2000) return "good";
+  if(d.turn>=1000) return "mid";
+  return "bad";
+}
+const GRADE_CLS={best:"rg2",good:"rg1",mid:"ro",bad:"rr",none:"rgr"};
+
+function zatStyle(p){
+  if(p===null) return ["rgba(31,31,31,0.08)","—","rgba(31,31,31,0.4)"];
+  if(p<=30)  return ["rgba(221,0,4,0.5)",p+"%","#7a0002"];
+  if(p<=60)  return ["rgba(75,122,0,0.4)",p+"%","#3c6300"];
+  if(p<=100) return ["#4b7a00",p+"%","#f3e9e0"];
+  if(p<=120) return ["rgba(75,122,0,0.55)",p+"%","#f3e9e0"];
+  if(p<=150) return ["#b99a00",p+"%","#f3e9e0"];
+  return ["#dd0004",p+"%","#f3e9e0"];
+}
+function defClr(p){
+  if(p<=30) return "rgba(75,122,0,0.35)";
+  if(p<=70) return "rgba(233,208,0,0.5)";
+  return "rgba(221,0,4,0.45)";
+}
+
+function renderSummary(){
+  const acc={best:{q:0,n:0},good:{q:0,n:0},mid:{q:0,n:0},bad:{q:0,n:0}};
+  for(const [b,d] of Object.entries(computed)){
+    if(hiddenItems.has(b)) continue;
+    let g=grade(d); if(g==="none") g="bad";
+    acc[g].q+=d.total; acc[g].n++;
   }
-  const bar = document.getElementById('cat-bar');
-  bar.innerHTML = CAT_ORDER.filter(c => catCounts[c]>0).map(cat =>
-    `<button class="cat-btn ${cat===currentCat?'active':''}" onclick="selectCat('${cat}')">
-      ${cat}<span class="count">${catCounts[cat]}</span>
-    </button>`
-  ).join('');
-}
-
-function selectCat(cat) {
-  currentCat = cat;
-  document.querySelectorAll('.cat-btn').forEach(b => {
-    b.classList.toggle('active', b.textContent.trim().startsWith(cat));
-  });
-  renderCategory(cat);
-}
-
-function getPositionsForCat(cat) {
-  const positions = {};
-  for (const [sku, dateMap] of Object.entries(stockData)) {
-    const base = stripSize(sku);
-    if (getCategory(base) !== cat) continue;
-    if (hiddenItems.has(base)) continue;
-    const size = getSize(sku) || 'One Size';
-    if (!positions[base]) positions[base] = { sizes:{}, all:{} };
-    positions[base].sizes[size] = dateMap;
-    for (const [date, qty] of Object.entries(dateMap)) {
-      positions[base].all[date] = (positions[base].all[date]||0) + qty;
-    }
+  for(const key of ["best","good","mid","bad"]){
+    document.getElementById("v-"+key).textContent=fmt(acc[key].q)+" шт";
+    document.getElementById("s-"+key).textContent=acc[key].n+" моделей";
   }
-  return positions;
 }
 
-function renderCategory(cat) {
-  const positions = getPositionsForCat(cat);
-  const names = Object.keys(positions).sort();
-  const list = document.getElementById('product-list');
-  list.innerHTML = '';
-  if (!names.length) { list.innerHTML='<div class="empty">Нет позиций</div>'; return; }
+function renderHead(){
+  let cols='<th>Название</th>';
+  if(hasStores){ for(const s of STORES) cols+='<th>'+shortStore(s)+'<span class="sub">шт</span></th>'; }
+  else cols+='<th>Остаток<span class="sub">все склады</span></th>';
+  cols+='<th>Сток на 90 дн<span class="sub">запас</span></th><th>Недостаток<span class="sub">шт на 90 дн</span></th>';
+  document.getElementById("thead").innerHTML='<tr>'+cols+'</tr>';
+}
 
-  const lastDate = allDates[allDates.length-1];
-
-  for (const name of names) {
-    const pos = positions[name];
-    const sizes = Object.keys(pos.sizes).sort();
-    const hasSizes = sizes.length > 1 || (sizes.length===1 && sizes[0]!=='One Size');
-    const currentStock = pos.all[lastDate]||0;
-
-    const row = document.createElement('div');
-    row.className = 'product-row';
-
-    const header = document.createElement('div');
-    header.className = 'product-header';
-
-    const safeAttr = name.replace(/"/g,'&quot;').replace(/'/g,'&#39;');
-
-    header.innerHTML = `
-      <div class="expand-icon">${hasSizes?'▶':' '}</div>
-      <div class="product-name">${name}</div>
-      <canvas class="chart-wrap" width="400" height="48" style="flex:1;min-width:150px;max-width:500px;height:48px;cursor:zoom-in"></canvas>
-      <div class="product-total">${currentStock} шт</div>
-      <button class="hide-btn" data-name="${safeAttr}" onclick="event.stopPropagation();hideItem(this.dataset.name)">Скрыть</button>
-    `;
-    row.appendChild(header);
-
-    const canvas = header.querySelector('canvas');
-    drawChart(canvas, pos.all, allDates, false, false);
-    canvas.addEventListener('click', (e) => { e.stopPropagation(); openModal(name, pos.all); });
-
-    if (hasSizes) {
-      const sizesDiv = document.createElement('div');
-      sizesDiv.className = 'sizes-section';
-      sizesDiv.style.display = 'none';
-
-      const allRow = document.createElement('div');
-      allRow.className = 'size-row';
-      const allC = document.createElement('canvas');
-      allC.width=400; allC.height=32; allC.style.cssText='flex:1;height:32px;display:block';
-      allRow.innerHTML = `<div class="size-label" style="color:#434446;font-weight:500">Все</div>`;
-      allRow.appendChild(allC);
-      const allS = document.createElement('div'); allS.className='size-stock'; allS.textContent=currentStock;
-      allRow.appendChild(allS);
-      sizesDiv.appendChild(allRow);
-      drawChart(allC, pos.all, allDates, true, false);
-
-      for (const size of sizes) {
-        const sRow = document.createElement('div'); sRow.className='size-row';
-        const sc = document.createElement('canvas');
-        sc.width=400; sc.height=32; sc.style.cssText='flex:1;height:32px;display:block';
-        sRow.innerHTML=`<div class="size-label">${size}</div>`;
-        sRow.appendChild(sc);
-        const ss=document.createElement('div'); ss.className='size-stock';
-        ss.textContent=pos.sizes[size][lastDate]||0;
-        sRow.appendChild(ss);
-        sizesDiv.appendChild(sRow);
-        drawChart(sc, pos.sizes[size], allDates, true, false);
+function render(){
+  const q=(document.getElementById("search").value||"").toLowerCase();
+  const tb=document.getElementById("tb"); tb.innerHTML="";
+  const items=Object.entries(computed)
+    .filter(function(e){ return !hiddenItems.has(e[0])&&(!q||e[0].toLowerCase().includes(q)); })
+    .sort(function(x,y){ return (y[1].turn||0)-(x[1].turn||0); });
+  const withS=items.filter(function(e){return e[1].nr>0;}), noS=items.filter(function(e){return e[1].nr===0;});
+  const ncols=(hasStores?STORES.length:1)+3;
+  if(!items.length){ tb.innerHTML='<tr><td colspan="'+ncols+'" class="loading">Нет данных</td></tr>'; return; }
+  const frag=document.createDocumentFragment();
+  for(const group of [withS,noS]){
+    for(const [base,d] of group){
+      const zs=zatStyle(d.zat);
+      const tr=document.createElement("tr");
+      tr.className=GRADE_CLS[grade(d)];
+      let cells='<td>'+base+'</td>';
+      if(hasStores){
+        const per=d.per||STORES.map(function(){return 0;});
+        for(const v of per) cells+='<td><span class="qty '+(v?"":"zero")+'">'+fmt(v)+'</span></td>';
+      } else {
+        cells+='<td><span class="qty '+(d.total?"":"zero")+'">'+fmt(d.total)+'</span></td>';
       }
-
-      row.appendChild(sizesDiv);
-      header.addEventListener('click', () => {
-        if (!hasSizes) return;
-        const isOpen = sizesDiv.style.display!=='none';
-        sizesDiv.style.display = isOpen?'none':'flex';
-        if (!isOpen) sizesDiv.style.flexDirection='column';
-        header.querySelector('.expand-icon').classList.toggle('open', !isOpen);
-      });
+      cells+='<td><div class="zbar"><div class="zfill" style="width:'+Math.min(d.zat||0,100)+'%;background:'+zs[0]+'"></div><div class="ztxt" style="color:'+zs[2]+'">'+zs[1]+'</div></div></td>';
+      cells+='<td><div class="defwrap"><div class="defbox" style="background:'+defClr(d.defp)+'"></div><span style="font-size:11px;font-weight:600">'+d.defq+'</span></div></td>';
+      tr.innerHTML=cells;
+      frag.appendChild(tr);
     }
-    list.appendChild(row);
   }
+  tb.appendChild(frag);
+  document.getElementById("note").textContent=items.length+" позиций · сортировка по оборачиваемости, как на странице «Оборачиваемость»";
 }
 
-// ── New chart: smooth gradient fill, dashed season dividers, season labels ──
-function drawChart(canvas, dateMap, dates, small, large) {
-  const ctx = canvas.getContext('2d');
-  const W = canvas.offsetWidth || canvas.width;
-  const H = canvas.height;
-  canvas.width = W;
-  ctx.clearRect(0, 0, W, H);
-  if (dates.length < 2) return;
-
-  // Build values with forward fill
-  const vals = []; let last = 0;
-  for (const d of dates) {
-    if (dateMap[d] !== undefined) last = dateMap[d];
-    vals.push(last);
-  }
-  const maxVal = Math.max(...vals, 1);
-  const padY = small ? 2 : large ? 20 : 6;
-
-  // ── Identify season segments ──
-  // Group consecutive dates by season, record x positions of transitions
-  const seasonBoundaries = []; // {x, season, label}
-  let prevSeason = getSeason(dates[0]);
-  for (let i = 1; i < dates.length; i++) {
-    const s = getSeason(dates[i]);
-    if (s !== prevSeason) {
-      const x = (i / (dates.length - 1)) * W;
-      seasonBoundaries.push({ x, season: s });
-      prevSeason = s;
-    }
-  }
-
-  // ── Dashed season dividers ──
-  if (!small) {
-    ctx.save();
-    ctx.strokeStyle = 'rgba(31,31,31,0.45)';
-    ctx.lineWidth = 1;
-    ctx.setLineDash([3, 4]);
-    // Left edge
-    ctx.beginPath(); ctx.moveTo(0.5, 0); ctx.lineTo(0.5, H); ctx.stroke();
-    // Right edge
-    ctx.beginPath(); ctx.moveTo(W - 0.5, 0); ctx.lineTo(W - 0.5, H); ctx.stroke();
-    // Between seasons
-    for (const b of seasonBoundaries) {
-      ctx.beginPath(); ctx.moveTo(b.x, 0); ctx.lineTo(b.x, H); ctx.stroke();
-    }
-    ctx.setLineDash([]);
-    ctx.restore();
-  }
-
-  // ── Season labels ──
-  if (!small) {
-    const fontSize = large ? 11 : 9;
-    ctx.font = `400 ${fontSize}px Helvetica, Arial, sans-serif`;
-    ctx.fillStyle = 'rgba(31,31,31,0.45)';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'top';
-
-    // Build season label segments
-    const segments = [];
-    let segStart = 0;
-    let segSeason = getSeason(dates[0]);
-    for (let i = 1; i <= dates.length; i++) {
-      const s = i < dates.length ? getSeason(dates[i]) : null;
-      if (s !== segSeason) {
-        segments.push({ startIdx: segStart, endIdx: i - 1, season: segSeason });
-        segStart = i;
-        segSeason = s;
-      }
-    }
-    for (const seg of segments) {
-      const x1 = (seg.startIdx / (dates.length - 1)) * W;
-      const x2 = (seg.endIdx / (dates.length - 1)) * W;
-      const cx = (x1 + x2) / 2;
-      const label = SEASON_LABELS[seg.season] || '';
-      ctx.fillText(label, cx, 3);
-    }
-  }
-
-  // ── Smooth line using bezier curves ──
-  function getY(v) { return H - padY - (v / maxVal) * (H - padY * 2); }
-
-  // Build smooth path
-  ctx.beginPath();
-  const pts = vals.map((v, i) => ({ x: (i / (vals.length - 1)) * W, y: getY(v) }));
-  ctx.moveTo(pts[0].x, pts[0].y);
-  for (let i = 0; i < pts.length - 1; i++) {
-    const cp1x = pts[i].x + (pts[i+1].x - pts[i].x) * 0.45;
-    const cp1y = pts[i].y;
-    const cp2x = pts[i+1].x - (pts[i+1].x - pts[i].x) * 0.45;
-    const cp2y = pts[i+1].y;
-    ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, pts[i+1].x, pts[i+1].y);
-  }
-
-  // ── Gradient fill ──
-  const grad = ctx.createLinearGradient(0, 0, 0, H);
-  if (small) {
-    grad.addColorStop(0, 'rgba(160,220,140,0.45)');
-    grad.addColorStop(1, 'rgba(120,40,40,0.18)');
-  } else {
-    grad.addColorStop(0, 'rgba(180,230,150,0.55)');
-    grad.addColorStop(0.6, 'rgba(140,190,110,0.35)');
-    grad.addColorStop(1, 'rgba(100,30,30,0.45)');
-  }
-
-  // Fill under the curve
-  ctx.lineTo(pts[pts.length-1].x, H);
-  ctx.lineTo(pts[0].x, H);
-  ctx.closePath();
-  ctx.fillStyle = grad;
-  ctx.fill();
-
-  // ── Bright edge line on top ──
-  ctx.beginPath();
-  ctx.moveTo(pts[0].x, pts[0].y);
-  for (let i = 0; i < pts.length - 1; i++) {
-    const cp1x = pts[i].x + (pts[i+1].x - pts[i].x) * 0.45;
-    const cp1y = pts[i].y;
-    const cp2x = pts[i+1].x - (pts[i+1].x - pts[i].x) * 0.45;
-    const cp2y = pts[i+1].y;
-    ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, pts[i+1].x, pts[i+1].y);
-  }
-  if (small) {
-    ctx.strokeStyle = 'rgba(200,255,160,0.75)';
-    ctx.lineWidth = 1.2;
-  } else if (large) {
-    ctx.strokeStyle = 'rgba(180,255,140,0.9)';
-    ctx.lineWidth = 2;
-  } else {
-    ctx.strokeStyle = 'rgba(190,255,150,0.85)';
-    ctx.lineWidth = 1.5;
-  }
-  ctx.lineJoin = 'round';
-  ctx.stroke();
-}
-
-window.addEventListener('resize', () => renderCategory(currentCat));
-loadHidden();
-loadAllData();
+(async function(){ await loadAll(); compute(); renderSummary(); renderHead(); render(); })();
 </script>
 </body>
 </html>

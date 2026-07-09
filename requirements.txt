@@ -5,3 +5,5 @@ xlrd
 pandas
 openpyxl
 httpx
+psycopg2-binary
+apscheduler

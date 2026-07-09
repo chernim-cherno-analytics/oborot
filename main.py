@@ -1794,6 +1794,92 @@ def serve_yandex():
     return FileResponse("index.html", media_type="text/html")
 
 
+
+# ═══════════ АВТОСИНК ИЗ POSTGRESQL (LensSklad) + ОСТАТКИ ПО СКЛАДАМ ═══════════
+SYNC_ENABLED = os.environ.get("SYNC_ENABLED", "0") == "1"
+STORE_FILTERS = [s.strip().lower() for s in os.environ.get(
+    "STORES", "мясницк,горохов,интернет").split(",") if s.strip()]
+
+_bystore_cache = {"t": 0, "data": None}
+
+@app.get("/api/sync-inspect")
+def sync_inspect():
+    """Таблицы len* и колонки в PG — для выверки схемы."""
+    import sync
+    try:
+        return sync.inspect_schema()
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.get("/api/sync-verify")
+def sync_verify():
+    import sync
+    try:
+        return sync.verify_names()
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.post("/api/sync-now")
+def sync_now(dry: int = 0):
+    import sync
+    return sync.sync_all(dry=bool(dry))
+
+@app.get("/api/stocks-bystore")
+def stocks_bystore():
+    """Остатки по трём нужным складам из PG (LensSklad). Кэш 5 минут.
+    Возвращает {"stores": [имена], "skus": {base: {"per_store": [q1,q2,q3], "total": t}}}"""
+    import time
+    if _bystore_cache["data"] is not None and time.time() - _bystore_cache["t"] < 300:
+        return _bystore_cache["data"]
+    if not os.environ.get("PG_URL"):
+        return {"error": "PG_URL не настроен", "stores": [], "skus": {}}
+    try:
+        import sync
+        pg = sync.get_pg()
+        cur = pg.cursor()
+        cur.execute("""SELECT column_name FROM information_schema.columns
+                       WHERE table_schema='public' AND table_name='lenreport_stock_bystore'""")
+        cols = [r[0] for r in cur.fetchall()]
+        def pick(cands):
+            for c in cands:
+                if c in cols: return c
+            return None
+        name_c = pick(["name", "assortment_name", "product_name", "assortment"])
+        store_c = pick(["store_name", "store", "storename"])
+        qty_c  = pick(["stock", "quantity", "balance", "qty"])
+        if not (name_c and store_c and qty_c):
+            pg.close()
+            return {"error": f"Не нашёл колонки, есть: {cols}", "stores": [], "skus": {}}
+        cur.execute(f"SELECT {name_c}, {store_c}, SUM(COALESCE({qty_c},0)) "
+                    f"FROM lenreport_stock_bystore GROUP BY 1, 2")
+        rows = cur.fetchall()
+        pg.close()
+        # какие склады попали под фильтр
+        stores = sorted({str(r[1]) for r in rows
+                         if r[1] and any(f in str(r[1]).lower() for f in STORE_FILTERS)})
+        skus = {}
+        for name, store, q in rows:
+            if not name or not store: continue
+            st = str(store)
+            if st not in stores: continue
+            base = _canon_name(str(name))
+            rec = skus.setdefault(base, {"per_store": [0.0] * len(stores), "total": 0.0})
+            i = stores.index(st)
+            rec["per_store"][i] += float(q or 0)
+            rec["total"] += float(q or 0)
+        data = {"stores": stores, "skus": skus}
+        _bystore_cache["t"] = time.time()
+        _bystore_cache["data"] = data
+        return data
+    except Exception as e:
+        return {"error": str(e), "stores": [], "skus": {}}
+
+if SYNC_ENABLED:
+    from apscheduler.schedulers.background import BackgroundScheduler
+    _sync_sched = BackgroundScheduler(timezone="Europe/Moscow")
+    _sync_sched.add_job(lambda: __import__("sync").sync_all(), "cron", hour=6, minute=0)
+    _sync_sched.start()
+
 @app.get("/{full_path:path}")
 def serve_frontend(full_path: str):
     if os.path.exists("index.html"):
