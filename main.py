@@ -1875,13 +1875,16 @@ def stocks_bystore():
             # product_id может ссылаться на lenvariant (модификация) или lenproduct —
             # берём имя модификации в приоритете, иначе имя товара,
             # иначе имя из самого отчёта (если это не название склада)
-            cur.execute(f"""SELECT COALESCE(v.name, p.name, r.name) AS sku,
+            # r.id = id ассортимента (модификации/товара), r.product_id = родительский товар
+            cur.execute(f"""SELECT COALESCE(v.name, p.name, pp.name) AS sku,
                                st.name AS store,
                                SUM(COALESCE(r.{qty_c},0))
                         FROM lenreport_stock_bystore r
                         JOIN lenstore st ON st.id = r.store_id
-                        LEFT JOIN lenvariant v ON v.id = r.product_id
-                        LEFT JOIN lenproduct p ON p.id = r.product_id
+                        LEFT JOIN lenvariant v ON v.id = r.id
+                        LEFT JOIN lenproduct p ON p.id = r.id
+                        LEFT JOIN lenproduct pp ON pp.id = r.product_id
+                        WHERE COALESCE(v.name, p.name, pp.name) IS NOT NULL
                         GROUP BY 1, 2""")
         elif store_c:
             cur.execute(f"SELECT {name_c}, {store_c}, SUM(COALESCE({qty_c},0)) "
