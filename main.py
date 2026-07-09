@@ -1902,11 +1902,19 @@ def stocks_bystore():
             if not name or not store: continue
             st = str(store)
             if st not in stores: continue
-            base = _canon_name(str(name))
-            rec = skus.setdefault(base, {"per_store": [0.0] * len(stores), "total": 0.0})
+            full = str(name)
+            base = _canon_name(full)
+            m = _re.search(r"\(([^)]+)\)\s*$", full)
+            size = m.group(1) if m else ""
+            rec = skus.setdefault(base, {"per_store": [0.0] * len(stores),
+                                         "total": 0.0, "sizes": {}})
             i = stores.index(st)
-            rec["per_store"][i] += float(q or 0)
-            rec["total"] += float(q or 0)
+            qty = float(q or 0)
+            rec["per_store"][i] += qty
+            rec["total"] += qty
+            srec = rec["sizes"].setdefault(size, {"full": full,
+                                                  "per": [0.0] * len(stores)})
+            srec["per"][i] += qty
         data = {"stores": stores, "skus": skus}
         _bystore_cache["t"] = time.time()
         _bystore_cache["data"] = data

@@ -48,7 +48,16 @@
       color: rgba(31,31,31,0.45); text-decoration: none; transition: color .2s; }
     .nav a:hover { color: #434446 }
     .nav a.active { color: #1f1f1f; font-weight: 500; }
-    .main { padding: 20px 28px; max-width: 1500px; margin: 0 auto; position: relative; z-index: 3; }
+    .cat-bar { position: relative; z-index: 10;
+      padding: 12px 28px; display: flex; gap: 8px; flex-wrap: wrap; }
+    .cat-btn { font-size: 12px; font-weight: 500; padding: 5px 14px; border-radius: 20px;
+      border: 1px solid rgba(31,31,31,0.09); background: rgba(255,255,255,0.55);
+      color: #434446; cursor: pointer; transition: all .15s; white-space: nowrap; }
+    .cat-btn:hover { background: rgba(31,31,31,0.09); color:#1f1f1f }
+    .cat-btn.active { background: rgba(31,31,31,0.16); color:#1f1f1f; border-color: rgba(31,31,31,0.45) }
+    .cat-btn .cnt { font-size: 10px; opacity: 0.6; margin-left: 3px }
+    .cat-btn .warn-mark { color:#dd0004; font-weight:700; margin-left:4px }
+    .main { padding: 8px 28px 20px; max-width: 1500px; margin: 0 auto; position: relative; z-index: 3; }
     .summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 20px; }
     .sum-card { border-radius: 14px; padding: 18px 20px; backdrop-filter: blur(10px);
       border: 1px solid rgba(31,31,31,0.07); }
@@ -58,7 +67,7 @@
     .sum-card .sub { font-size: 11px; opacity: .55; margin-top: 6px; }
     .sum-card .money { font-size: 17px; font-weight: 700; margin-top: 8px; }
     .sc-best .money { color: #3c6300 } .sc-good .money { color: #4b7a00 }
-    .sc-mid .money { color: #8a7b00 } .sc-bad .money { color: #dd0004 }
+    .sc-mid .money  { color: #8a7b00 } .sc-bad .money  { color: #dd0004 }
     .sc-best  { background: rgba(143,233,0,0.4); }
     .sc-good  { background: rgba(75,122,0,0.14); }
     .sc-mid   { background: rgba(233,208,0,0.22); }
@@ -74,7 +83,7 @@
       font-size: 12px; color: #434446; margin-bottom: 14px; display: none; }
     .twrap { background: rgba(255,255,255,0.55); backdrop-filter: blur(10px);
       border: 1px solid rgba(31,31,31,0.09); border-radius: 12px;
-      overflow: auto; max-height: calc(100vh - 300px); }
+      overflow: auto; max-height: calc(100vh - 330px); }
     table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
     thead th { background: rgba(255,255,255,0.85);
       backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
@@ -87,6 +96,7 @@
     tbody td { padding: 8px 10px; border-bottom: 1px solid rgba(31,31,31,0.07);
       text-align: center; vertical-align: middle; color: #1f1f1f; }
     tbody td:first-child { text-align: left; padding-left: 14px; font-weight: 500; }
+    tr.pr { cursor: pointer; }
     .rg2 td { background: rgba(143,233,0,0.35) }
     .rg1 td { background: rgba(75,122,0,0.1) }
     .ro  td { background: rgba(233,208,0,0.12) }
@@ -96,8 +106,18 @@
     .rg1:hover td { background: rgba(75,122,0,0.18) }
     .ro:hover  td { background: rgba(233,208,0,0.22) }
     .rr:hover  td { background: rgba(221,0,4,0.16) }
+    tr.sr td { background: rgba(255,255,255,0.75); padding: 5px 10px; font-size: 11.5px; color:#434446 }
+    tr.sr td:first-child { padding-left: 38px; font-style: italic; font-weight: 400; }
+    .ei { display:inline-block; width: 14px; font-size: 9px; color: rgba(31,31,31,0.4);
+      margin-right: 6px; transition: transform .15s; }
+    tr.pr.open .ei { transform: rotate(90deg); }
     .qty { font-weight: 700; font-size: 13px; }
     .qty.zero { opacity: 0.3; font-weight: 400; }
+    .alert { color:#dd0004; font-weight: 800; margin-left: 5px; font-size: 13px; }
+    .zero-cell { color:#dd0004; font-weight:700; opacity:1 }
+    .zd { display:inline-block; margin-left: 8px; padding: 1px 8px; border-radius: 10px;
+      background: rgba(221,0,4,0.12); color: #dd0004; font-size: 10px; font-weight: 700;
+      font-style: normal; }
     .zbar { position:relative; width:88px; height:20px; border-radius:4px; overflow:hidden; background:rgba(255,255,255,0.7); margin:0 auto }
     .zfill { position:absolute; left:0; top:0; height:100%; border-radius:4px }
     .ztxt { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:700 }
@@ -125,6 +145,8 @@
   </nav>
 </div>
 
+<div class="cat-bar" id="cat-bar"></div>
+
 <div class="main">
   <div class="summary" id="summary">
     <div class="sum-card sc-best"><div class="lbl">Бестселлеры</div><div class="cond">&gt; 5 000 &#8381;/день</div><div class="val" id="v-best">&mdash;</div><div class="money" id="m-best"></div><div class="sub" id="s-best"></div></div>
@@ -151,16 +173,44 @@
 <script>
 let allDates=[], stockData={}, SKUS={}, hiddenItems=new Set();
 let STORES=[], BYSTORE={}, hasStores=false;
-let computed={};
+let computed={}, currentCat="Верхняя одежда";
 
+const CATEGORIES = {
+  "Верхняя одежда": ["бомбер","куртка","тренч","пальто","ветровка","олимпийка","комбинезон","фрак","меховой пиджак"],
+  "Костюмы": ["пиджак","жилет-галстук","корсетный жилет"],
+  "Брюки": ["брюки","спортивные брюки"],
+  "Рубашки": ["рубашка","рубашка-оригами"],
+  "Свитера": ["свитер"],
+  "Худи и свитшоты": ["худи","свитшот"],
+  "Шорты": ["шорты"],
+  "Майки": ["майка","топ","лонгслив","кроп кольчуга","манишка кольчуга","майка кольчуга","укороченная"],
+  "Футболки": ["футболка"],
+  "Джинсы": ["джинсы"],
+  "Сумки": ["сумка","клатч"],
+  "Аксессуары": ["ремень","шарф","шапка","меховой ворот","воротник","очки"],
+  "Украшения": ["браслет","кольцо","подвеска","кафф","цепь","цепочка","сет из","серьга","серёжка","пирсинг"],
+  "Нижнее белье": ["боксер","боксёр","брифы","комплект нижнег","трусы","носки"],
+  "Прочее": []
+};
+const CAT_ORDER = ["Верхняя одежда","Костюмы","Брюки","Джинсы","Рубашки","Свитера","Худи и свитшоты","Шорты","Майки","Футболки","Сумки","Аксессуары","Украшения","Нижнее белье","Прочее"];
 const NON_MERCH=["сертификат","кошелек","sample","сэмпл","упаковоч","пакет","коробк","вешалк","бирк","кофр","наклейк","кейс для","чехол для","нитк","бумага тишью"];
-function isMerch(n){ const nl=n.toLowerCase(); return !NON_MERCH.some(k=>nl.includes(k)); }
+const SIZE_ORDER=["xxs","xs","s","m","l","xl","xxl","2xl","3xl","4xl","one size","os",""];
+
+function getCat(n){
+  const nl=n.toLowerCase();
+  if(NON_MERCH.some(k=>nl.includes(k))) return null;
+  for(const [c,kws] of Object.entries(CATEGORIES)){
+    if(c==="Прочее") continue;
+    if(kws.some(k=>nl.includes(k))) return c;
+  }
+  return "Прочее";
+}
 function fmt(n){ return Math.round(n||0).toLocaleString("ru-RU"); }
 function fmtMoney(n){
   n=n||0;
-  if(n>=1e6) return (n/1e6).toLocaleString("ru-RU",{maximumFractionDigits:1})+" млн \u20BD";
-  if(n>=1e3) return Math.round(n/1e3).toLocaleString("ru-RU")+" тыс \u20BD";
-  return Math.round(n).toLocaleString("ru-RU")+" \u20BD";
+  if(n>=1e6) return (n/1e6).toLocaleString("ru-RU",{maximumFractionDigits:1})+" млн ₽";
+  if(n>=1e3) return Math.round(n/1e3).toLocaleString("ru-RU")+" тыс ₽";
+  return Math.round(n).toLocaleString("ru-RU")+" ₽";
 }
 function shortStore(s){
   const sl=s.toLowerCase();
@@ -190,15 +240,30 @@ async function loadAll(){
     throw e;
   }
 }
-
 function showWarn(msg){ const w=document.getElementById("warn"); w.textContent=msg; w.style.display="block"; }
+
+// сколько дней позиция (полное имя с размером) по нулям — по истории снапшотов
+function daysAtZero(fullName){
+  const dm=stockData[fullName];
+  if(!dm) return null;
+  let lastPositive=null, prev=0;
+  for(const d of allDates){
+    const q=dm[d]!==undefined?dm[d]:prev;
+    if(q>0) lastPositive=d;
+    prev=q;
+  }
+  if(!lastPositive) return null;             // никогда не было в наличии
+  const days=Math.floor((Date.now()-new Date(lastPositive).getTime())/86400000);
+  return days>0?days:0;
+}
 
 function compute(){
   computed={};
   for(const base of Object.keys(stockData)){
     const stripped=base.replace(/\s*\([^)]*\)\s*$/,"").trim();
     if(base!==stripped&&(stockData[stripped]||SKUS[stripped])) continue;
-    if(!isMerch(base)) continue;
+    const cat=getCat(base);
+    if(!cat) continue;
     const dm=stockData[base]||{};
     const sk=SKUS[base]||{nq:0,nr:0};
     let dis=0,prev=0;
@@ -215,8 +280,26 @@ function compute(){
     const ap=sk.ap||((sk.nq||0)>0?(sk.nr||0)/sk.nq:0);
     const bs=BYSTORE[base];
     const per=bs?bs.per_store:null;
-    const total=bs?bs.total:(hasStores?0:cs);  // при живых данных PG отсутствие = 0
-    computed[base]={turn,cs,zat,defq,defp,nr:sk.nr||0,per,total,money:total*ap};
+    const total=bs?bs.total:(hasStores?0:cs);
+    // размеры: [{label, full, per[], alert}] + флаг алерта на строку
+    let sizes=[], rowAlert=false;
+    if(bs&&bs.sizes){
+      sizes=Object.entries(bs.sizes).map(function(e){
+        const per2=e[1].per;
+        const has=per2.some(function(v){return v>0;});
+        const zeroSomewhere=per2.some(function(v){return v===0;});
+        const alert=has&&zeroSomewhere;   // есть на одном складе, ноль на другом
+        if(alert) rowAlert=true;
+        return {label:e[0], full:e[1].full, per:per2, alert:alert,
+                totalSize:per2.reduce(function(a,b){return a+b;},0)};
+      });
+      sizes.sort(function(a,b){
+        const ia=SIZE_ORDER.indexOf(a.label.toLowerCase()), ib=SIZE_ORDER.indexOf(b.label.toLowerCase());
+        return (ia===-1?99:ia)-(ib===-1?99:ib);
+      });
+    }
+    computed[base]={cat,turn,cs,zat,defq,defp,nr:sk.nr||0,per,total,
+                    money:total*ap,sizes:sizes,rowAlert:rowAlert};
   }
 }
 
@@ -253,10 +336,24 @@ function renderSummary(){
   }
   for(const key of ["best","good","mid","bad"]){
     document.getElementById("v-"+key).textContent=fmt(acc[key].q)+" шт";
-    document.getElementById("m-"+key).textContent="\u2248 "+fmtMoney(acc[key].m);
+    document.getElementById("m-"+key).textContent="≈ "+fmtMoney(acc[key].m);
     document.getElementById("s-"+key).textContent=acc[key].n+" моделей";
   }
 }
+
+function buildTabs(){
+  const cnt={}, warns={};
+  for(const [b,d] of Object.entries(computed)){
+    if(hiddenItems.has(b)) continue;
+    cnt[d.cat]=(cnt[d.cat]||0)+1;
+    if(d.rowAlert) warns[d.cat]=true;
+  }
+  document.getElementById("cat-bar").innerHTML=CAT_ORDER.filter(function(c){return cnt[c]>0;}).map(function(c){
+    return '<button class="cat-btn '+(c===currentCat?"active":"")+'" onclick="selCat(\''+c+'\')">'+c+
+      '<span class="cnt">'+cnt[c]+'</span>'+(warns[c]?'<span class="warn-mark">!</span>':'')+'</button>';
+  }).join("");
+}
+function selCat(c){ currentCat=c; buildTabs(); render(); }
 
 function renderHead(){
   let cols='<th>Название</th>';
@@ -266,11 +363,52 @@ function renderHead(){
   document.getElementById("thead").innerHTML='<tr>'+cols+'</tr>';
 }
 
+function toggleRow(tr,base){
+  const d=computed[base];
+  if(!d||!d.sizes.length) return;
+  if(tr.classList.contains("open")){
+    tr.classList.remove("open");
+    let n=tr.nextSibling;
+    while(n&&n.classList&&n.classList.contains("sr")){ const x=n; n=n.nextSibling; x.remove(); }
+    return;
+  }
+  tr.classList.add("open");
+  let anchor=tr;
+  for(const sz of d.sizes){
+    const r=document.createElement("tr");
+    r.className="sr";
+    let label=sz.label||"без размера";
+    // размер целиком по нулям — счётчик дней
+    if(sz.totalSize===0){
+      const dz=daysAtZero(sz.full);
+      label+=' <span class="zd">по нулям'+(dz!==null?" уже "+dz+" дн":"")+'</span>';
+    }
+    let cells='<td>'+label+'</td>';
+    if(hasStores){
+      for(const v of sz.per){
+        if(v===0){
+          const elsewhere=sz.per.some(function(x){return x>0;});
+          cells+='<td><span class="qty zero'+(elsewhere?' zero-cell':'')+'">0'+
+            (elsewhere?'<span class="alert">!</span>':'')+'</span></td>';
+        } else {
+          cells+='<td><span class="qty">'+fmt(v)+'</span></td>';
+        }
+      }
+    } else {
+      cells+='<td><span class="qty">'+fmt(sz.totalSize)+'</span></td>';
+    }
+    cells+='<td></td><td></td>';
+    r.innerHTML=cells;
+    anchor.after(r); anchor=r;
+  }
+}
+
 function render(){
   const q=(document.getElementById("search").value||"").toLowerCase();
   const tb=document.getElementById("tb"); tb.innerHTML="";
   const items=Object.entries(computed)
-    .filter(function(e){ return !hiddenItems.has(e[0])&&(!q||e[0].toLowerCase().includes(q)); })
+    .filter(function(e){ return !hiddenItems.has(e[0])
+      &&(q?e[0].toLowerCase().includes(q):e[1].cat===currentCat); })
     .sort(function(x,y){ return (y[1].turn||0)-(x[1].turn||0); });
   const withS=items.filter(function(e){return e[1].nr>0;}), noS=items.filter(function(e){return e[1].nr===0;});
   const ncols=(hasStores?STORES.length:1)+3;
@@ -280,8 +418,10 @@ function render(){
     for(const [base,d] of group){
       const zs=zatStyle(d.zat);
       const tr=document.createElement("tr");
-      tr.className=GRADE_CLS[grade(d)];
-      let cells='<td>'+base+'</td>';
+      tr.className="pr "+GRADE_CLS[grade(d)];
+      let name='<span class="ei">▶</span>'+base;
+      if(d.rowAlert) name+='<span class="alert">!</span>';
+      let cells='<td>'+name+'</td>';
       if(hasStores){
         const per=d.per||STORES.map(function(){return 0;});
         for(const v of per) cells+='<td><span class="qty '+(v?"":"zero")+'">'+fmt(v)+'</span></td>';
@@ -291,14 +431,15 @@ function render(){
       cells+='<td><div class="zbar"><div class="zfill" style="width:'+Math.min(d.zat||0,100)+'%;background:'+zs[0]+'"></div><div class="ztxt" style="color:'+zs[2]+'">'+zs[1]+'</div></div></td>';
       cells+='<td><div class="defwrap"><div class="defbox" style="background:'+defClr(d.defp)+'"></div><span style="font-size:11px;font-weight:600">'+d.defq+'</span></div></td>';
       tr.innerHTML=cells;
+      tr.onclick=function(){ toggleRow(tr,base); };
       frag.appendChild(tr);
     }
   }
   tb.appendChild(frag);
-  document.getElementById("note").textContent=items.length+" позиций · сортировка по оборачиваемости, как на странице «Оборачиваемость»";
+  document.getElementById("note").textContent=items.length+" позиций · клик по строке раскрывает размеры · сортировка по оборачиваемости";
 }
 
-(async function(){ await loadAll(); compute(); renderSummary(); renderHead(); render(); })();
+(async function(){ await loadAll(); compute(); renderSummary(); buildTabs(); renderHead(); render(); })();
 </script>
 </body>
 </html>
