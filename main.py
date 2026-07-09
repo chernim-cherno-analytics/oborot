@@ -1803,11 +1803,34 @@ STORE_FILTERS = [s.strip().lower() for s in os.environ.get(
 _bystore_cache = {"t": 0, "data": None}
 
 @app.get("/api/sync-inspect")
-def sync_inspect():
-    """Таблицы len* и колонки в PG — для выверки схемы."""
+def sync_inspect(samples: int = 0):
+    """Таблицы len* и колонки в PG — для выверки схемы. ?samples=1 — примеры связок."""
     import sync
     try:
-        return sync.inspect_schema()
+        out = sync.inspect_schema()
+        if samples:
+            pg = sync.get_pg()
+            cur = pg.cursor()
+            smp = {}
+            cur.execute("SELECT id, position_id, assortment_id, quantity FROM lendemand_position LIMIT 3")
+            smp["lendemand_position"] = [list(map(str, r)) for r in cur.fetchall()]
+            cur.execute("SELECT id, moment, name FROM lendemand ORDER BY moment DESC LIMIT 3")
+            smp["lendemand_fresh"] = [list(map(str, r)) for r in cur.fetchall()]
+            cur.execute("""SELECT COUNT(*) FROM lendemand_position p
+                           JOIN lendemand h ON h.id = p.id""")
+            smp["join_id_matches"] = cur.fetchone()[0]
+            cur.execute("""SELECT COUNT(*) FROM lendemand_position p
+                           JOIN lendemand h ON h.id = p.position_id""")
+            smp["join_positionid_matches"] = cur.fetchone()[0]
+            cur.execute("SELECT COUNT(*) FROM lendemand_position")
+            smp["positions_total"] = cur.fetchone()[0]
+            cur.execute("SELECT MAX(moment) FROM lendemand")
+            smp["lendemand_max_moment"] = str(cur.fetchone()[0])
+            cur.execute("SELECT MAX(moment) FROM lenretaildemand")
+            smp["lenretaildemand_max_moment"] = str(cur.fetchone()[0])
+            pg.close()
+            out["samples"] = smp
+        return out
     except Exception as e:
         return {"error": str(e)}
 
