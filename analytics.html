@@ -215,7 +215,7 @@ function compute(){
     const ap=sk.ap||((sk.nq||0)>0?(sk.nr||0)/sk.nq:0);
     const bs=BYSTORE[base];
     const per=bs?bs.per_store:null;
-    const total=bs?bs.total:cs;
+    const total=bs?bs.total:(hasStores?0:cs);  // при живых данных PG отсутствие = 0
     computed[base]={turn,cs,zat,defq,defp,nr:sk.nr||0,per,total,money:total*ap};
   }
 }
