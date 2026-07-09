@@ -1824,6 +1824,26 @@ def sync_now(dry: int = 0):
     import sync
     return sync.sync_all(dry=bool(dry))
 
+@app.get("/api/stocks-bystore-debug")
+def stocks_bystore_debug():
+    """Отладка матчинга имён: сырые имена PG vs канонические имена сайта."""
+    import sync
+    data = stocks_bystore()
+    if data.get("error"):
+        return data
+    pg_names = sorted(data.get("skus", {}).keys())
+    conn = get_db()
+    site = sorted({_canon_name(r[0]) for r in conn.execute(
+        "SELECT DISTINCT sku_name FROM stock_snapshots")})
+    conn.close()
+    pg_set, site_set = set(pg_names), set(site)
+    return {
+        "pg_total": len(pg_set), "site_total": len(site_set),
+        "matched": len(pg_set & site_set),
+        "only_in_pg": sorted(pg_set - site_set)[:40],
+        "only_on_site": sorted(site_set - pg_set)[:40],
+    }
+
 @app.get("/api/stocks-bystore")
 def stocks_bystore():
     """Остатки по трём нужным складам из PG (LensSklad). Кэш 5 минут.
@@ -1851,15 +1871,17 @@ def stocks_bystore():
             pg.close()
             return {"error": f"Не нашёл колонки, есть: {cols}", "stores": [], "skus": {}}
         if "store_id" in cols and "product_id" in cols:
-            # name в отчёте — имя склада; товар лежит в product_id →
-            # джойним модификации (lenvariant) и товары (lenproduct)
-            cur.execute(f"""SELECT COALESCE(v.name, p.name) AS sku, st.name AS store,
+            # name в отчёте — имя склада; товар лежит в product_id.
+            # product_id может ссылаться на lenvariant (модификация) или lenproduct —
+            # берём имя модификации в приоритете, иначе имя товара,
+            # иначе имя из самого отчёта (если это не название склада)
+            cur.execute(f"""SELECT COALESCE(v.name, p.name, r.name) AS sku,
+                               st.name AS store,
                                SUM(COALESCE(r.{qty_c},0))
                         FROM lenreport_stock_bystore r
                         JOIN lenstore st ON st.id = r.store_id
                         LEFT JOIN lenvariant v ON v.id = r.product_id
                         LEFT JOIN lenproduct p ON p.id = r.product_id
-                        WHERE COALESCE(v.name, p.name) IS NOT NULL
                         GROUP BY 1, 2""")
         elif store_c:
             cur.execute(f"SELECT {name_c}, {store_c}, SUM(COALESCE({qty_c},0)) "

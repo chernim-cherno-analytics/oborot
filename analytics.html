@@ -56,6 +56,9 @@
     .sum-card .cond { font-size: 10px; opacity: .55; margin-bottom: 10px; }
     .sum-card .val { font-size: 30px; font-weight: 700; line-height: 1; }
     .sum-card .sub { font-size: 11px; opacity: .55; margin-top: 6px; }
+    .sum-card .money { font-size: 17px; font-weight: 700; margin-top: 8px; }
+    .sc-best .money { color: #3c6300 } .sc-good .money { color: #4b7a00 }
+    .sc-mid .money { color: #8a7b00 } .sc-bad .money { color: #dd0004 }
     .sc-best  { background: rgba(143,233,0,0.4); }
     .sc-good  { background: rgba(75,122,0,0.14); }
     .sc-mid   { background: rgba(233,208,0,0.22); }
@@ -124,10 +127,10 @@
 
 <div class="main">
   <div class="summary" id="summary">
-    <div class="sum-card sc-best"><div class="lbl">Бестселлеры</div><div class="cond">&gt; 5 000 &#8381;/день</div><div class="val" id="v-best">&mdash;</div><div class="sub" id="s-best"></div></div>
-    <div class="sum-card sc-good"><div class="lbl">Хорошие</div><div class="cond">2 000 &ndash; 5 000 &#8381;/день</div><div class="val" id="v-good">&mdash;</div><div class="sub" id="s-good"></div></div>
-    <div class="sum-card sc-mid"><div class="lbl">Средние</div><div class="cond">1 000 &ndash; 2 000 &#8381;/день</div><div class="val" id="v-mid">&mdash;</div><div class="sub" id="s-mid"></div></div>
-    <div class="sum-card sc-bad"><div class="lbl">Слабые</div><div class="cond">&lt; 1 000 &#8381;/день</div><div class="val" id="v-bad">&mdash;</div><div class="sub" id="s-bad"></div></div>
+    <div class="sum-card sc-best"><div class="lbl">Бестселлеры</div><div class="cond">&gt; 5 000 &#8381;/день</div><div class="val" id="v-best">&mdash;</div><div class="money" id="m-best"></div><div class="sub" id="s-best"></div></div>
+    <div class="sum-card sc-good"><div class="lbl">Хорошие</div><div class="cond">2 000 &ndash; 5 000 &#8381;/день</div><div class="val" id="v-good">&mdash;</div><div class="money" id="m-good"></div><div class="sub" id="s-good"></div></div>
+    <div class="sum-card sc-mid"><div class="lbl">Средние</div><div class="cond">1 000 &ndash; 2 000 &#8381;/день</div><div class="val" id="v-mid">&mdash;</div><div class="money" id="m-mid"></div><div class="sub" id="s-mid"></div></div>
+    <div class="sum-card sc-bad"><div class="lbl">Слабые</div><div class="cond">&lt; 1 000 &#8381;/день</div><div class="val" id="v-bad">&mdash;</div><div class="money" id="m-bad"></div><div class="sub" id="s-bad"></div></div>
   </div>
 
   <div class="warn" id="warn"></div>
@@ -153,6 +156,12 @@ let computed={};
 const NON_MERCH=["сертификат","кошелек","sample","сэмпл","упаковоч","пакет","коробк","вешалк","бирк","кофр","наклейк","кейс для","чехол для","нитк","бумага тишью"];
 function isMerch(n){ const nl=n.toLowerCase(); return !NON_MERCH.some(k=>nl.includes(k)); }
 function fmt(n){ return Math.round(n||0).toLocaleString("ru-RU"); }
+function fmtMoney(n){
+  n=n||0;
+  if(n>=1e6) return (n/1e6).toLocaleString("ru-RU",{maximumFractionDigits:1})+" млн \u20BD";
+  if(n>=1e3) return Math.round(n/1e3).toLocaleString("ru-RU")+" тыс \u20BD";
+  return Math.round(n).toLocaleString("ru-RU")+" \u20BD";
+}
 function shortStore(s){
   const sl=s.toLowerCase();
   if(sl.includes("мясницк")) return "Мясницкая";
@@ -203,10 +212,11 @@ function compute(){
     const needed=Math.round(dsq*90);
     const defq=Math.max(0,needed-cs);
     const defp=needed>0?Math.round(defq/needed*100):0;
+    const ap=sk.ap||((sk.nq||0)>0?(sk.nr||0)/sk.nq:0);
     const bs=BYSTORE[base];
     const per=bs?bs.per_store:null;
     const total=bs?bs.total:cs;
-    computed[base]={turn,cs,zat,defq,defp,nr:sk.nr||0,per,total};
+    computed[base]={turn,cs,zat,defq,defp,nr:sk.nr||0,per,total,money:total*ap};
   }
 }
 
@@ -235,14 +245,15 @@ function defClr(p){
 }
 
 function renderSummary(){
-  const acc={best:{q:0,n:0},good:{q:0,n:0},mid:{q:0,n:0},bad:{q:0,n:0}};
+  const acc={best:{q:0,n:0,m:0},good:{q:0,n:0,m:0},mid:{q:0,n:0,m:0},bad:{q:0,n:0,m:0}};
   for(const [b,d] of Object.entries(computed)){
     if(hiddenItems.has(b)) continue;
     let g=grade(d); if(g==="none") g="bad";
-    acc[g].q+=d.total; acc[g].n++;
+    acc[g].q+=d.total; acc[g].n++; acc[g].m+=d.money||0;
   }
   for(const key of ["best","good","mid","bad"]){
     document.getElementById("v-"+key).textContent=fmt(acc[key].q)+" шт";
+    document.getElementById("m-"+key).textContent="\u2248 "+fmtMoney(acc[key].m);
     document.getElementById("s-"+key).textContent=acc[key].n+" моделей";
   }
 }
