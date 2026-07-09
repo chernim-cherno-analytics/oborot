@@ -1850,15 +1850,20 @@ def stocks_bystore():
         if not (name_c and qty_c):
             pg.close()
             return {"error": f"Не нашёл колонки, есть: {cols}", "stores": [], "skus": {}}
-        if store_c:
-            cur.execute(f"SELECT {name_c}, {store_c}, SUM(COALESCE({qty_c},0)) "
-                        f"FROM lenreport_stock_bystore GROUP BY 1, 2")
-        elif "store_id" in cols:
-            # склад хранится ссылкой — джойним справочник складов lenstore
-            cur.execute(f"""SELECT r.{name_c}, st.name, SUM(COALESCE(r.{qty_c},0))
+        if "store_id" in cols and "product_id" in cols:
+            # name в отчёте — имя склада; товар лежит в product_id →
+            # джойним модификации (lenvariant) и товары (lenproduct)
+            cur.execute(f"""SELECT COALESCE(v.name, p.name) AS sku, st.name AS store,
+                               SUM(COALESCE(r.{qty_c},0))
                         FROM lenreport_stock_bystore r
                         JOIN lenstore st ON st.id = r.store_id
+                        LEFT JOIN lenvariant v ON v.id = r.product_id
+                        LEFT JOIN lenproduct p ON p.id = r.product_id
+                        WHERE COALESCE(v.name, p.name) IS NOT NULL
                         GROUP BY 1, 2""")
+        elif store_c:
+            cur.execute(f"SELECT {name_c}, {store_c}, SUM(COALESCE({qty_c},0)) "
+                        f"FROM lenreport_stock_bystore GROUP BY 1, 2")
         else:
             pg.close()
             return {"error": f"Нет колонки склада, есть: {cols}", "stores": [], "skus": {}}
