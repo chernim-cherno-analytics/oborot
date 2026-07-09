@@ -1893,7 +1893,6 @@ def stocks_bystore():
             pg.close()
             return {"error": f"Нет колонки склада, есть: {cols}", "stores": [], "skus": {}}
         rows = cur.fetchall()
-        pg.close()
         # какие склады попали под фильтр
         stores = sorted({str(r[1]) for r in rows
                          if r[1] and any(f in str(r[1]).lower() for f in STORE_FILTERS)})
@@ -1913,8 +1912,44 @@ def stocks_bystore():
             rec["per_store"][i] += qty
             rec["total"] += qty
             srec = rec["sizes"].setdefault(size, {"full": full,
-                                                  "per": [0.0] * len(stores)})
+                                                  "per": [0.0] * len(stores),
+                                                  "last": [None] * len(stores)})
             srec["per"][i] += qty
+        # последняя продажа каждой позиции на каждом складе (отгрузки + розница)
+        try:
+            cur.execute("""
+                SELECT sku, store, MAX(last)::date FROM (
+                    SELECT COALESCE(v.name, p.name) AS sku, st.name AS store,
+                           MAX(h.moment) AS last
+                    FROM lendemand_position dp
+                    JOIN lendemand h ON h.id = dp.id
+                    JOIN lenstore st ON st.id = h.store_id
+                    LEFT JOIN lenvariant v ON v.id = dp.assortment_id
+                    LEFT JOIN lenproduct p ON p.id = dp.assortment_id
+                    WHERE COALESCE(v.name, p.name) IS NOT NULL
+                    GROUP BY 1, 2
+                    UNION ALL
+                    SELECT COALESCE(v.name, p.name), st.name, MAX(h.moment)
+                    FROM lenretaildemand_position rp
+                    JOIN lenretaildemand h ON h.id = rp.id
+                    JOIN lenstore st ON st.id = h.store_id
+                    LEFT JOIN lenvariant v ON v.id = rp.assortment_id
+                    LEFT JOIN lenproduct p ON p.id = rp.assortment_id
+                    WHERE COALESCE(v.name, p.name) IS NOT NULL
+                    GROUP BY 1, 2
+                ) t GROUP BY 1, 2
+            """)
+            last_map = {}
+            for skuname, storename, last in cur.fetchall():
+                if skuname and storename and last:
+                    last_map[(str(skuname), str(storename))] = str(last)
+            for base, rec in skus.items():
+                for size, srec in rec["sizes"].items():
+                    for i, st in enumerate(stores):
+                        srec["last"][i] = last_map.get((srec["full"], st))
+        except Exception:
+            pass  # хронология не критична для отдачи остатков
+        pg.close()
         data = {"stores": stores, "skus": skus}
         _bystore_cache["t"] = time.time()
         _bystore_cache["data"] = data

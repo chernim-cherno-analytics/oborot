@@ -95,36 +95,64 @@ def inspect_schema(prefix: str = "len"):
 
 # ── остатки: снапшот на сегодня ───────────────────────────────────────────────
 
+STORE_FILTERS = [x.strip().lower() for x in os.environ.get(
+    "STORES", "мясницк,горохов,интернет").split(",") if x.strip()]
+
+
+def _init_bystore_table(lite):
+    lite.execute("""CREATE TABLE IF NOT EXISTS stock_bystore (
+        date TEXT NOT NULL, store TEXT NOT NULL, sku_name TEXT NOT NULL,
+        qty REAL NOT NULL DEFAULT 0,
+        PRIMARY KEY (date, store, sku_name))""")
+    lite.execute("CREATE INDEX IF NOT EXISTS idx_bs_sku ON stock_bystore(sku_name)")
+
+
 def sync_stock(dry: bool = False):
-    s = SCHEMA
+    """Снапшот остатков ТОЛЬКО по нужным складам (как на сайте):
+    суммарно — в stock_snapshots, по складам — в stock_bystore (хронология)."""
     pg = get_pg()
     cur = pg.cursor()
-    # суммируем по всем складам; имя оставляем КАК ЕСТЬ («Название (Размер)»)
-    cur.execute(f"""
-        SELECT {s['stock_name']}, SUM(COALESCE({s['stock_qty']},0))
-        FROM {s['stock_table']}
-        GROUP BY {s['stock_name']}
-    """)
-    rows = cur.fetchall()
+    # r.id = id модификации/товара; имя через lenvariant/lenproduct
+    cur.execute("""SELECT COALESCE(v.name, p.name, pp.name) AS sku,
+                          st.name AS store, SUM(COALESCE(r.stock,0))
+                   FROM lenreport_stock_bystore r
+                   JOIN lenstore st ON st.id = r.store_id
+                   LEFT JOIN lenvariant v ON v.id = r.id
+                   LEFT JOIN lenproduct p ON p.id = r.id
+                   LEFT JOIN lenproduct pp ON pp.id = r.product_id
+                   WHERE COALESCE(v.name, p.name, pp.name) IS NOT NULL
+                   GROUP BY 1, 2""")
+    rows = [(str(n), str(st), float(q or 0)) for n, st, q in cur.fetchall()
+            if n and st and any(f in str(st).lower() for f in STORE_FILTERS)]
     pg.close()
 
     if len(rows) < MIN_STOCK_ROWS:
         raise RuntimeError(f"Остатки в PG подозрительно пусты ({len(rows)} строк) — снапшот не записан")
 
+    totals = {}
+    for n, st, q in rows:
+        totals[n] = totals.get(n, 0.0) + q
+
     today = date.today().isoformat()
     now = datetime.now().isoformat()
     if dry:
-        total = sum(float(q or 0) for _, q in rows)
-        return {"stock_skus": len(rows), "stock_total_qty": total, "date": today, "dry": True}
+        return {"stock_skus": len(totals), "stock_total_qty": sum(totals.values()),
+                "stores": sorted({st for _, st, _ in rows}), "date": today, "dry": True}
 
     lite = get_sqlite()
+    _init_bystore_table(lite)
     lite.executemany(
         "INSERT OR REPLACE INTO stock_snapshots (date, sku_name, stock_qty, uploaded_at) "
         "VALUES (?, ?, ?, ?)",
-        [(today, str(name), float(q or 0), now) for name, q in rows if name]
+        [(today, n, q, now) for n, q in totals.items()]
+    )
+    lite.executemany(
+        "INSERT OR REPLACE INTO stock_bystore (date, store, sku_name, qty) "
+        "VALUES (?, ?, ?, ?)",
+        [(today, st, n, q) for n, st, q in rows]
     )
     lite.commit(); lite.close()
-    return {"stock_skus": len(rows), "date": today}
+    return {"stock_skus": len(totals), "bystore_rows": len(rows), "date": today}
 
 
 # ── продажи/возвраты за последние N дней ─────────────────────────────────────
