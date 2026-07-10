@@ -74,6 +74,25 @@
     .sc-bad   { background: rgba(221,0,4,0.12); }
     .sc-best .lbl { color: #3c6300 } .sc-good .lbl { color: #4b7a00 }
     .sc-mid .lbl  { color: #8a7b00 } .sc-bad .lbl  { color: #dd0004 }
+    .chartwrap { display:none; margin: -6px 0 20px; border-radius: 14px;
+      background: rgba(255,255,255,0.6); backdrop-filter: blur(10px);
+      border: 1px solid rgba(31,31,31,0.07); padding: 18px 22px 10px; position: relative; }
+    .chartwrap.open { display:block; }
+    .chart-title { font-size: 12px; font-weight: 600; letter-spacing: .06em;
+      text-transform: uppercase; color: #434446; margin-bottom: 2px; }
+    .chart-sub { font-size: 10px; color: rgba(31,31,31,0.45); margin-bottom: 8px; }
+    .chart-close { position: absolute; top: 12px; right: 16px; border: none;
+      background: none; font-size: 16px; color: rgba(31,31,31,0.45); cursor: pointer; }
+    .chart-close:hover { color:#1f1f1f }
+    #chartsvg { width: 100%; height: 300px; display: block; }
+    .ctip { position: absolute; pointer-events: none; display: none;
+      background: #1f1f1f; color: #f3e9e0; font-size: 11px; font-weight: 600;
+      padding: 5px 10px; border-radius: 8px; white-space: nowrap; z-index: 50;
+      transform: translate(-50%, -130%); }
+    .ctip .d { font-weight: 400; opacity: .65; font-size: 10px; }
+    .sum-card { cursor: pointer; transition: transform .12s; }
+    .sum-card:hover { transform: translateY(-2px); }
+    .sum-card.active { outline: 2px solid rgba(31,31,31,0.45); }
     .tools { display:flex; align-items:center; gap:12px; margin-bottom: 14px; }
     .search { flex: 0 0 320px; padding: 8px 14px; border-radius: 10px; font-size: 13px;
       border: 1px solid rgba(31,31,31,0.16); background: rgba(255,255,255,0.7); color:#1f1f1f; outline:none; }
@@ -150,10 +169,18 @@
 
 <div class="main">
   <div class="summary" id="summary">
-    <div class="sum-card sc-best"><div class="lbl">Бестселлеры</div><div class="cond">&gt; 5 000 &#8381;/день</div><div class="val" id="v-best">&mdash;</div><div class="money" id="m-best"></div><div class="sub" id="s-best"></div></div>
-    <div class="sum-card sc-good"><div class="lbl">Хорошие</div><div class="cond">2 000 &ndash; 5 000 &#8381;/день</div><div class="val" id="v-good">&mdash;</div><div class="money" id="m-good"></div><div class="sub" id="s-good"></div></div>
-    <div class="sum-card sc-mid"><div class="lbl">Средние</div><div class="cond">1 000 &ndash; 2 000 &#8381;/день</div><div class="val" id="v-mid">&mdash;</div><div class="money" id="m-mid"></div><div class="sub" id="s-mid"></div></div>
-    <div class="sum-card sc-bad"><div class="lbl">Слабые</div><div class="cond">&lt; 1 000 &#8381;/день</div><div class="val" id="v-bad">&mdash;</div><div class="money" id="m-bad"></div><div class="sub" id="s-bad"></div></div>
+    <div class="sum-card sc-best" id="card-best" onclick="toggleChart('best')"><div class="lbl">Бестселлеры</div><div class="cond">&gt; 5 000 &#8381;/день</div><div class="val" id="v-best">&mdash;</div><div class="money" id="m-best"></div><div class="sub" id="s-best"></div></div>
+    <div class="sum-card sc-good" id="card-good" onclick="toggleChart('good')"><div class="lbl">Хорошие</div><div class="cond">2 000 &ndash; 5 000 &#8381;/день</div><div class="val" id="v-good">&mdash;</div><div class="money" id="m-good"></div><div class="sub" id="s-good"></div></div>
+    <div class="sum-card sc-mid" id="card-mid" onclick="toggleChart('mid')"><div class="lbl">Средние</div><div class="cond">1 000 &ndash; 2 000 &#8381;/день</div><div class="val" id="v-mid">&mdash;</div><div class="money" id="m-mid"></div><div class="sub" id="s-mid"></div></div>
+    <div class="sum-card sc-bad" id="card-bad" onclick="toggleChart('bad')"><div class="lbl">Слабые</div><div class="cond">&lt; 1 000 &#8381;/день</div><div class="val" id="v-bad">&mdash;</div><div class="money" id="m-bad"></div><div class="sub" id="s-bad"></div></div>
+  </div>
+
+  <div class="chartwrap" id="chartwrap">
+    <button class="chart-close" onclick="closeChart()">&#10005;</button>
+    <div class="chart-title" id="chart-title"></div>
+    <div class="chart-sub">денежный запас категории (остаток &times; средняя цена продажи) &middot; по неделям за последние 1,5 года</div>
+    <svg id="chartsvg" preserveAspectRatio="none"></svg>
+    <div class="ctip" id="ctip"></div>
   </div>
 
   <div class="warn" id="warn"></div>
@@ -453,6 +480,143 @@ function render(){
   }
   tb.appendChild(frag);
   document.getElementById("note").textContent=items.length+" позиций · клик по строке раскрывает размеры · сортировка по оборачиваемости";
+}
+
+
+// ═══════ График динамики денежного запаса категории ═══════
+const GRADE_TITLES={best:"Бестселлеры",good:"Хорошие",mid:"Средние",bad:"Слабые"};
+const GRADE_COLORS={best:"#3c6300",good:"#4b7a00",mid:"#8a7b00",bad:"#dd0004"};
+let openGrade=null, chartPts=[];
+
+function apOf(base){
+  const sk=SKUS[base]||{};
+  return sk.ap||((sk.nq||0)>0?(sk.nr||0)/sk.nq:0);
+}
+
+// недельные точки за 78 недель: сумма (остаток на дату × средняя цена) по SKU категории
+function buildSeries(gradeKey){
+  const bases=Object.entries(computed)
+    .filter(function(e){ let g=grade(e[1]); if(g==="none") g="bad"; return g===gradeKey&&!hiddenItems.has(e[0]); })
+    .map(function(e){ return e[0]; });
+  if(!allDates.length||!bases.length) return [];
+  // недельные отсечки
+  const weeks=[];
+  const now=new Date(); now.setHours(0,0,0,0);
+  for(let w=77;w>=0;w--){
+    weeks.push(new Date(now.getTime()-w*7*86400000).toISOString().slice(0,10));
+  }
+  // для каждого SKU — форвард-филл по всем датам снапшотов
+  const filled={};
+  for(const b of bases){
+    const dm=stockData[b]||{};
+    const arr=[]; let prev=0;
+    for(const d of allDates){ if(dm[d]!==undefined) prev=dm[d]; arr.push(prev); }
+    filled[b]=arr;
+  }
+  // индекс последней snapshot-даты <= недельной отсечки
+  const pts=[];
+  let di=0;
+  for(const wk of weeks){
+    while(di<allDates.length&&allDates[di]<=wk) di++;
+    const idx=di-1;
+    if(idx<0){ pts.push({date:wk,val:null}); continue; }
+    let sum=0;
+    for(const b of bases) sum+=filled[b][idx]*apOf(b);
+    pts.push({date:wk,val:sum});
+  }
+  // отбрасываем пустое начало
+  while(pts.length&&pts[0].val===null) pts.shift();
+  return pts;
+}
+
+function smoothPath(pts,xs,ys){
+  // Catmull-Rom → Bezier для плавной линии как на постере
+  let d="M "+xs(0)+" "+ys(pts[0].val);
+  for(let i=0;i<pts.length-1;i++){
+    const p0=pts[Math.max(0,i-1)].val, p1=pts[i].val, p2=pts[i+1].val,
+          p3=pts[Math.min(pts.length-1,i+2)].val;
+    const x0=xs(Math.max(0,i-1)), x1=xs(i), x2=xs(i+1), x3=xs(Math.min(pts.length-1,i+2));
+    const c1x=x1+(x2-x0)/6, c1y=ys(p1)+(ys(p2)-ys(p0))/6;
+    const c2x=x2-(x3-x1)/6, c2y=ys(p2)-(ys(p3)-ys(p1))/6;
+    d+=" C "+c1x+" "+c1y+" "+c2x+" "+c2y+" "+xs(i+1)+" "+ys(p2);
+  }
+  return d;
+}
+
+function renderChart(gradeKey){
+  const svg=document.getElementById("chartsvg");
+  const wrap=document.getElementById("chartwrap");
+  chartPts=buildSeries(gradeKey);
+  document.getElementById("chart-title").textContent=GRADE_TITLES[gradeKey];
+  if(chartPts.length<2){ svg.innerHTML='<text x="20" y="40" font-size="12" fill="#434446">Недостаточно истории для графика</text>'; return; }
+  const W=svg.clientWidth||wrap.clientWidth-44, H=300, padL=8, padR=64, padT=26, padB=30;
+  svg.setAttribute("viewBox","0 0 "+W+" "+H);
+  const vals=chartPts.map(function(p){return p.val;});
+  const vmax=Math.max.apply(null,vals)*1.08||1, vmin=0;
+  const xs=function(i){ return padL+i*(W-padL-padR)/(chartPts.length-1); };
+  const ys=function(v){ return padT+(H-padT-padB)*(1-(v-vmin)/(vmax-vmin)); };
+  // сетка + подписи оси ₽ справа
+  let g="";
+  const steps=4;
+  for(let k=0;k<=steps;k++){
+    const v=vmin+(vmax-vmin)*k/steps, y=ys(v);
+    g+='<line x1="'+padL+'" y1="'+y+'" x2="'+(W-padR)+'" y2="'+y+'" stroke="rgba(31,31,31,0.07)" stroke-width="1"/>';
+    g+='<text x="'+(W-padR+8)+'" y="'+(y+4)+'" font-size="10" fill="rgba(31,31,31,0.45)">'+fmtMoney(v)+'</text>';
+  }
+  // подписи месяцев снизу (каждые ~13 недель)
+  for(let i=0;i<chartPts.length;i+=13){
+    const d=new Date(chartPts[i].date);
+    const lbl=d.toLocaleDateString("ru-RU",{month:"short",year:"2-digit"});
+    g+='<text x="'+xs(i)+'" y="'+(H-8)+'" font-size="10" fill="rgba(31,31,31,0.45)" text-anchor="middle">'+lbl+'</text>';
+  }
+  // градиент: красный снизу → зелёный сверху
+  const line=smoothPath(chartPts,xs,ys);
+  const area=line+" L "+xs(chartPts.length-1)+" "+ys(0)+" L "+xs(0)+" "+ys(0)+" Z";
+  svg.innerHTML=
+    '<defs><linearGradient id="cg" x1="0" y1="1" x2="0" y2="0">'+
+    '<stop offset="0%" stop-color="#dd0004" stop-opacity="0.55"/>'+
+    '<stop offset="55%" stop-color="#e9d000" stop-opacity="0.45"/>'+
+    '<stop offset="100%" stop-color="#8fe900" stop-opacity="0.85"/>'+
+    '</linearGradient></defs>'+
+    g+
+    '<path d="'+area+'" fill="url(#cg)"/>'+
+    '<path d="'+line+'" fill="none" stroke="#1f1f1f" stroke-width="1.6"/>'+
+    '<circle id="cdot" r="4" fill="#1f1f1f" stroke="#f3e9e0" stroke-width="2" style="display:none"/>';
+  // ховер
+  svg.onmousemove=function(ev){
+    const r=svg.getBoundingClientRect();
+    const x=(ev.clientX-r.left)*(W/r.width);
+    let i=Math.round((x-padL)/((W-padL-padR)/(chartPts.length-1)));
+    i=Math.max(0,Math.min(chartPts.length-1,i));
+    const p=chartPts[i];
+    const dot=document.getElementById("cdot");
+    dot.setAttribute("cx",xs(i)); dot.setAttribute("cy",ys(p.val)); dot.style.display="block";
+    const tip=document.getElementById("ctip");
+    const d=new Date(p.date);
+    tip.innerHTML=fmtMoney(p.val)+' <span class="d">'+d.toLocaleDateString("ru-RU",{day:"numeric",month:"short",year:"2-digit"})+'</span>';
+    tip.style.left=(xs(i)*(r.width/W)+svg.offsetLeft)+"px";
+    tip.style.top=(ys(p.val)*(r.height/H)+svg.offsetTop)+"px";
+    tip.style.display="block";
+  };
+  svg.onmouseleave=function(){
+    document.getElementById("ctip").style.display="none";
+    const dot=document.getElementById("cdot"); if(dot) dot.style.display="none";
+  };
+}
+
+function toggleChart(gradeKey){
+  const wrap=document.getElementById("chartwrap");
+  for(const k of ["best","good","mid","bad"])
+    document.getElementById("card-"+k).classList.toggle("active",k===gradeKey&&openGrade!==gradeKey);
+  if(openGrade===gradeKey){ closeChart(); return; }
+  openGrade=gradeKey;
+  wrap.classList.add("open");
+  renderChart(gradeKey);
+}
+function closeChart(){
+  openGrade=null;
+  document.getElementById("chartwrap").classList.remove("open");
+  for(const k of ["best","good","mid","bad"]) document.getElementById("card-"+k).classList.remove("active");
 }
 
 (async function(){ await loadAll(); compute(); renderSummary(); buildTabs(); renderHead(); render(); })();
