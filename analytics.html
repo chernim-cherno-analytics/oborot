@@ -70,7 +70,7 @@
     .sc-mid .money  { color: #8a7b00 } .sc-bad .money  { color: #dd0004 }
     .sc-best  { background: rgba(143,233,0,0.4); }
     .sc-good  { background: rgba(76,187,23,0.34); }
-    .sc-mid   { background: rgba(233,208,0,0.22); }
+    .sc-mid   { background: rgba(255,204,0,0.42); }
     .sc-bad   { background: rgba(221,0,4,0.12); }
     .sc-best .lbl { color: #3c6300 } .sc-good .lbl { color: #4b7a00 }
     .sc-mid .lbl  { color: #8a7b00 } .sc-bad .lbl  { color: #dd0004 }
@@ -123,12 +123,12 @@
     tr.pr { cursor: pointer; }
     .rg2 td { background: rgba(143,233,0,0.35) }
     .rg1 td { background: rgba(76,187,23,0.3) }
-    .ro  td { background: rgba(233,208,0,0.12) }
+    .ro  td { background: rgba(255,204,0,0.32) }
     .rr  td { background: rgba(221,0,4,0.1) }
     .rgr td { background: rgba(255,255,255,0.55); opacity: 0.5 }
     .rg2:hover td { background: rgba(143,233,0,0.5) }
     .rg1:hover td { background: rgba(76,187,23,0.42) }
-    .ro:hover  td { background: rgba(233,208,0,0.22) }
+    .ro:hover  td { background: rgba(255,204,0,0.44) }
     .rr:hover  td { background: rgba(221,0,4,0.16) }
     tr.sr td { background: rgba(255,255,255,0.75); padding: 5px 10px; font-size: 11.5px; color:#434446 }
     tr.sr td:first-child { padding-left: 38px; font-style: italic; font-weight: 400; }
@@ -181,7 +181,7 @@
   <div class="summary" id="summary">
     <div class="sum-card sc-best" id="card-best" onclick="toggleChart('best')"><div class="lbl">Бестселлеры</div><div class="cond">&gt; 5 000 &#8381;/день</div><div class="val" id="v-best">&mdash;</div><div class="money" id="m-best"></div><div class="sub" id="s-best"></div></div>
     <div class="sum-card sc-good" id="card-good" onclick="toggleChart('good')"><div class="lbl">Хорошие</div><div class="cond">2 000 &ndash; 5 000 &#8381;/день</div><div class="val" id="v-good">&mdash;</div><div class="money" id="m-good"></div><div class="sub" id="s-good"></div></div>
-    <div class="sum-card sc-mid" id="card-mid" onclick="toggleChart('mid')"><div class="lbl">Средние</div><div class="cond">1 000 &ndash; 2 000 &#8381;/день</div><div class="val" id="v-mid">&mdash;</div><div class="money" id="m-mid"></div><div class="sub" id="s-mid"></div></div>
+    <div class="sum-card sc-mid" id="card-mid" onclick="toggleChart('mid')"><div class="lbl">Унылые</div><div class="cond">1 000 &ndash; 2 000 &#8381;/день</div><div class="val" id="v-mid">&mdash;</div><div class="money" id="m-mid"></div><div class="sub" id="s-mid"></div></div>
     <div class="sum-card sc-bad" id="card-bad" onclick="toggleChart('bad')"><div class="lbl">Слабые</div><div class="cond">&lt; 1 000 &#8381;/день</div><div class="val" id="v-bad">&mdash;</div><div class="money" id="m-bad"></div><div class="sub" id="s-bad"></div></div>
   </div>
 
@@ -408,7 +408,7 @@ function renderSummaryCat(){
   const acc=sumByGrade(currentCat);
   document.getElementById("cat-sum-title").textContent="Категория · "+currentCat;
   const defs=[["best","Бестселлеры","sc-best"],["good","Хорошие","sc-good"],
-              ["mid","Средние","sc-mid"],["bad","Слабые","sc-bad"]];
+              ["mid","Унылые","sc-mid"],["bad","Слабые","sc-bad"]];
   document.getElementById("summary-cat").innerHTML=defs.map(function(x){
     const a=acc[x[0]];
     return '<div class="sum-card '+x[2]+'"><div class="lbl">'+x[1]+'</div>'+
@@ -552,7 +552,7 @@ function render(){
 
 
 // ═══════ График динамики денежного запаса категории ═══════
-const GRADE_TITLES={best:"Бестселлеры",good:"Хорошие",mid:"Средние",bad:"Слабые"};
+const GRADE_TITLES={best:"Бестселлеры",good:"Хорошие",mid:"Унылые",bad:"Слабые"};
 const GRADE_COLORS={best:"#3c6300",good:"#4b7a00",mid:"#8a7b00",bad:"#dd0004"};
 let openGrade=null, chartPts=[];
 

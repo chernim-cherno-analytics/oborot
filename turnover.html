@@ -116,12 +116,12 @@
     tbody tr.sr:hover td { background: rgba(255,255,255,0.55) }
     .rg2 td { background: rgba(143,233,0,0.35) }
     .rg1 td { background: rgba(76,187,23,0.3) }
-    .ro  td { background: rgba(233,208,0,0.12) }
+    .ro  td { background: rgba(255,204,0,0.32) }
     .rr  td { background: rgba(221,0,4,0.1) }
     .rgr td { background: rgba(255,255,255,0.55); opacity: 0.5 }
     .rg2:hover td { background: rgba(120,255,80,0.4) !important }
     .rg1:hover td { background: rgba(76,187,23,0.42) !important }
-    .ro:hover  td { background: rgba(233,208,0,0.22) !important }
+    .ro:hover  td { background: rgba(255,204,0,0.44) !important }
     .rr:hover  td { background: rgba(221,0,4,0.18) !important }
     .pname { font-weight: 500; font-size: 12px; color: #1f1f1f }
     .ei { font-size: 9px; margin-right: 5px; color: rgba(31,31,31,0.45); display:inline-block; transition: transform .15s }
@@ -241,7 +241,8 @@
     </table>
   </div>
 
-  <div class="arch-title">Архив <span id="acnt" style="opacity:.6"></span></div>
+  <div class="arch-title" style="cursor:pointer;user-select:none" onclick="var w=document.getElementById('archwrap');var o=w.style.display==='none';w.style.display=o?'':'none';document.getElementById('archarrow').textContent=o?'▾':'▸';"><span id="archarrow">▸</span> Архив <span id="acnt" style="opacity:.6"></span></div>
+  <div id="archwrap" style="display:none">
   <div class="table-outer" style="max-height:50vh">
     <table id="at">
       <colgroup>
@@ -271,6 +272,7 @@
       </thead>
       <tbody id="atb"><tr><td colspan="14" class="loading">Архив пуст</td></tr></tbody>
     </table>
+  </div>
   </div>
 </div>
 
