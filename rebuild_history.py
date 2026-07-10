@@ -1,0 +1,230 @@
+# -*- coding: utf-8 -*-
+"""
+rebuild_history.py — пересборка истории остатков из МойСклад API (3 торговых склада).
+
+Точный остаток на каждую дату из отчёта /report/stock/all с параметром moment —
+без реконструкции по документам: каждая дата = независимый факт из МойСклада.
+
+  POST /api/rebuild-history?dry=1   — проверка: 2 пробные даты, сетка, без записи
+  POST /api/rebuild-history         — фоновый прогон: staging → атомарная замена stock_snapshots
+  GET  /api/rebuild-history-status  — прогресс
+  POST /api/rebuild-history-restore — откат из бэкапа (stock_snapshots_backup)
+
+Требует MS_TOKEN в переменных окружения (токен API МойСклада).
+Если задан DB_QUERY_KEY — POST-эндпоинты требуют заголовок X-DB-Key.
+
+Подключение в конце main.py (порядок роутов не важен — вставляемся в начало):
+    try:
+        import rebuild_history as _rbh
+        _rbh.attach(app)
+    except Exception as _e:
+        print("rebuild_history attach failed:", _e)
+"""
+
+import os
+import threading
+import time
+from datetime import datetime, date, timedelta
+
+from fastapi import HTTPException
+from starlette.requests import Request
+
+MS_API_BASE = "https://api.moysklad.ru/api/remap/1.2"
+TRADE_STORES = {
+    "8b9e4ea2-aed7-11ed-0a80-02dc00170bf2": "Гороховая",
+    "5b59fdb9-89b0-11ec-0a80-05d4000f9f5b": "Интернет-магазин",
+    "6503e590-89b0-11ec-0a80-032b000e92b8": "Мясницкая",
+}
+
+_rb_state = {"running": False, "phase": "idle", "done": 0, "total": 0,
+             "current_date": None, "written_rows": 0, "errors": [],
+             "started": None, "finished": None}
+
+
+def _check_key(request: Request):
+    key = os.environ.get("DB_QUERY_KEY")
+    if key and request.headers.get("X-DB-Key") != key:
+        raise HTTPException(status_code=401, detail="bad or missing X-DB-Key")
+
+
+def _ms_headers():
+    tok = os.environ.get("MS_TOKEN", "")
+    if not tok:
+        raise RuntimeError("MS_TOKEN не задан в переменных окружения Render")
+    return {"Authorization": f"Bearer {tok}", "Accept-Encoding": "gzip"}
+
+
+def _ms_stock_on(day_iso: str):
+    """Остаток по каждому SKU суммарно по 3 торговым складам на конец дня day_iso."""
+    import httpx
+    flt = ";".join(f"store={MS_API_BASE}/entity/store/{sid}" for sid in TRADE_STORES)
+    totals, offset = {}, 0
+    while True:
+        r = None
+        for _attempt in range(6):
+            r = httpx.get(f"{MS_API_BASE}/report/stock/all",
+                          params={"moment": f"{day_iso} 23:59:00",
+                                  "filter": flt, "groupBy": "variant",
+                                  "limit": 1000, "offset": offset},
+                          headers=_ms_headers(), timeout=90)
+            if r.status_code == 429:
+                time.sleep(3.5)
+                continue
+            r.raise_for_status()
+            break
+        else:
+            raise RuntimeError(f"МойСклад: 429 не ушёл после 6 попыток ({day_iso})")
+        rows = r.json().get("rows", [])
+        for row in rows:
+            n = row.get("name")
+            q = float(row.get("stock") or 0)
+            if n and q:
+                totals[n] = totals.get(n, 0.0) + q
+        if len(rows) < 1000:
+            return totals
+        offset += 1000
+
+
+def _rb_grid(start: str, daily_from: str, end: str):
+    """Сетка дат: понедельники от start до daily_from, дальше ежедневно до end."""
+    s = date.fromisoformat(start)
+    df = date.fromisoformat(daily_from)
+    e = date.fromisoformat(end)
+    out = []
+    cur = s + timedelta(days=(7 - s.weekday()) % 7)  # ближайший понедельник от start
+    while cur < df:
+        out.append(cur.isoformat())
+        cur += timedelta(days=7)
+    cur = df
+    while cur <= e:
+        out.append(cur.isoformat())
+        cur += timedelta(days=1)
+    return out
+
+
+def _rb_run(grid):
+    import main as site
+    _rb_state.update(running=True, phase="fetch", done=0, total=len(grid),
+                     written_rows=0, errors=[],
+                     started=datetime.now().isoformat(timespec="seconds"), finished=None)
+    try:
+        conn = site.get_db()
+        conn.execute("DROP TABLE IF EXISTS stock_snapshots_new")
+        conn.execute("""CREATE TABLE stock_snapshots_new (
+            date TEXT NOT NULL, sku_name TEXT NOT NULL,
+            stock_qty REAL NOT NULL DEFAULT 0, uploaded_at TEXT NOT NULL,
+            UNIQUE(date, sku_name))""")
+        conn.commit()
+        prev_skus = set()
+        now = datetime.now().isoformat()
+        for d in grid:
+            _rb_state["current_date"] = d
+            try:
+                totals = _ms_stock_on(d)
+            except Exception as e:
+                _rb_state["errors"].append(f"{d}: {e}")
+                if len(_rb_state["errors"]) > 30:
+                    raise RuntimeError("слишком много ошибок — прерываю")
+                _rb_state["done"] += 1
+                continue
+            rows = [(d, n, q, now) for n, q in totals.items()]
+            # явный ноль: позиция была >0 на прошлой дате сетки, теперь исчезла из отчёта
+            for gone in prev_skus - set(totals):
+                rows.append((d, gone, 0.0, now))
+            conn.executemany(
+                "INSERT OR REPLACE INTO stock_snapshots_new "
+                "(date, sku_name, stock_qty, uploaded_at) VALUES (?,?,?,?)", rows)
+            conn.commit()
+            prev_skus = {n for n, q in totals.items() if q > 0}
+            _rb_state["written_rows"] += len(rows)
+            _rb_state["done"] += 1
+            time.sleep(0.3)  # щадим лимиты МойСклада
+        # атомарная замена + бэкап старых данных
+        _rb_state["phase"] = "swap"
+        conn.execute("DROP TABLE IF EXISTS stock_snapshots_backup")
+        conn.execute("CREATE TABLE stock_snapshots_backup AS SELECT * FROM stock_snapshots")
+        conn.execute("DELETE FROM stock_snapshots")
+        conn.execute("""INSERT INTO stock_snapshots (date, sku_name, stock_qty, uploaded_at)
+                        SELECT date, sku_name, stock_qty, uploaded_at FROM stock_snapshots_new""")
+        conn.execute("DROP TABLE stock_snapshots_new")
+        conn.commit()
+        _rb_state["phase"] = "caches"
+        site.rebuild_analytics_json(conn)
+        conn.close()
+        site._analytics_cache = None
+        site._analytics_cache_key = None
+        _rb_state["phase"] = "done"
+        try:
+            import sync
+            sync._notify(
+                f"✅ История остатков пересобрана из МойСклада: "
+                f"{_rb_state['done']} дат, {_rb_state['written_rows']} строк, "
+                f"ошибок: {len(_rb_state['errors'])}", False)
+        except Exception:
+            pass
+    except Exception as e:
+        _rb_state["errors"].append(f"FATAL: {e}")
+        _rb_state["phase"] = "failed"
+    finally:
+        _rb_state["running"] = False
+        _rb_state["finished"] = datetime.now().isoformat(timespec="seconds")
+
+
+def rebuild_history(request: Request, dry: int = 0,
+                    start: str = "2022-04-01",
+                    daily_from: str = "", end: str = ""):
+    """dry=1 — пробные запросы к МойСкладу без записи. Иначе фоновый прогон.
+    Сетка: понедельники от start, ежедневно за последние 365 дней (daily_from)."""
+    _check_key(request)
+    end = end or date.today().isoformat()
+    daily_from = daily_from or (date.today() - timedelta(days=365)).isoformat()
+    if dry:
+        probe = {}
+        for d in (end, daily_from):
+            t = _ms_stock_on(d)
+            probe[d] = {"skus": len(t), "total_qty": round(sum(t.values()), 1),
+                        "sample": dict(sorted(t.items())[:5])}
+        grid = _rb_grid(start, daily_from, end)
+        return {"dry": True, "grid_dates": len(grid),
+                "grid_first": grid[:3], "grid_last": grid[-3:], "probe": probe}
+    if _rb_state["running"]:
+        return {"error": "пересборка уже идёт", "state": _rb_state}
+    grid = _rb_grid(start, daily_from, end)
+    threading.Thread(target=_rb_run, args=(grid,), daemon=True).start()
+    return {"started": True, "grid_dates": len(grid),
+            "estimate_minutes": round(len(grid) * 0.9 / 60, 1)}
+
+
+def rebuild_history_status():
+    return _rb_state
+
+
+def rebuild_history_restore(request: Request):
+    """Откат: вернуть stock_snapshots из бэкапа, пересобрать кэши."""
+    _check_key(request)
+    import main as site
+    conn = site.get_db()
+    try:
+        n = conn.execute("SELECT COUNT(*) FROM stock_snapshots_backup").fetchone()[0]
+    except Exception:
+        conn.close()
+        return {"error": "бэкапа нет (stock_snapshots_backup отсутствует)"}
+    conn.execute("DELETE FROM stock_snapshots")
+    conn.execute("INSERT INTO stock_snapshots SELECT * FROM stock_snapshots_backup")
+    conn.commit()
+    site.rebuild_analytics_json(conn)
+    conn.close()
+    site._analytics_cache = None
+    site._analytics_cache_key = None
+    return {"restored_rows": n}
+
+
+def attach(app):
+    """Регистрирует роуты В НАЧАЛО списка — до catch-all /{full_path:path}."""
+    n0 = len(app.router.routes)
+    app.add_api_route("/api/rebuild-history", rebuild_history, methods=["POST"])
+    app.add_api_route("/api/rebuild-history-status", rebuild_history_status, methods=["GET"])
+    app.add_api_route("/api/rebuild-history-restore", rebuild_history_restore, methods=["POST"])
+    new = app.router.routes[n0:]
+    del app.router.routes[n0:]
+    app.router.routes[:0] = new
