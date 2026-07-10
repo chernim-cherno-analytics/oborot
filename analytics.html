@@ -322,12 +322,12 @@ function compute(){
     let sizes=[], rowAlert=false;
     if(bs&&bs.sizes){
       sizes=Object.entries(bs.sizes).map(function(e){
-        const per2=e[1].per, last2=e[1].last||[];
+        const per2=e[1].per, last2=e[1].last||[], seen2=e[1].seen||[];
         const has=per2.some(function(v){return v>0;});
         const zeroSomewhere=per2.some(function(v){return v===0;});
         const alert=has&&zeroSomewhere;   // есть на одном складе, ноль на другом
         if(alert) rowAlert=true;
-        return {label:e[0], full:e[1].full, per:per2, last:last2, alert:alert,
+        return {label:e[0], full:e[1].full, per:per2, last:last2, seen:seen2, alert:alert,
                 totalSize:per2.reduce(function(a,b){return a+b;},0)};
       });
       sizes.sort(function(a,b){
@@ -418,9 +418,14 @@ function toggleRow(tr,base){
     // размер целиком по нулям — счётчик: снапшоты ИЛИ последняя продажа из МойСклад
     if(sz.totalSize===0){
       let dz=daysAtZero(sz.full);
-      const lastAny=(sz.last||[]).filter(Boolean).sort().pop();
-      const dz2=daysSince(lastAny);
-      if(dz2!==null&&(dz===null||dz2<dz)) dz=dz2;
+      const seenAny=(sz.seen||[]).filter(Boolean).sort().pop();
+      const dz3=daysSince(seenAny);
+      if(dz3!==null&&(dz===null||dz3<dz)) dz=dz3;
+      else if(dz===null){
+        const lastAny=(sz.last||[]).filter(Boolean).sort().pop();
+        const dz2=daysSince(lastAny);
+        if(dz2!==null) dz=dz2;
+      }
       label+=' <span class="zd">по нулям'+(dz!==null?" уже "+dz+" дн":"")+'</span>';
     }
     let cells='<td>'+label+'</td>';
@@ -429,10 +434,13 @@ function toggleRow(tr,base){
         const v=sz.per[si];
         if(v===0){
           const elsewhere=sz.per.some(function(x){return x>0;});
-          const ld=fmtDate((sz.last||[])[si]);
+          const seenD=fmtDate((sz.seen||[])[si]);
+          const saleD=fmtDate((sz.last||[])[si]);
+          let note="";
+          if(seenD) note='<div class="lsd">был '+seenD+'</div>';
+          else if(saleD) note='<div class="lsd">посл. продажа '+saleD+'</div>';
           cells+='<td><span class="qty zero'+(elsewhere?' zero-cell':'')+'">0'+
-            (elsewhere?'<span class="alert">!</span>':'')+'</span>'+
-            (ld?'<div class="lsd">нет с '+ld+'</div>':'')+'</td>';
+            (elsewhere?'<span class="alert">!</span>':'')+'</span>'+note+'</td>';
         } else {
           cells+='<td><span class="qty">'+fmt(sz.per[si])+'</span></td>';
         }

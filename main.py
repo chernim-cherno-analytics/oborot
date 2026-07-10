@@ -1802,6 +1802,46 @@ STORE_FILTERS = [s.strip().lower() for s in os.environ.get(
 
 _bystore_cache = {"t": 0, "data": None}
 
+def _store_key(name: str):
+    nl = str(name).lower()
+    if "мясницк" in nl: return "мясницкая"
+    if "горохов" in nl: return "гороховая"
+    if "интернет" in nl: return "интернет"
+    return nl
+
+def _seen_map():
+    """Последняя дата, когда позиция была >0 на складе:
+    из снапшотов Перемещений + ежедневной таблицы stock_bystore."""
+    import json as _j
+    seen = {}
+    conn = get_db()
+    try:
+        for rd, wjs, djs in conn.execute(
+                "SELECT report_date, warehouses, data FROM transfers_snapshots"):
+            try:
+                data = _j.loads(djs)
+            except Exception:
+                continue
+            for wh, items in (data or {}).items():
+                wk = _store_key(wh)
+                for sku, q in (items or {}).items():
+                    if q and q > 0:
+                        k = (sku, wk)
+                        if rd > seen.get(k, ""):
+                            seen[k] = rd
+        try:
+            for sku, st, d in conn.execute(
+                    "SELECT sku_name, store, MAX(date) FROM stock_bystore "
+                    "WHERE qty > 0 GROUP BY sku_name, store"):
+                k = (sku, _store_key(st))
+                if d and d > seen.get(k, ""):
+                    seen[k] = d
+        except Exception:
+            pass  # таблицы может ещё не быть
+    finally:
+        conn.close()
+    return seen
+
 @app.get("/api/sync-inspect")
 def sync_inspect(samples: int = 0):
     """Таблицы len* и колонки в PG — для выверки схемы. ?samples=1 — примеры связок."""
@@ -1936,7 +1976,8 @@ def stocks_bystore():
             rec["total"] += qty
             srec = rec["sizes"].setdefault(size, {"full": full,
                                                   "per": [0.0] * len(stores),
-                                                  "last": [None] * len(stores)})
+                                                  "last": [None] * len(stores),
+                                                  "seen": [None] * len(stores)})
             srec["per"][i] += qty
         # последняя продажа каждой позиции на каждом складе (отгрузки + розница)
         try:
@@ -1966,10 +2007,12 @@ def stocks_bystore():
             for skuname, storename, last in cur.fetchall():
                 if skuname and storename and last:
                     last_map[(str(skuname), str(storename))] = str(last)
+            seen = _seen_map()
             for base, rec in skus.items():
                 for size, srec in rec["sizes"].items():
                     for i, st in enumerate(stores):
                         srec["last"][i] = last_map.get((srec["full"], st))
+                        srec["seen"][i] = seen.get((srec["full"], _store_key(st)))
         except Exception:
             pass  # хронология не критична для отдачи остатков
         pg.close()
