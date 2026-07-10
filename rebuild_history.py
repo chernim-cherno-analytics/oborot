@@ -261,6 +261,30 @@ def _migrate_project_tables():
     conn.close()
 
 
+_retail_cache = {"t": 0.0, "data": None}
+
+
+def retail_prices():
+    """Розничные цены («Цена продажи») из зеркала МойСклада, по имени товара. Кэш 1 час."""
+    if _retail_cache["data"] is not None and time.time() - _retail_cache["t"] < 3600:
+        return _retail_cache["data"]
+    import sync
+    pg = sync.get_pg()
+    try:
+        cur = pg.cursor()
+        cur.execute("""SELECT p.name, MAX(sp.value)/100.0
+                       FROM lenproduct_saleprice sp
+                       JOIN lenproduct p ON p.id = sp.id
+                       WHERE sp.pricetype_name = 'Цена продажи' AND sp.value > 0
+                       GROUP BY p.name""")
+        data = {str(n): float(v) for n, v in cur.fetchall() if n}
+    finally:
+        pg.close()
+    _retail_cache["t"] = time.time()
+    _retail_cache["data"] = data
+    return data
+
+
 def attach(app):
     """Регистрирует роуты В НАЧАЛО списка — до catch-all /{full_path:path}."""
     try:
@@ -271,6 +295,7 @@ def attach(app):
     app.add_api_route("/api/rebuild-history", rebuild_history, methods=["POST"])
     app.add_api_route("/api/rebuild-history-status", rebuild_history_status, methods=["GET"])
     app.add_api_route("/api/rebuild-history-restore", rebuild_history_restore, methods=["POST"])
+    app.add_api_route("/api/retail-prices", retail_prices, methods=["GET"])
     new = app.router.routes[n0:]
     del app.router.routes[n0:]
     app.router.routes[:0] = new
