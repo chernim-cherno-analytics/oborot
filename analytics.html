@@ -594,8 +594,9 @@ function renderChart(gradeKey){
     const tip=document.getElementById("ctip");
     const d=new Date(p.date);
     tip.innerHTML=fmtMoney(p.val)+' <span class="d">'+d.toLocaleDateString("ru-RU",{day:"numeric",month:"short",year:"2-digit"})+'</span>';
-    tip.style.left=(xs(i)*(r.width/W)+svg.offsetLeft)+"px";
-    tip.style.top=(ys(p.val)*(r.height/H)+svg.offsetTop)+"px";
+    const wr=document.getElementById("chartwrap").getBoundingClientRect();
+    tip.style.left=((r.left-wr.left)+xs(i)*(r.width/W))+"px";
+    tip.style.top=((r.top-wr.top)+ys(p.val)*(r.height/H))+"px";
     tip.style.display="block";
   };
   svg.onmouseleave=function(){
