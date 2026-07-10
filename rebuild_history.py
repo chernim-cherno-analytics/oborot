@@ -57,14 +57,15 @@ def _ms_headers():
 def _ms_stock_on(day_iso: str):
     """Остаток по каждому SKU суммарно по 3 торговым складам на конец дня day_iso."""
     import httpx
-    flt = ";".join(f"store={MS_API_BASE}/entity/store/{sid}" for sid in TRADE_STORES)
+    # moment — поле фильтра (как отдельный query-параметр игнорируется!)
+    flt = f"moment={day_iso} 23:59:00;" + ";".join(
+        f"store={MS_API_BASE}/entity/store/{sid}" for sid in TRADE_STORES)
     totals, offset = {}, 0
     while True:
         r = None
         for _attempt in range(6):
             r = httpx.get(f"{MS_API_BASE}/report/stock/all",
-                          params={"moment": f"{day_iso} 23:59:00",
-                                  "filter": flt, "groupBy": "variant",
+                          params={"filter": flt, "groupBy": "variant",
                                   "limit": 1000, "offset": offset},
                           headers=_ms_headers(), timeout=90)
             if r.status_code == 429:
