@@ -2108,3 +2108,8 @@ def serve_frontend(full_path: str):
     if os.path.exists("index.html"):
         return FileResponse("index.html", media_type="text/html")
     return {"error": "not found"}
+
+# --- rebuild_history: точная история остатков из МойСклад API (роуты вставляются в начало) ---
+try: import rebuild_history as _rbh; _rbh.attach(app)
+except Exception as _e: print("rebuild_history attach failed:", _e)
+    
