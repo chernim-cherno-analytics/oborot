@@ -116,12 +116,12 @@
     tbody tr.sr td { padding: 5px 10px; border-bottom: 1px solid rgba(31,31,31,0.07); font-size:11px; text-align:center; color: #434446 }
     tbody tr.sr td:first-child { padding-left: 32px; color: rgba(31,31,31,0.45); text-align:left }
     .rg2 td { background: rgba(143,233,0,0.35) }
-    .rg1 td { background: rgba(75,122,0,0.1) }
+    .rg1 td { background: rgba(75,122,0,0.24) }
     .ro  td { background: rgba(233,208,0,0.12) }
     .rr  td { background: rgba(221,0,4,0.1) }
     .rgr td { background: rgba(255,255,255,0.55); opacity: 0.5 }
     .rg2:hover td { background: rgba(120,255,80,0.28) !important }
-    .rg1:hover td { background: rgba(75,122,0,0.2) !important }
+    .rg1:hover td { background: rgba(75,122,0,0.32) !important }
     .ro:hover  td { background: rgba(233,208,0,0.22) !important }
     .rr:hover  td { background: rgba(221,0,4,0.18) !important }
     .pname { font-weight: 500; font-size: 12px; color: #1f1f1f }
@@ -546,7 +546,7 @@ function render() {
         <td class="nb">${fmt(d.sea.summer)}</td>
         <td class="nb">${fmt(d.sea.autumn)}</td>
         <td class="nb nbig">${d.cs}</td>
-        <td class="nb">${d.sup!==null?d.sup+" дн<div style='font-size:9px;opacity:.55;margin-top:2px'>до "+new Date(Date.now()+d.sup*86400000).toLocaleDateString("ru-RU")+"</div>":"—"}</td>
+        <td class="nb">${d.sup!==null?d.sup+" дн"+(d.sup>0?"<div style='font-size:9px;opacity:.55;margin-top:2px'>до "+new Date(Date.now()+d.sup*86400000).toLocaleDateString("ru-RU",{day:"numeric",month:"long",year:"numeric"})+"</div>":""):"—"}</td>
         <td><div class="zbar"><div class="zfill" style="width:${Math.min(d.zat||0,100)}%;background:${zc}"></div><div class="ztxt" style="color:${zt}">${zl}</div></div></td>
         <td class="nb"><span style="font-size:11px;font-weight:600">${d.defq}</span></td>
         <td><span class="oc">${d.ord.spring}</span></td>
