@@ -2029,6 +2029,80 @@ if SYNC_ENABLED:
     _sync_sched.add_job(lambda: __import__("sync").sync_all(), "cron", hour=6, minute=0)
     _sync_sched.start()
 
+# --- read-only Postgres mirror access (len* tables) ---
+import os as _os
+import re as _re_db
+_SQL_OK = _re_db.compile(r'^\s*(?:select|with)\b', _re_db.IGNORECASE)
+_SQL_BAD = _re_db.compile(r'\b(?:insert|update|delete|drop|alter|create|truncate|grant|revoke|copy|vacuum|reindex|refresh)\b', _re_db.IGNORECASE)
+
+def _pg_ro_conn():
+    import psycopg2
+    conn = psycopg2.connect(_os.environ["PG_URL"])
+    conn.set_session(readonly=True, autocommit=True)
+    return conn
+
+def _check_db_key(request: _Req):
+    key = _os.environ.get("DB_QUERY_KEY")
+    if key and request.headers.get("X-DB-Key") != key:
+        raise HTTPException(status_code=401, detail="bad or missing X-DB-Key")
+
+@app.get("/api/db/tables")
+def db_tables(request: _Req):
+    _check_db_key(request)
+    conn = _pg_ro_conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT t.table_name, COALESCE(s.n_live_tup,0) FROM information_schema.tables t LEFT JOIN pg_stat_user_tables s ON s.relname=t.table_name WHERE t.table_schema='public' ORDER BY t.table_name")
+            rows = [{"table": r[0], "approx_rows": int(r[1])} for r in cur.fetchall()]
+    finally:
+        conn.close()
+    return {"count": len(rows), "tables": rows}
+
+@app.get("/api/db/columns")
+def db_columns(table: str, request: _Req):
+    _check_db_key(request)
+    conn = _pg_ro_conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT column_name, data_type FROM information_schema.columns WHERE table_schema='public' AND table_name=%s ORDER BY ordinal_position", (table,))
+            cols = [{"name": r[0], "type": r[1]} for r in cur.fetchall()]
+    finally:
+        conn.close()
+    if not cols:
+        raise HTTPException(status_code=404, detail="table not found")
+    return {"table": table, "columns": cols}
+
+@app.post("/api/db/query")
+async def db_query(payload: dict, request: _Req):
+    _check_db_key(request)
+    sql = (payload or {}).get("sql", "").strip().rstrip(";").strip()
+    try:
+        limit = int((payload or {}).get("limit", 1000))
+    except Exception:
+        limit = 1000
+    limit = max(1, min(limit, 50000))
+    if not sql:
+        raise HTTPException(status_code=400, detail="empty sql")
+    if ";" in sql:
+        raise HTTPException(status_code=400, detail="single statement only")
+    if not _SQL_OK.match(sql):
+        raise HTTPException(status_code=400, detail="only SELECT / WITH allowed")
+    if _SQL_BAD.search(sql):
+        raise HTTPException(status_code=400, detail="read-only endpoint")
+    wrapped = "SELECT * FROM (" + sql + ") AS _q LIMIT " + str(limit)
+    conn = _pg_ro_conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(wrapped)
+            cols = [d[0] for d in cur.description]
+            data = [dict(zip(cols, row)) for row in cur.fetchall()]
+    except Exception as e:
+        raise HTTPException(status_code=400, detail="query error: " + str(e))
+    finally:
+        conn.close()
+    return {"columns": cols, "row_count": len(data), "rows": data}
+
+
 @app.get("/{full_path:path}")
 def serve_frontend(full_path: str):
     if os.path.exists("index.html"):
