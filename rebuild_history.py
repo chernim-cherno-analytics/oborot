@@ -220,8 +220,53 @@ def rebuild_history_restore(request: Request):
     return {"restored_rows": n}
 
 
+def _migrate_project_tables():
+    """Старые SQLite-таблицы без колонки project_id ломают /api/adjustments,
+    /api/excluded, /api/order-added (500). Пересоздаём с новой схемой,
+    старые данные переносим с project_id=''."""
+    import sqlite3
+    conn = sqlite3.connect("/data/stocks.db")
+    specs = {
+        "sku_adjustments": (
+            "CREATE TABLE {t} (project_id TEXT NOT NULL DEFAULT '', sku_base TEXT NOT NULL, "
+            "qty_adj INTEGER NOT NULL DEFAULT 0, updated_at TEXT NOT NULL DEFAULT '', "
+            "PRIMARY KEY (project_id, sku_base))",
+            ["sku_base", "qty_adj", "updated_at"]),
+        "order_excluded": (
+            "CREATE TABLE {t} (project_id TEXT NOT NULL DEFAULT '', sku_base TEXT NOT NULL, "
+            "excluded_at TEXT NOT NULL DEFAULT '', PRIMARY KEY (project_id, sku_base))",
+            ["sku_base", "excluded_at"]),
+        "order_added": (
+            "CREATE TABLE {t} (project_id TEXT NOT NULL DEFAULT '', sku_base TEXT NOT NULL, "
+            "added_at TEXT NOT NULL DEFAULT '', PRIMARY KEY (project_id, sku_base))",
+            ["sku_base", "added_at"]),
+    }
+    for t, (ddl, cols) in specs.items():
+        try:
+            info = conn.execute("PRAGMA table_info(%s)" % t).fetchall()
+            names = [r[1] for r in info]
+            if not info or "project_id" in names:
+                continue
+            avail = [c for c in cols if c in names]
+            conn.execute("ALTER TABLE %s RENAME TO %s_legacy" % (t, t))
+            conn.execute(ddl.format(t=t))
+            if avail:
+                collist = ",".join(avail)
+                conn.execute("INSERT OR IGNORE INTO %s (project_id,%s) SELECT '',%s FROM %s_legacy"
+                             % (t, collist, collist, t))
+            conn.commit()
+            print("migrated table:", t)
+        except Exception as e:
+            print("migrate", t, "failed:", e)
+    conn.close()
+
+
 def attach(app):
     """Регистрирует роуты В НАЧАЛО списка — до catch-all /{full_path:path}."""
+    try:
+        _migrate_project_tables()
+    except Exception as e:
+        print("project tables migration failed:", e)
     n0 = len(app.router.routes)
     app.add_api_route("/api/rebuild-history", rebuild_history, methods=["POST"])
     app.add_api_route("/api/rebuild-history-status", rebuild_history_status, methods=["GET"])
