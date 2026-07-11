@@ -426,6 +426,92 @@ def stock_on_date(date: str = ""):
     return data
 
 
+_ya_cache = {"t": 0.0, "data": None}
+_agent_names = {}
+
+
+def _agent_name(aid):
+    """Имя контрагента из МойСклад API (кэш навсегда)."""
+    if aid in _agent_names:
+        return _agent_names[aid]
+    import httpx
+    nm = ""
+    try:
+        r = httpx.get(f"{MS_API_BASE}/entity/counterparty/{aid}",
+                      headers=_ms_headers(), timeout=30)
+        if r.status_code == 200:
+            nm = r.json().get("name", "")
+    except Exception:
+        pass
+    _agent_names[aid] = nm
+    return nm
+
+
+def yandex_live():
+    """Продажи Яндекс.Маркета из зеркала МойСклада (отгрузки контрагента-маркетплейса).
+    {agent, skus: {base: {"2026-07": [qty, rev]}}, returns: {"2026-07": [qty, rev]}}. Кэш 1 час."""
+    if _ya_cache["data"] is not None and time.time() - _ya_cache["t"] < 3600:
+        return _ya_cache["data"]
+    import sync
+    import main as site
+    pg = sync.get_pg()
+    try:
+        cur = pg.cursor()
+        # массовые контрагенты (маркетплейсы отгружаются на одного агента)
+        cur.execute("""SELECT agent_id, COUNT(*) FROM lendemand
+                       WHERE agent_id IS NOT NULL GROUP BY agent_id
+                       HAVING COUNT(*) >= 200 ORDER BY COUNT(*) DESC""")
+        cands = [r[0] for r in cur.fetchall()]
+        ya = None
+        names = {}
+        for a in cands:
+            nm = _agent_name(a)
+            names[a] = nm
+            if "яндекс" in nm.lower() or "yandex" in nm.lower():
+                ya = a
+                break
+        if not ya:
+            return {"error": "Контрагент Яндекса не найден среди массовых агентов", "agents": names}
+        # продажи по месяцам и позициям
+        cur.execute("""
+            SELECT to_char(h.moment,'YYYY-MM') AS m, COALESCE(v.name, pr.name) AS sku,
+                   SUM(p.quantity) AS q,
+                   SUM(p.price*p.quantity*(1-COALESCE(p.discount,0)/100.0))/100.0 AS r
+            FROM lendemand_position p
+            JOIN lendemand h ON h.id = p.id
+            LEFT JOIN lenvariant v ON v.id = RIGHT(p.assortment_id, 36)
+            LEFT JOIN lenproduct pr ON pr.id = RIGHT(p.assortment_id, 36)
+            WHERE h.agent_id = %s AND COALESCE(v.name, pr.name) IS NOT NULL
+            GROUP BY 1, 2""", (ya,))
+        skus = {}
+        for m, sku, q, r in cur.fetchall():
+            base = site._canon_name(str(sku))
+            d = skus.setdefault(base, {})
+            cur2 = d.get(m) or [0.0, 0.0]
+            cur2[0] += float(q or 0)
+            cur2[1] += float(r or 0)
+            d[m] = cur2
+        for base, d in skus.items():
+            for m, v in d.items():
+                d[m] = [round(v[0], 1), round(v[1])]
+        # возвраты по месяцам
+        cur.execute("""
+            SELECT to_char(h.moment,'YYYY-MM') AS m,
+                   SUM(p.quantity) AS q,
+                   SUM(p.price*p.quantity*(1-COALESCE(p.discount,0)/100.0))/100.0 AS r
+            FROM lensalesreturn_position p
+            JOIN lensalesreturn h ON h.id = p.id
+            WHERE h.agent_id = %s
+            GROUP BY 1""", (ya,))
+        rets = {m: [round(float(q or 0), 1), round(float(r or 0))] for m, q, r in cur.fetchall()}
+    finally:
+        pg.close()
+    data = {"agent": names.get(ya, ""), "skus": skus, "returns": rets}
+    _ya_cache["t"] = time.time()
+    _ya_cache["data"] = data
+    return data
+
+
 def attach(app):
     """Регистрирует роуты В НАЧАЛО списка — до catch-all /{full_path:path}."""
     try:
@@ -441,6 +527,7 @@ def attach(app):
     app.add_api_route("/api/sales-by-month", sales_by_month, methods=["GET"])
     app.add_api_route("/api/sales-range", sales_range, methods=["GET"])
     app.add_api_route("/api/stock-on-date", stock_on_date, methods=["GET"])
+    app.add_api_route("/api/yandex-live", yandex_live, methods=["GET"])
     new = app.router.routes[n0:]
     del app.router.routes[n0:]
     app.router.routes[:0] = new
