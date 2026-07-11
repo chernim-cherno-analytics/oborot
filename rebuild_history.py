@@ -285,6 +285,40 @@ def retail_prices():
     return data
 
 
+_costprice_cache = {"t": 0.0, "data": None}
+
+
+def cost_prices():
+    """Цены из зеркала МойСклада по имени товара:
+    price = «Цена продажи», cost = «Себестоимость», purchase = закупочная (пошив).
+    Ткань = cost - purchase (считается на клиенте). Кэш 1 час."""
+    if _costprice_cache["data"] is not None and time.time() - _costprice_cache["t"] < 3600:
+        return _costprice_cache["data"]
+    import sync
+    pg = sync.get_pg()
+    try:
+        cur = pg.cursor()
+        cur.execute("""
+            SELECT p.name,
+                   MAX(p.buyprice_value)/100.0 AS purchase,
+                   MAX(CASE WHEN sp.pricetype_name = 'Себестоимость' THEN sp.value END)/100.0 AS cost,
+                   MAX(CASE WHEN sp.pricetype_name = 'Цена продажи' THEN sp.value END)/100.0 AS price
+            FROM lenproduct p
+            LEFT JOIN lenproduct_saleprice sp ON sp.id = p.id
+            GROUP BY p.name""")
+        data = {}
+        for n, purchase, cost, price in cur.fetchall():
+            if not n:
+                continue
+            data[str(n)] = {"purchase": float(purchase or 0), "cost": float(cost or 0),
+                            "price": float(price or 0)}
+    finally:
+        pg.close()
+    _costprice_cache["t"] = time.time()
+    _costprice_cache["data"] = data
+    return data
+
+
 def attach(app):
     """Регистрирует роуты В НАЧАЛО списка — до catch-all /{full_path:path}."""
     try:
@@ -296,6 +330,7 @@ def attach(app):
     app.add_api_route("/api/rebuild-history-status", rebuild_history_status, methods=["GET"])
     app.add_api_route("/api/rebuild-history-restore", rebuild_history_restore, methods=["POST"])
     app.add_api_route("/api/retail-prices", retail_prices, methods=["GET"])
+    app.add_api_route("/api/cost-prices", cost_prices, methods=["GET"])
     new = app.router.routes[n0:]
     del app.router.routes[n0:]
     app.router.routes[:0] = new

@@ -48,7 +48,7 @@
       color: rgba(31,31,31,0.45); text-decoration: none; transition: color .2s; }
     .nav a:hover { color: #434446 }
     .nav a.active { color: #1f1f1f; font-weight: 500; }
-    .main { padding: 20px 28px; max-width: 1500px; margin: 0 auto; position: relative; z-index: 3; }
+    .main { padding: 20px 28px; max-width: 1700px; margin: 0 auto; position: relative; z-index: 3; }
 
     /* ── Экран проектов ── */
     .proj-hero { text-align:center; padding: 40px 0 8px; }
@@ -84,11 +84,19 @@
     .btn.ghost:hover { background:rgba(31,31,31,0.07) }
 
     /* ── Экран заказа ── */
-    .ordhead { display:flex; align-items:center; gap:16px; flex-wrap:wrap; margin-bottom:16px }
+    .ordhead { display:flex; align-items:center; gap:16px; flex-wrap:wrap; margin-bottom:14px }
     .ordhead .title { font-size:18px; font-weight:600 }
     .ordhead .date { font-size:12px; color:rgba(31,31,31,0.5) }
+    .savestate { margin-left:auto; font-size:11px; color:rgba(31,31,31,0.4) }
+    .sumbar { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:14px }
+    .scard { background:rgba(255,255,255,0.6); backdrop-filter:blur(10px);
+      border:1px solid rgba(31,31,31,0.08); border-radius:12px; padding:12px 16px }
+    .scard .sl { font-size:10px; font-weight:600; letter-spacing:.07em; text-transform:uppercase;
+      color:rgba(31,31,31,0.5); margin-bottom:5px }
+    .scard .sv { font-size:20px; font-weight:700 }
+    .scard.rev .sv { color:#3c6300 }
     .bigtabs { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:16px }
-    .bigtab { border-radius:14px; padding:18px 22px; cursor:pointer; text-align:center;
+    .bigtab { border-radius:14px; padding:16px 22px; cursor:pointer; text-align:center;
       border:2px solid rgba(31,31,31,0.08); background:rgba(255,255,255,0.5);
       transition: all .15s; }
     .bigtab .bt-name { font-size:16px; font-weight:700; letter-spacing:.1em; text-transform:uppercase }
@@ -104,16 +112,16 @@
     .cat-btn .cnt { font-size:10px; opacity:.6; margin-left:3px }
     .table-outer { background: rgba(255,255,255,0.55); backdrop-filter: blur(16px);
       border:1px solid rgba(31,31,31,0.09); border-radius:12px; overflow:auto;
-      max-height: calc(100vh - 320px); }
-    table { width:100%; border-collapse:collapse; font-size:12.5px; }
+      max-height: calc(100vh - 380px); }
+    table { width:100%; border-collapse:collapse; font-size:12px; min-width:1250px }
     thead th { background:rgba(255,255,255,0.85); backdrop-filter:blur(16px);
-      padding:10px; text-align:center; font-size:10px; font-weight:500;
-      color:rgba(31,31,31,0.62); letter-spacing:.07em; text-transform:uppercase;
+      padding:9px 8px; text-align:center; font-size:10px; font-weight:500;
+      color:rgba(31,31,31,0.62); letter-spacing:.06em; text-transform:uppercase;
       white-space:nowrap; position:sticky; top:0; z-index:10;
       border-bottom:1px solid rgba(31,31,31,0.09); }
     thead th:first-child { text-align:left; padding-left:14px }
     thead th .sub { display:block; font-size:9px; font-weight:400; letter-spacing:0; text-transform:none; opacity:.45; margin-top:2px }
-    tbody td { padding:8px 10px; border-bottom:1px solid rgba(31,31,31,0.07);
+    tbody td { padding:7px 8px; border-bottom:1px solid rgba(31,31,31,0.07);
       text-align:center; vertical-align:middle; color:#1f1f1f }
     tbody td:first-child { text-align:left; padding-left:14px; font-weight:500 }
     .rg2 td { background: rgba(143,233,0,0.35) }
@@ -127,27 +135,30 @@
     .rr:hover  td { background: rgba(221,0,4,0.16) }
     .nb { font-variant-numeric: tabular-nums }
     .nbig { font-weight:700; font-size:13px }
-    .qin { width:64px; padding:5px 6px; text-align:center; font-size:13px; font-weight:700;
+    .money { font-weight:600 }
+    .rev { color:#3c6300; font-weight:700 }
+    .qin { width:58px; padding:5px 5px; text-align:center; font-size:13px; font-weight:700;
       border:1px solid rgba(31,31,31,0.22); border-radius:8px; background:#fff; outline:none }
     .qin:focus { border-color:rgba(31,31,31,0.55) }
     .qin.manual { background:rgba(251,191,36,0.25); border-color:rgba(180,130,0,0.5) }
-    .mv-btn { font-size:10px; font-weight:600; padding:4px 10px; border-radius:9px;
+    .cost-in { width:70px; padding:5px 5px; text-align:center; font-size:12px; font-weight:600;
+      border:1px solid rgba(31,31,31,0.18); border-radius:8px; background:rgba(255,255,255,0.8); outline:none }
+    .cost-in:focus { border-color:rgba(31,31,31,0.55); background:#fff }
+    .cost-in.manual { background:rgba(251,191,36,0.25); border-color:rgba(180,130,0,0.5) }
+    .mv-btn { font-size:10px; font-weight:600; padding:4px 9px; border-radius:9px;
       border:1px solid rgba(31,31,31,0.22); background:rgba(255,255,255,0.6);
       color:#434446; cursor:pointer; white-space:nowrap; transition:all .15s }
     .mv-btn:hover { background:rgba(31,31,31,0.85); color:#f3e9e0 }
     .x-btn { font-size:12px; border:none; background:none; color:rgba(31,31,31,0.3);
-      cursor:pointer; padding:4px 8px }
+      cursor:pointer; padding:4px 6px }
     .x-btn:hover { color:#dd0004 }
     .back-btn { font-size:12px; font-weight:600; padding:6px 14px; border-radius:9px;
       border:1px solid rgba(31,31,31,0.25); background:rgba(255,255,255,0.6); cursor:pointer }
     .back-btn:hover { background:rgba(31,31,31,0.08) }
-    .totals { margin-left:auto; display:flex; gap:18px; font-size:12px; color:rgba(31,31,31,0.6) }
-    .totals b { color:#1f1f1f; font-size:14px }
     .excl-title { font-size:11px; font-weight:600; letter-spacing:.08em; text-transform:uppercase;
       color:rgba(31,31,31,0.45); margin:20px 0 8px; cursor:pointer; user-select:none }
     .loading { text-align:center; padding:60px; color:rgba(31,31,31,0.45); font-size:13px }
     .note { font-size:11px; color:rgba(31,31,31,0.45); margin:8px 2px }
-    .savestate { font-size:11px; color:rgba(31,31,31,0.4) }
   </style>
 </head>
 <body>
@@ -173,7 +184,7 @@
   <div id="scr-projects">
     <div class="proj-hero">
       <h1>Заказы</h1>
-      <p>Выбери заказ или создай новый — расчёт строится на живых остатках и продажах</p>
+      <p>Выбери заказ или создай новый — расчёт строится на живых продажах, остаток фиксируется на день заказа</p>
     </div>
     <div class="proj-grid" id="proj-grid"><div class="loading">Загружаю проекты...</div></div>
     <div class="newform" id="newform">
@@ -196,11 +207,14 @@
         <div class="title" id="ord-title"></div>
         <div class="date" id="ord-date"></div>
       </div>
-      <div class="totals">
-        <div>Лаборатория: <b id="tot-lab">—</b></div>
-        <div>Китай: <b id="tot-china">—</b></div>
-        <div class="savestate" id="savestate"></div>
-      </div>
+      <div class="savestate" id="savestate"></div>
+    </div>
+
+    <div class="sumbar">
+      <div class="scard"><div class="sl">Общий заказ · себестоимость</div><div class="sv" id="s-total">—</div></div>
+      <div class="scard"><div class="sl">из них пошив</div><div class="sv" id="s-sew">—</div></div>
+      <div class="scard"><div class="sl">из них ткань</div><div class="sv" id="s-fab">—</div></div>
+      <div class="scard rev"><div class="sl">Выручка с заказа</div><div class="sv" id="s-rev">—</div></div>
     </div>
 
     <div class="bigtabs">
@@ -221,22 +235,28 @@
         <thead>
           <tr>
             <th>Название</th>
-            <th>Остаток<br><span class="sub">3 склада</span></th>
-            <th>Едет к нам<br><span class="sub">из остатков</span></th>
+            <th>Остаток<br><span class="sub">на день заказа</span></th>
             <th>Необходимо<br><span class="sub">на 90 дней</span></th>
-            <th>Заказ<br><span class="sub">шт, можно править</span></th>
+            <th>Заказ<br><span class="sub">шт</span></th>
+            <th>Ткань<br><span class="sub">₽/шт</span></th>
+            <th>Пошив<br><span class="sub">₽/шт</span></th>
+            <th>Себес<br><span class="sub">₽/шт, правится</span></th>
+            <th>Ткань<br><span class="sub">сумма</span></th>
+            <th>Пошив<br><span class="sub">сумма</span></th>
+            <th>Стоимость<br><span class="sub">заказа</span></th>
+            <th>Выручка<br><span class="sub">потенциал</span></th>
             <th></th>
             <th></th>
           </tr>
         </thead>
-        <tbody id="tb"><tr><td colspan="7" class="loading">Загружаю...</td></tr></tbody>
+        <tbody id="tb"><tr><td colspan="13" class="loading">Загружаю...</td></tr></tbody>
       </table>
     </div>
-    <div class="note">В заказ автоматически не попадают: позиции с расчётом меньше 10 шт и позиции из архива оборачиваемости. Жёлтая ячейка «Заказ» — количество исправлено вручную.</div>
+    <div class="note">Сортировка — по потенциалу выручки. В заказ автоматически не попадают: позиции с расчётом меньше 10 шт и позиции из архива оборачиваемости. Жёлтое поле — правлено вручную (себес сохраняется глобально, для всех заказов).</div>
 
     <div class="excl-title" onclick="toggleExcl()"><span id="exclarrow">▸</span> Убранные из заказа (<span id="exclcnt">0</span>)</div>
     <div class="table-outer" id="exclwrap" style="display:none;max-height:40vh">
-      <table>
+      <table style="min-width:700px">
         <thead><tr><th>Название</th><th>Остаток</th><th>Необходимо</th><th></th></tr></thead>
         <tbody id="etb"></tbody>
       </table>
@@ -245,7 +265,7 @@
 </div>
 
 <script>
-// ══════ Данные ══════
+// ══════ Справочники ══════
 const CATEGORIES = {
   "Верхняя одежда": ["бомбер","куртка","тренч","пальто","ветровка","олимпийка","комбинезон","фрак","меховой пиджак"],
   "Костюмы": ["пиджак","жилет-галстук","корсетный жилет"],
@@ -265,7 +285,7 @@ const CATEGORIES = {
 };
 const CAT_ORDER = ["Верхняя одежда","Костюмы","Брюки","Джинсы","Рубашки","Свитера","Худи и свитшоты","Шорты","Майки","Футболки","Сумки","Аксессуары","Украшения","Нижнее белье","Прочее"];
 const NON_MERCH = ["сертификат","кошелек","sample","сэмпл","упаковоч","пакет","коробк","вешалк","бирк","кофр","наклейк","кейс для","чехол для","нитк","бумага тишью"];
-const MIN_ORDER = 10;   // меньше 10 шт — автоматически вне заказа
+const MIN_ORDER = 10;
 
 function getCat(n){
   const nl = n.toLowerCase();
@@ -277,6 +297,12 @@ function getCat(n){
   return "Прочее";
 }
 function fmt(n){ if(!n&&n!==0) return "—"; return Math.round(n).toLocaleString("ru-RU"); }
+function fmtMoney(n){
+  n=n||0;
+  if(Math.abs(n)>=1e6) return (n/1e6).toLocaleString("ru-RU",{maximumFractionDigits:2})+" млн ₽";
+  if(Math.abs(n)>=1e3) return Math.round(n/1e3).toLocaleString("ru-RU")+" тыс ₽";
+  return Math.round(n).toLocaleString("ru-RU")+" ₽";
+}
 function rowCls(t,nr){
   if(nr===0) return "rgr";
   if(t>=5000) return "rg2";
@@ -285,20 +311,23 @@ function rowCls(t,nr){
   return "rr";
 }
 
+// ══════ Данные ══════
 let stockData={}, allDates=[], SKUS={}, hiddenItems=new Set(), INCOMING={};
-let computed={};              // base -> {cat, turn, nr, cs, incoming, need, necessary}
+let COSTP={};                 // цены из МойСклада: {name:{purchase,cost,price}}
+let COSTS={};                 // ручные себесы (глобальные, /api/costs)
+let computed={};
 let PROJECTS=[];
 let PID=null, PNAME="", PDATE="";
-let ORDERQ={};                // ручные оверрайды количества
-let EXCLUDED=new Set();       // убранные вручную
-let CHINA=new Set();          // позиции, отправленные в Китай
+let ORDERQ={}, EXCLUDED=new Set(), CHINA=new Set();
+let STOCK_SNAP={}, INC_SNAP={};   // остаток и «едет к нам», зафиксированные на день заказа
 let currentTab="lab", currentCat="Верхняя одежда";
 let dataReady=false;
 
 async function loadData(){
-  const [aRes,tRes,hRes,oRes] = await Promise.all([
+  const [aRes,tRes,hRes,oRes,cpRes,cRes] = await Promise.all([
     fetch("/api/analytics-data"), fetch("/api/turnover-data"),
-    fetch("/api/hidden"), fetch("/api/adjustments?project_id=analytics-ordered")
+    fetch("/api/hidden"), fetch("/api/adjustments?project_id=analytics-ordered"),
+    fetch("/api/cost-prices"), fetch("/api/costs")
   ]);
   const a=await aRes.json(), t=await tRes.json();
   allDates=a.dates||[]; stockData=a.stock||{};
@@ -309,6 +338,8 @@ async function loadData(){
     const o=await oRes.json();
     for(const [k,v] of Object.entries(o||{})) if(v>0) INCOMING[k]=v;
   }catch(e){}
+  try{ COSTP=await cpRes.json(); }catch(e){ COSTP={}; }
+  try{ COSTS=await cRes.json(); }catch(e){ COSTS={}; }
   computeAll();
   dataReady=true;
 }
@@ -323,7 +354,6 @@ function computeAll(){
     const dm=stockData[base]||{};
     const sk=SKUS[base]||{nq:0,nr:0};
     const skNq=sk.nq||0, skNr=sk.nr||0;
-    // дни в стоке: только дни с остатком >= 3 шт
     let dis=0,prev=0;
     for(const d of allDates){const s=dm[d]!==undefined?dm[d]:prev;if(s>=3)dis++;prev=s;}
     const turn=dis>0?skNr/dis:0;
@@ -332,25 +362,36 @@ function computeAll(){
     const incoming=INCOMING[base]||0;
     const dsq=dis>0?skNq/dis:0;
     const need=Math.round(dsq*90);
-    // «едет к нам» считаем как уже имеющееся
-    const necessary=Math.max(0,need-(cs+incoming));
-    computed[base]={cat,turn,nr:skNr,cs,incoming,need,necessary};
+    computed[base]={cat,turn,nr:skNr,cs,incoming,need};
   }
 }
 
-// позиция участвует в заказе?
+// себестоимость: ручная приоритетна, иначе из МойСклада; ткань = себес − пошив
+function costOf(base){
+  const db=COSTP[base]||{};
+  const sew=db.purchase||0;
+  const override=COSTS[base]!==undefined&&COSTS[base]>0;
+  const total=override?COSTS[base]:(db.cost||0);
+  const fabric=Math.max(0,total-sew);
+  return {sew,fabric,total,price:db.price||0,override};
+}
+// остаток на день заказа (снапшот); «едет к нам» учитывается под капотом
+function stockAt(base,d){ return STOCK_SNAP[base]!==undefined?STOCK_SNAP[base]:d.cs; }
+function necOf(base,d){
+  const inc=STOCK_SNAP[base]!==undefined?(INC_SNAP[base]||0):d.incoming;
+  return Math.max(0,d.need-(stockAt(base,d)+inc));
+}
 function inOrder(base,d){
-  if(hiddenItems.has(base)) return false;       // архив оборачиваемости
-  if(d.necessary<MIN_ORDER&&!(ORDERQ[base]>0)) return false; // авто-исключение < 10 шт
+  if(hiddenItems.has(base)) return false;
+  if(necOf(base,d)<MIN_ORDER&&!(ORDERQ[base]>0)) return false;
   return true;
 }
-function qtyOf(base,d){
-  return ORDERQ[base]!==undefined?ORDERQ[base]:d.necessary;
-}
+function qtyOf(base,d){ return ORDERQ[base]!==undefined?ORDERQ[base]:necOf(base,d); }
+function revOf(base,d){ return qtyOf(base,d)*costOf(base).price; }
 
 // ══════ Проекты ══════
 async function loadProjects(){
-  try{ PROJECTS=await (await fetch("/api/projects")).json(); }catch(e){ PROJECTS=[]; }
+  try{ PROJECTS=(await (await fetch("/api/projects")).json()).filter(p=>!/__snap$/.test(p.id)); }catch(e){ PROJECTS=[]; }
   const g=document.getElementById("proj-grid");
   let html=PROJECTS.map(p=>{
     const dt=p.date?new Date(p.date).toLocaleDateString("ru-RU",{day:"numeric",month:"long",year:"numeric"}):"";
@@ -377,8 +418,43 @@ async function createProject(){
 async function deleteProject(id,name){
   if(!confirm(`Удалить заказ «${name}» безвозвратно?`)) return;
   await fetch("/api/projects/"+id,{method:"DELETE"});
+  await fetch("/api/projects/"+id+"__snap",{method:"DELETE"});
   loadProjects();
 }
+
+// снапшот остатков: фиксируем на день заказа, дополняем новыми позициями
+async function loadSnapshot(id){
+  STOCK_SNAP={}; INC_SNAP={};
+  let snap={};
+  try{
+    const d=await (await fetch("/api/projects/"+id+"__snap/data")).json();
+    snap=d.adjustments||{};
+  }catch(e){}
+  for(const [k,v] of Object.entries(snap)){
+    if(k.startsWith("inc::")) INC_SNAP[k.slice(5)]=v;
+    else STOCK_SNAP[k]=v;
+  }
+  // фиксация: позиции, которых ещё нет в снапшоте
+  let changed=false;
+  const hasAny=Object.keys(STOCK_SNAP).length>0;
+  for(const [base,d] of Object.entries(computed)){
+    if(STOCK_SNAP[base]===undefined){
+      STOCK_SNAP[base]=d.cs; changed=true;
+      if(d.incoming>0) INC_SNAP[base]=d.incoming;
+    }
+  }
+  if(changed){
+    const adj={};
+    for(const [k,v] of Object.entries(STOCK_SNAP)) adj[k]=v;
+    for(const [k,v] of Object.entries(INC_SNAP)) if(v>0) adj["inc::"+k]=v;
+    try{
+      await fetch("/api/projects/"+id+"__snap/data",{method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({adjustments:adj,excluded:[],added:[]})});
+    }catch(e){}
+  }
+}
+
 async function openProject(id){
   PID=id;
   const p=PROJECTS.find(x=>x.id===id)||{};
@@ -387,7 +463,7 @@ async function openProject(id){
   document.getElementById("ord-date").textContent=PDATE?("приход · "+new Date(PDATE).toLocaleDateString("ru-RU",{day:"numeric",month:"long",year:"numeric"})):"";
   document.getElementById("scr-projects").style.display="none";
   document.getElementById("scr-order").style.display="";
-  document.getElementById("tb").innerHTML='<tr><td colspan="7" class="loading">Загружаю проект...</td></tr>';
+  document.getElementById("tb").innerHTML='<tr><td colspan="13" class="loading">Загружаю проект...</td></tr>';
   try{
     const d=await (await fetch("/api/projects/"+id+"/data")).json();
     ORDERQ={};
@@ -396,6 +472,7 @@ async function openProject(id){
     CHINA=new Set(d.added||[]);
   }catch(e){ ORDERQ={}; EXCLUDED=new Set(); CHINA=new Set(); }
   if(!dataReady) await loadData();
+  await loadSnapshot(id);
   currentTab="lab";
   renderAll();
 }
@@ -424,36 +501,46 @@ async function saveProject(){
     document.getElementById("savestate").textContent="⚠ не сохранилось";
   }
 }
+async function saveCost(base,v){
+  try{
+    await fetch("/api/costs",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({sku_base:base,cost:v})});
+  }catch(e){ alert("Себес не сохранился: "+e.message); }
+}
 
 // ══════ Рендер ══════
 function orderItems(){
-  // все позиции, участвующие в заказе (без ручных исключений)
   return Object.entries(computed)
     .filter(([b,d])=>inOrder(b,d)&&!EXCLUDED.has(b))
-    .sort((a,b)=>(b[1].turn||0)-(a[1].turn||0));
+    .sort((a,b)=>revOf(b[0],b[1])-revOf(a[0],a[1]));   // по потенциалу выручки
 }
 function renderAll(){
   const items=orderItems();
   const lab=items.filter(([b])=>!CHINA.has(b));
   const china=items.filter(([b])=>CHINA.has(b));
-  const sum=arr=>arr.reduce((a,[b,d])=>a+qtyOf(b,d),0);
-  document.getElementById("sub-lab").textContent=lab.length+" позиций · "+fmt(sum(lab))+" шт";
-  document.getElementById("sub-china").textContent=china.length+" позиций · "+fmt(sum(china))+" шт";
-  document.getElementById("tot-lab").textContent=fmt(sum(lab))+" шт";
-  document.getElementById("tot-china").textContent=fmt(sum(china))+" шт";
+  const sumQ=arr=>arr.reduce((a,[b,d])=>a+qtyOf(b,d),0);
+  document.getElementById("sub-lab").textContent=lab.length+" позиций · "+fmt(sumQ(lab))+" шт";
+  document.getElementById("sub-china").textContent=china.length+" позиций · "+fmt(sumQ(china))+" шт";
   document.getElementById("tab-lab").classList.toggle("active",currentTab==="lab");
   document.getElementById("tab-china").classList.toggle("active",currentTab==="china");
+  // итоги по всему заказу (Лаба + Китай)
+  let tFab=0,tSew=0,tTot=0,tRev=0;
+  for(const [b,d] of items){
+    const q=qtyOf(b,d), c=costOf(b);
+    tFab+=q*c.fabric; tSew+=q*c.sew; tTot+=q*c.total; tRev+=q*c.price;
+  }
+  document.getElementById("s-total").textContent=fmtMoney(tTot);
+  document.getElementById("s-sew").textContent=fmtMoney(tSew);
+  document.getElementById("s-fab").textContent=fmtMoney(tFab);
+  document.getElementById("s-rev").textContent=fmtMoney(tRev);
   // категории — только для Лаборатории
   const catbar=document.getElementById("cat-bar");
   if(currentTab==="lab"){
     const cnt={};
     for(const [b,d] of lab) cnt[d.cat]=(cnt[d.cat]||0)+1;
+    if(!cnt[currentCat]){ const first=CAT_ORDER.find(c=>cnt[c]>0); if(first) currentCat=first; }
     catbar.innerHTML=CAT_ORDER.filter(c=>cnt[c]>0).map(c=>
       `<button class="cat-btn ${c===currentCat?"active":""}" onclick="selCat('${c}')">${c}<span class="cnt">${cnt[c]}</span></button>`).join("");
-    if(!cnt[currentCat]){ const first=CAT_ORDER.find(c=>cnt[c]>0); if(first) currentCat=first;
-      catbar.innerHTML=CAT_ORDER.filter(c=>cnt[c]>0).map(c=>
-        `<button class="cat-btn ${c===currentCat?"active":""}" onclick="selCat('${c}')">${c}<span class="cnt">${cnt[c]}</span></button>`).join("");
-    }
   } else {
     catbar.innerHTML="";
   }
@@ -468,22 +555,30 @@ function renderTable(lab,china){
   tb.innerHTML="";
   const rows=currentTab==="lab"?lab.filter(([b,d])=>d.cat===currentCat):china;
   if(!rows.length){
-    tb.innerHTML=`<tr><td colspan="7" class="loading">${currentTab==="lab"?"В этой категории пусто":"В Китай пока ничего не отправлено — используй кнопку «в Китай» в таблице Лаборатории"}</td></tr>`;
+    tb.innerHTML=`<tr><td colspan="13" class="loading">${currentTab==="lab"?"В этой категории пусто":"В Китай пока ничего не отправлено — используй кнопку «в Китай» в таблице Лаборатории"}</td></tr>`;
     return;
   }
   const frag=document.createDocumentFragment();
   for(const [base,d] of rows){
     const q=qtyOf(base,d);
-    const manual=ORDERQ[base]!==undefined&&ORDERQ[base]!==d.necessary;
+    const nec=necOf(base,d);
+    const c=costOf(base);
+    const manualQ=ORDERQ[base]!==undefined&&ORDERQ[base]!==nec;
     const esc=base.replace(/"/g,"&quot;");
     const tr=document.createElement("tr");
     tr.className=rowCls(d.turn,d.nr);
     tr.innerHTML=`
       <td>${base}${currentTab==="china"?'<span style="font-size:10px;opacity:.5;margin-left:8px">'+d.cat+'</span>':''}</td>
-      <td class="nb">${fmt(d.cs)}</td>
-      <td class="nb">${d.incoming?fmt(d.incoming):'<span style="opacity:.3">—</span>'}</td>
-      <td class="nb nbig">${fmt(d.necessary)}</td>
-      <td><input class="qin${manual?' manual':''}" type="number" min="0" step="1" value="${q}" data-base="${esc}"></td>
+      <td class="nb">${fmt(stockAt(base,d))}</td>
+      <td class="nb nbig">${fmt(nec)}</td>
+      <td><input class="qin${manualQ?' manual':''}" type="number" min="0" step="1" value="${q}" data-base="${esc}"></td>
+      <td class="nb">${c.fabric?fmt(c.fabric):'<span style="opacity:.3">—</span>'}</td>
+      <td class="nb">${c.sew?fmt(c.sew):'<span style="opacity:.3">—</span>'}</td>
+      <td><input class="cost-in${c.override?' manual':''}" type="number" min="0" step="1" value="${Math.round(c.total)||''}" placeholder="—" data-base="${esc}"></td>
+      <td class="nb money">${fmt(q*c.fabric)}</td>
+      <td class="nb money">${fmt(q*c.sew)}</td>
+      <td class="nb money">${fmt(q*c.total)}</td>
+      <td class="nb rev">${fmt(q*c.price)}</td>
       <td><button class="mv-btn" data-base="${esc}" data-to="${currentTab==="lab"?"china":"lab"}">${currentTab==="lab"?"в Китай →":"← в Лабу"}</button></td>
       <td><button class="x-btn" data-base="${esc}" title="Убрать из заказа">✕</button></td>`;
     frag.appendChild(tr);
@@ -501,7 +596,7 @@ function renderExcluded(){
   for(const [base,d] of list){
     const tr=document.createElement("tr");
     tr.className=rowCls(d.turn,d.nr);
-    tr.innerHTML=`<td>${base}</td><td class="nb">${fmt(d.cs)}</td><td class="nb">${fmt(d.necessary)}</td>
+    tr.innerHTML=`<td>${base}</td><td class="nb">${fmt(stockAt(base,d))}</td><td class="nb">${fmt(necOf(base,d))}</td>
       <td><button class="mv-btn ret-btn" data-base="${base.replace(/"/g,"&quot;")}">вернуть в заказ</button></td>`;
     etb.appendChild(tr);
   }
@@ -531,21 +626,33 @@ document.addEventListener("click",(e)=>{
   }
 });
 document.addEventListener("change",(e)=>{
-  if(!e.target.classList||!e.target.classList.contains("qin")) return;
-  const b=e.target.dataset.base;
-  let v=parseInt(e.target.value,10);
-  if(!isFinite(v)||v<0) v=0;
-  e.target.value=v;
-  const d=computed[b];
-  if(d&&v===d.necessary) delete ORDERQ[b]; else ORDERQ[b]=v;
-  e.target.classList.toggle("manual",d?v!==d.necessary:v>0);
-  scheduleSave(); renderAll();
+  const t=e.target;
+  if(t.classList&&t.classList.contains("qin")){
+    const b=t.dataset.base;
+    let v=parseInt(t.value,10);
+    if(!isFinite(v)||v<0) v=0;
+    t.value=v;
+    const d=computed[b];
+    const nec=d?necOf(b,d):0;
+    if(d&&v===nec) delete ORDERQ[b]; else ORDERQ[b]=v;
+    scheduleSave(); renderAll();
+  }
+  if(t.classList&&t.classList.contains("cost-in")){
+    const b=t.dataset.base;
+    let v=parseFloat(String(t.value).replace(",","."));
+    if(!isFinite(v)||v<0) v=0;
+    const server=(COSTP[b]||{}).cost||0;
+    if(v===0||v===server){ delete COSTS[b]; v=v===0?server:v; }
+    else COSTS[b]=v;
+    saveCost(b, COSTS[b]!==undefined?v:0);
+    renderAll();
+  }
 });
 
-// ══════ Старт: по умолчанию пусто, только список проектов ══════
+// ══════ Старт ══════
 (async function(){
   loadProjects();
-  loadData();   // подгружаем данные в фоне, чтобы открытие проекта было мгновенным
+  loadData();
 })();
 </script>
 </body>
