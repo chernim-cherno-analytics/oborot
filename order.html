@@ -210,12 +210,7 @@
       <div class="savestate" id="savestate"></div>
     </div>
 
-    <div class="sumbar">
-      <div class="scard"><div class="sl">Общий заказ · себестоимость</div><div class="sv" id="s-total">—</div></div>
-      <div class="scard"><div class="sl">из них пошив</div><div class="sv" id="s-sew">—</div></div>
-      <div class="scard"><div class="sl">из них ткань</div><div class="sv" id="s-fab">—</div></div>
-      <div class="scard rev"><div class="sl">Выручка с заказа</div><div class="sv" id="s-rev">—</div></div>
-    </div>
+    <div class="sumbar" id="sumbar"></div>
 
     <div class="bigtabs">
       <div class="bigtab active" id="tab-lab" onclick="selTab('lab')">
@@ -232,23 +227,7 @@
 
     <div class="table-outer">
       <table>
-        <thead>
-          <tr>
-            <th>Название</th>
-            <th>Остаток<br><span class="sub">на день заказа</span></th>
-            <th>Необходимо<br><span class="sub">на 90 дней</span></th>
-            <th>Заказ<br><span class="sub">шт</span></th>
-            <th>Ткань<br><span class="sub">₽/шт</span></th>
-            <th>Пошив<br><span class="sub">₽/шт</span></th>
-            <th>Себес<br><span class="sub">₽/шт, правится</span></th>
-            <th>Ткань<br><span class="sub">сумма</span></th>
-            <th>Пошив<br><span class="sub">сумма</span></th>
-            <th>Стоимость<br><span class="sub">заказа</span></th>
-            <th>Выручка<br><span class="sub">потенциал</span></th>
-            <th></th>
-            <th></th>
-          </tr>
-        </thead>
+        <thead id="thead"></thead>
         <tbody id="tb"><tr><td colspan="13" class="loading">Загружаю...</td></tr></tbody>
       </table>
     </div>
@@ -523,16 +502,30 @@ function renderAll(){
   document.getElementById("sub-china").textContent=china.length+" позиций · "+fmt(sumQ(china))+" шт";
   document.getElementById("tab-lab").classList.toggle("active",currentTab==="lab");
   document.getElementById("tab-china").classList.toggle("active",currentTab==="china");
-  // итоги по всему заказу (Лаба + Китай)
-  let tFab=0,tSew=0,tTot=0,tRev=0;
-  for(const [b,d] of items){
-    const q=qtyOf(b,d), c=costOf(b);
-    tFab+=q*c.fabric; tSew+=q*c.sew; tTot+=q*c.total; tRev+=q*c.price;
+  // итоги отдельно по активной вкладке
+  const calc=arr=>{
+    let f=0,s=0,t=0,r=0;
+    for(const [b,d] of arr){ const q=qtyOf(b,d), c=costOf(b);
+      f+=q*c.fabric; s+=q*c.sew; t+=q*c.total; r+=q*c.price; }
+    return {f,s,t,r};
+  };
+  const sb=document.getElementById("sumbar");
+  if(currentTab==="lab"){
+    const L=calc(lab);
+    sb.style.gridTemplateColumns="repeat(4,1fr)";
+    sb.innerHTML=
+      '<div class="scard"><div class="sl">Заказ Лаборатория · себестоимость</div><div class="sv">'+fmtMoney(L.t)+'</div></div>'+
+      '<div class="scard"><div class="sl">из них пошив</div><div class="sv">'+fmtMoney(L.s)+'</div></div>'+
+      '<div class="scard"><div class="sl">из них ткань</div><div class="sv">'+fmtMoney(L.f)+'</div></div>'+
+      '<div class="scard rev"><div class="sl">Выручка с заказа</div><div class="sv">'+fmtMoney(L.r)+'</div></div>';
+  } else {
+    const C=calc(china);
+    sb.style.gridTemplateColumns="repeat(2,1fr)";
+    sb.innerHTML=
+      '<div class="scard"><div class="sl">Заказ Китай · себестоимость</div><div class="sv">'+fmtMoney(C.t)+'</div></div>'+
+      '<div class="scard rev"><div class="sl">Выручка с заказа за 90 дней</div><div class="sv">'+fmtMoney(C.r)+'</div></div>';
   }
-  document.getElementById("s-total").textContent=fmtMoney(tTot);
-  document.getElementById("s-sew").textContent=fmtMoney(tSew);
-  document.getElementById("s-fab").textContent=fmtMoney(tFab);
-  document.getElementById("s-rev").textContent=fmtMoney(tRev);
+  renderHead();
   // категории — только для Лаборатории
   const catbar=document.getElementById("cat-bar");
   if(currentTab==="lab"){
@@ -549,6 +542,32 @@ function renderAll(){
 }
 function selTab(t){ currentTab=t; renderAll(); }
 function selCat(c){ currentCat=c; renderAll(); }
+
+function renderHead(){
+  const common='<th>Название</th>'+
+    '<th>Остаток<br><span class="sub">на день заказа</span></th>'+
+    '<th>Необходимо<br><span class="sub">на 90 дней</span></th>'+
+    '<th>Заказ<br><span class="sub">шт</span></th>';
+  let cols;
+  if(currentTab==="lab"){
+    cols=common+
+      '<th>Ткань<br><span class="sub">₽/шт</span></th>'+
+      '<th>Пошив<br><span class="sub">₽/шт</span></th>'+
+      '<th>Себес<br><span class="sub">₽/шт, правится</span></th>'+
+      '<th>Ткань<br><span class="sub">сумма</span></th>'+
+      '<th>Пошив<br><span class="sub">сумма</span></th>'+
+      '<th>Стоимость<br><span class="sub">заказа</span></th>'+
+      '<th>Выручка<br><span class="sub">потенциал</span></th>'+
+      '<th></th><th></th>';
+  } else {
+    cols=common+
+      '<th>Себес<br><span class="sub">под ключ, правится</span></th>'+
+      '<th>Стоимость<br><span class="sub">заказа</span></th>'+
+      '<th>Выручка<br><span class="sub">за 90 дней</span></th>'+
+      '<th></th><th></th>';
+  }
+  document.getElementById("thead").innerHTML='<tr>'+cols+'</tr>';
+}
 
 function renderTable(lab,china){
   const tb=document.getElementById("tb");
@@ -567,20 +586,30 @@ function renderTable(lab,china){
     const esc=base.replace(/"/g,"&quot;");
     const tr=document.createElement("tr");
     tr.className=rowCls(d.turn,d.nr);
-    tr.innerHTML=`
+    const head=`
       <td>${base}${currentTab==="china"?'<span style="font-size:10px;opacity:.5;margin-left:8px">'+d.cat+'</span>':''}</td>
       <td class="nb">${fmt(stockAt(base,d))}</td>
       <td class="nb nbig">${fmt(nec)}</td>
-      <td><input class="qin${manualQ?' manual':''}" type="number" min="0" step="1" value="${q}" data-base="${esc}"></td>
+      <td><input class="qin${manualQ?' manual':''}" type="number" min="0" step="1" value="${q}" data-base="${esc}"></td>`;
+    const tail=`
+      <td><button class="mv-btn" data-base="${esc}" data-to="${currentTab==="lab"?"china":"lab"}">${currentTab==="lab"?"в Китай →":"← в Лабу"}</button></td>
+      <td><button class="x-btn" data-base="${esc}" title="Убрать из заказа">✕</button></td>`;
+    if(currentTab==="lab"){
+      tr.innerHTML=head+`
       <td class="nb">${c.fabric?fmt(c.fabric):'<span style="opacity:.3">—</span>'}</td>
       <td class="nb">${c.sew?fmt(c.sew):'<span style="opacity:.3">—</span>'}</td>
       <td><input class="cost-in${c.override?' manual':''}" type="number" min="0" step="1" value="${Math.round(c.total)||''}" placeholder="—" data-base="${esc}"></td>
       <td class="nb money">${fmt(q*c.fabric)}</td>
       <td class="nb money">${fmt(q*c.sew)}</td>
       <td class="nb money">${fmt(q*c.total)}</td>
-      <td class="nb rev">${fmt(q*c.price)}</td>
-      <td><button class="mv-btn" data-base="${esc}" data-to="${currentTab==="lab"?"china":"lab"}">${currentTab==="lab"?"в Китай →":"← в Лабу"}</button></td>
-      <td><button class="x-btn" data-base="${esc}" title="Убрать из заказа">✕</button></td>`;
+      <td class="nb rev">${fmt(q*c.price)}</td>`+tail;
+    } else {
+      // Китай: вещи под ключ — только себестоимость, без ткани и пошива
+      tr.innerHTML=head+`
+      <td><input class="cost-in${c.override?' manual':''}" type="number" min="0" step="1" value="${Math.round(c.total)||''}" placeholder="—" data-base="${esc}"></td>
+      <td class="nb money">${fmt(q*c.total)}</td>
+      <td class="nb rev">${fmt(q*c.price)}</td>`+tail;
+    }
     frag.appendChild(tr);
   }
   tb.appendChild(frag);
