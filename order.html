@@ -233,7 +233,7 @@
     </div>
     <div class="note">Сортировка — по потенциалу выручки. В заказ автоматически не попадают: позиции с расчётом меньше 10 шт и позиции из архива оборачиваемости. Жёлтое поле — правлено вручную (себес сохраняется глобально, для всех заказов).</div>
 
-    <div class="excl-title" onclick="toggleExcl()"><span id="exclarrow">▸</span> Убранные из заказа — остальное в этой категории (<span id="exclcnt">0</span>)</div>
+    <div class="excl-title" onclick="toggleExcl()"><span id="exclarrow">▸</span> Убранные из заказа — <span id="exclscope">остальное в этой категории</span> (<span id="exclcnt">0</span>)</div>
     <div class="table-outer" id="exclwrap" style="display:none;max-height:40vh">
       <table style="min-width:800px">
         <thead><tr><th>Название</th><th>Остаток</th><th>Необходимо</th><th>Почему не в заказе</th><th></th></tr></thead>
@@ -488,15 +488,20 @@ async function saveCost(base,v){
 }
 
 // ══════ Рендер ══════
-function orderItems(){
-  return Object.entries(computed)
-    .filter(([b,d])=>inOrder(b,d)&&!EXCLUDED.has(b))
-    .sort((a,b)=>revOf(b[0],b[1])-revOf(a[0],a[1]));   // по потенциалу выручки
+// Лаборатория и Китай — параллельные корзины: каждая вещь принадлежит одной из них
+const byRev=(a,b)=>revOf(b[0],b[1])-revOf(a[0],a[1]);
+const inOrd=([b,d])=>inOrder(b,d)&&!EXCLUDED.has(b);
+function splitAll(){
+  const all=Object.entries(computed).filter(([b])=>!hiddenItems.has(b));
+  return {
+    labAll: all.filter(([b])=>!CHINA.has(b)),
+    chinaAll: all.filter(([b])=>CHINA.has(b))
+  };
 }
 function renderAll(){
-  const items=orderItems();
-  const lab=items.filter(([b])=>!CHINA.has(b));
-  const china=items.filter(([b])=>CHINA.has(b));
+  const {labAll,chinaAll}=splitAll();
+  const lab=labAll.filter(inOrd).sort(byRev);
+  const china=chinaAll.filter(inOrd).sort(byRev);
   const sumQ=arr=>arr.reduce((a,[b,d])=>a+qtyOf(b,d),0);
   document.getElementById("sub-lab").textContent=lab.length+" позиций · "+fmt(sumQ(lab))+" шт";
   document.getElementById("sub-china").textContent=china.length+" позиций · "+fmt(sumQ(china))+" шт";
@@ -526,19 +531,20 @@ function renderAll(){
       '<div class="scard rev"><div class="sl">Выручка с заказа за 90 дней</div><div class="sv">'+fmtMoney(C.r)+'</div></div>';
   }
   renderHead();
-  // категории — только для Лаборатории
+  // категории — только для Лаборатории; кнопка не исчезает, даже если всё исключено
   const catbar=document.getElementById("cat-bar");
   if(currentTab==="lab"){
-    const cnt={};
+    const has={}, cnt={};
+    for(const [b,d] of labAll) has[d.cat]=true;
     for(const [b,d] of lab) cnt[d.cat]=(cnt[d.cat]||0)+1;
-    if(!cnt[currentCat]){ const first=CAT_ORDER.find(c=>cnt[c]>0); if(first) currentCat=first; }
-    catbar.innerHTML=CAT_ORDER.filter(c=>cnt[c]>0).map(c=>
-      `<button class="cat-btn ${c===currentCat?"active":""}" onclick="selCat('${c}')">${c}<span class="cnt">${cnt[c]}</span></button>`).join("");
+    if(!has[currentCat]){ const first=CAT_ORDER.find(c=>has[c]); if(first) currentCat=first; }
+    catbar.innerHTML=CAT_ORDER.filter(c=>has[c]).map(c=>
+      `<button class="cat-btn ${c===currentCat?"active":""}" onclick="selCat('${c}')">${c}<span class="cnt">${cnt[c]||0}</span></button>`).join("");
   } else {
     catbar.innerHTML="";
   }
   renderTable(lab,china);
-  renderExcluded();
+  renderExcluded(labAll,chinaAll);
 }
 function selTab(t){ currentTab=t; renderAll(); }
 function selCat(c){ currentCat=c; renderAll(); }
@@ -615,14 +621,17 @@ function renderTable(lab,china){
   tb.appendChild(frag);
 }
 
-function renderExcluded(){
+function renderExcluded(labAll,chinaAll){
   const etb=document.getElementById("etb");
-  // все остальные вещи текущей категории, не попавшие в заказ (кроме архива оборачиваемости)
-  const list=Object.entries(computed)
-    .filter(([b,d])=>!hiddenItems.has(b)
-      &&(currentTab!=="lab"||d.cat===currentCat)
-      &&(EXCLUDED.has(b)||!inOrder(b,d)))
+  // убранные — только из своей корзины: у Лабы своя категория, у Китая только китайские
+  const pool=currentTab==="lab"
+    ? labAll.filter(([b,d])=>d.cat===currentCat)
+    : chinaAll;
+  const list=pool
+    .filter(([b,d])=>EXCLUDED.has(b)||!inOrder(b,d))
     .sort((a,b)=>(b[1].turn||0)-(a[1].turn||0));
+  document.getElementById("exclscope").textContent=
+    currentTab==="lab"?"остальное в этой категории":"остальное из Китая";
   document.getElementById("exclcnt").textContent=list.length;
   etb.innerHTML=list.length?"":'<tr><td colspan="5" class="loading">Пусто</td></tr>';
   for(const [base,d] of list){
@@ -631,7 +640,8 @@ function renderExcluded(){
       :'<span style="font-size:10px;padding:1px 8px;border-radius:9px;background:rgba(31,31,31,0.08);color:#434446;font-weight:600">расчёт &lt; '+MIN_ORDER+' шт</span>';
     const tr=document.createElement("tr");
     tr.className=rowCls(d.turn,d.nr);
-    tr.innerHTML=`<td>${base}</td><td class="nb">${fmt(stockAt(base,d))}</td><td class="nb">${fmt(necOf(base,d))}</td>
+    tr.innerHTML=`<td>${base}${currentTab==="china"?'<span style="font-size:10px;opacity:.5;margin-left:8px">'+d.cat+'</span>':''}</td>
+      <td class="nb">${fmt(stockAt(base,d))}</td><td class="nb">${fmt(necOf(base,d))}</td>
       <td>${reason}</td>
       <td><button class="mv-btn ret-btn" data-base="${base.replace(/"/g,"&quot;")}">вернуть в заказ</button></td>`;
     etb.appendChild(tr);
