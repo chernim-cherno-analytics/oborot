@@ -207,6 +207,7 @@
         <div class="title" id="ord-title"></div>
         <div class="date" id="ord-date"></div>
       </div>
+      <button class="btn" style="margin-left:12px" onclick="downloadOrder()">⬇ Скачать заказ</button>
       <div class="savestate" id="savestate"></div>
     </div>
 
@@ -531,18 +532,16 @@ function renderAll(){
       '<div class="scard rev"><div class="sl">Выручка с заказа за 90 дней</div><div class="sv">'+fmtMoney(C.r)+'</div></div>';
   }
   renderHead();
-  // категории — только для Лаборатории; кнопка не исчезает, даже если всё исключено
+  // категории — в обеих вкладках; кнопка не исчезает, даже если всё исключено
   const catbar=document.getElementById("cat-bar");
-  if(currentTab==="lab"){
-    const has={}, cnt={};
-    for(const [b,d] of labAll) has[d.cat]=true;
-    for(const [b,d] of lab) cnt[d.cat]=(cnt[d.cat]||0)+1;
-    if(!has[currentCat]){ const first=CAT_ORDER.find(c=>has[c]); if(first) currentCat=first; }
-    catbar.innerHTML=CAT_ORDER.filter(c=>has[c]).map(c=>
-      `<button class="cat-btn ${c===currentCat?"active":""}" onclick="selCat('${c}')">${c}<span class="cnt">${cnt[c]||0}</span></button>`).join("");
-  } else {
-    catbar.innerHTML="";
-  }
+  const pool=currentTab==="lab"?labAll:chinaAll;
+  const inTab=currentTab==="lab"?lab:china;
+  const has={}, cnt={};
+  for(const [b,d] of pool) has[d.cat]=true;
+  for(const [b,d] of inTab) cnt[d.cat]=(cnt[d.cat]||0)+1;
+  if(!has[currentCat]){ const first=CAT_ORDER.find(c=>has[c]); if(first) currentCat=first; }
+  catbar.innerHTML=CAT_ORDER.filter(c=>has[c]).map(c=>
+    `<button class="cat-btn ${c===currentCat?"active":""}" onclick="selCat('${c}')">${c}<span class="cnt">${cnt[c]||0}</span></button>`).join("");
   renderTable(lab,china);
   renderExcluded(labAll,chinaAll);
 }
@@ -578,9 +577,9 @@ function renderHead(){
 function renderTable(lab,china){
   const tb=document.getElementById("tb");
   tb.innerHTML="";
-  const rows=currentTab==="lab"?lab.filter(([b,d])=>d.cat===currentCat):china;
+  const rows=(currentTab==="lab"?lab:china).filter(([b,d])=>d.cat===currentCat);
   if(!rows.length){
-    tb.innerHTML=`<tr><td colspan="13" class="loading">${currentTab==="lab"?"В этой категории пусто":"В Китай пока ничего не отправлено — используй кнопку «в Китай» в таблице Лаборатории"}</td></tr>`;
+    tb.innerHTML=`<tr><td colspan="13" class="loading">${currentTab==="china"&&!china.length?"В Китай пока ничего не отправлено — используй кнопку «в Китай» в таблице Лаборатории":"В этой категории пусто"}</td></tr>`;
     return;
   }
   const frag=document.createDocumentFragment();
@@ -593,7 +592,7 @@ function renderTable(lab,china){
     const tr=document.createElement("tr");
     tr.className=rowCls(d.turn,d.nr);
     const head=`
-      <td>${base}${currentTab==="china"?'<span style="font-size:10px;opacity:.5;margin-left:8px">'+d.cat+'</span>':''}</td>
+      <td>${base}</td>
       <td class="nb">${fmt(stockAt(base,d))}</td>
       <td class="nb nbig">${fmt(nec)}</td>
       <td><input class="qin${manualQ?' manual':''}" type="number" min="0" step="1" value="${q}" data-base="${esc}"></td>`;
@@ -624,14 +623,12 @@ function renderTable(lab,china){
 function renderExcluded(labAll,chinaAll){
   const etb=document.getElementById("etb");
   // убранные — только из своей корзины: у Лабы своя категория, у Китая только китайские
-  const pool=currentTab==="lab"
-    ? labAll.filter(([b,d])=>d.cat===currentCat)
-    : chinaAll;
+  const pool=(currentTab==="lab"?labAll:chinaAll).filter(([b,d])=>d.cat===currentCat);
   const list=pool
     .filter(([b,d])=>EXCLUDED.has(b)||!inOrder(b,d))
     .sort((a,b)=>(b[1].turn||0)-(a[1].turn||0));
   document.getElementById("exclscope").textContent=
-    currentTab==="lab"?"остальное в этой категории":"остальное из Китая";
+    currentTab==="lab"?"остальное в этой категории":"остальное из Китая в этой категории";
   document.getElementById("exclcnt").textContent=list.length;
   etb.innerHTML=list.length?"":'<tr><td colspan="5" class="loading">Пусто</td></tr>';
   for(const [base,d] of list){
@@ -640,7 +637,7 @@ function renderExcluded(labAll,chinaAll){
       :'<span style="font-size:10px;padding:1px 8px;border-radius:9px;background:rgba(31,31,31,0.08);color:#434446;font-weight:600">расчёт &lt; '+MIN_ORDER+' шт</span>';
     const tr=document.createElement("tr");
     tr.className=rowCls(d.turn,d.nr);
-    tr.innerHTML=`<td>${base}${currentTab==="china"?'<span style="font-size:10px;opacity:.5;margin-left:8px">'+d.cat+'</span>':''}</td>
+    tr.innerHTML=`<td>${base}</td>
       <td class="nb">${fmt(stockAt(base,d))}</td><td class="nb">${fmt(necOf(base,d))}</td>
       <td>${reason}</td>
       <td><button class="mv-btn ret-btn" data-base="${base.replace(/"/g,"&quot;")}">вернуть в заказ</button></td>`;
@@ -652,6 +649,79 @@ function toggleExcl(){
   const o=w.style.display==="none";
   w.style.display=o?"":"none";
   document.getElementById("exclarrow").textContent=o?"▾":"▸";
+}
+
+// ══════ Скачать заказ ══════
+function downloadOrder(){
+  const {labAll,chinaAll}=splitAll();
+  const lab=labAll.filter(inOrd).sort(byRev);
+  const china=chinaAll.filter(inOrd).sort(byRev);
+  const today=new Date().toLocaleDateString("ru-RU",{day:"numeric",month:"long",year:"numeric"});
+  const arrival=PDATE?new Date(PDATE).toLocaleDateString("ru-RU",{day:"numeric",month:"long",year:"numeric"}):"—";
+  const rub=n=>Math.round(n||0).toLocaleString("ru-RU");
+  let n=1, html='';
+
+  // Лаборатория по категориям
+  let lt={q:0,f:0,s:0,t:0};
+  html+='<h2>Лаборатория</h2>';
+  for(const cat of CAT_ORDER){
+    const rows=lab.filter(([b,d])=>d.cat===cat);
+    if(!rows.length) continue;
+    html+=`<h3>${cat}</h3><table><thead><tr><th>№</th><th class="l">Название</th><th>Заказ, шт</th><th>Ткань, ₽</th><th>Пошив, ₽</th><th>Себес, ₽</th><th>Ткань Σ</th><th>Пошив Σ</th><th>Стоимость, ₽</th></tr></thead><tbody>`;
+    for(const [base,d] of rows){
+      const q=qtyOf(base,d), c=costOf(base);
+      lt.q+=q; lt.f+=q*c.fabric; lt.s+=q*c.sew; lt.t+=q*c.total;
+      html+=`<tr><td>${n++}</td><td class="l">${base}</td><td><b>${q}</b></td><td>${rub(c.fabric)}</td><td>${rub(c.sew)}</td><td>${rub(c.total)}</td><td>${rub(q*c.fabric)}</td><td>${rub(q*c.sew)}</td><td><b>${rub(q*c.total)}</b></td></tr>`;
+    }
+    html+='</tbody></table>';
+  }
+  html+=`<div class="tot">Итого Лаборатория: <b>${rub(lt.q)} шт</b> · ткань <b>${rub(lt.f)} ₽</b> · пошив <b>${rub(lt.s)} ₽</b> · себестоимость <b>${rub(lt.t)} ₽</b></div>`;
+
+  // Китай по категориям
+  let ct={q:0,t:0};
+  html+='<h2>Китай</h2>';
+  let anyChina=false;
+  for(const cat of CAT_ORDER){
+    const rows=china.filter(([b,d])=>d.cat===cat);
+    if(!rows.length) continue;
+    anyChina=true;
+    html+=`<h3>${cat}</h3><table><thead><tr><th>№</th><th class="l">Название</th><th>Заказ, шт</th><th>Себес (под ключ), ₽</th><th>Стоимость, ₽</th></tr></thead><tbody>`;
+    for(const [base,d] of rows){
+      const q=qtyOf(base,d), c=costOf(base);
+      ct.q+=q; ct.t+=q*c.total;
+      html+=`<tr><td>${n++}</td><td class="l">${base}</td><td><b>${q}</b></td><td>${rub(c.total)}</td><td><b>${rub(q*c.total)}</b></td></tr>`;
+    }
+    html+='</tbody></table>';
+  }
+  if(!anyChina) html+='<p style="color:#888">Пусто</p>';
+  html+=`<div class="tot">Итого Китай: <b>${rub(ct.q)} шт</b> · себестоимость <b>${rub(ct.t)} ₽</b></div>`;
+  html+=`<div class="tot grand">Всего по заказу: <b>${rub(lt.q+ct.q)} шт</b> · себестоимость <b>${rub(lt.t+ct.t)} ₽</b></div>`;
+
+  const doc=`<!DOCTYPE html><html lang="ru"><head><meta charset="UTF-8">
+<title>Заказ — ${PNAME}</title><style>
+body{font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;color:#1f1f1f;margin:40px;max-width:1000px}
+h1{font-size:22px;margin-bottom:2px} .meta{color:#777;font-size:13px;margin-bottom:24px}
+h2{font-size:16px;text-transform:uppercase;letter-spacing:.08em;margin:28px 0 6px;border-bottom:2px solid #1f1f1f;padding-bottom:4px}
+h3{font-size:13px;margin:16px 0 6px;color:#555}
+table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:8px}
+th{background:#f0ebe4;text-align:center;padding:6px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.05em;border:1px solid #ddd}
+td{padding:5px 8px;text-align:center;border:1px solid #e5e0d9;font-variant-numeric:tabular-nums}
+td.l,th.l{text-align:left}
+tr:nth-child(even) td{background:#faf7f3}
+.tot{margin:10px 0 18px;font-size:13px;background:#f0ebe4;padding:10px 14px;border-radius:8px}
+.tot.grand{background:#1f1f1f;color:#f3e9e0;font-size:14px}
+@media print{body{margin:12mm} h2{page-break-after:avoid} table{page-break-inside:auto} tr{page-break-inside:avoid}}
+</style></head><body>
+<h1>Заказ «${PNAME}»</h1>
+<div class="meta">ожидаемый приход: ${arrival} · сформировано: ${today} · Chernim Cherno</div>
+${html}
+</body></html>`;
+
+  const blob=new Blob([doc],{type:"text/html;charset=utf-8"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download=`Заказ ${PNAME} — ${new Date().toISOString().slice(0,10)}.html`;
+  document.body.appendChild(a); a.click(); a.remove();
 }
 
 // ══════ События ══════
