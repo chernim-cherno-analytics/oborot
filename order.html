@@ -461,8 +461,8 @@ async function openProject(id){
     ORDERQ={};
     for(const [k,v] of Object.entries(d.adjustments||{})) ORDERQ[k]=Math.max(0,v);
     EXCLUDED=new Set(d.excluded||[]);
-    CHINA=new Set(d.added||[]);
-  }catch(e){ ORDERQ={}; EXCLUDED=new Set(); CHINA=new Set(); }
+  }catch(e){ ORDERQ={}; EXCLUDED=new Set(); }
+  await loadChina();   // Китай — глобальная классификация товара, общая для всех заказов
   if(!dataReady) await loadData();
   await loadSnapshot(id);
   currentTab="lab";
@@ -482,11 +482,24 @@ function scheduleSave(){
   clearTimeout(saveTimer);
   saveTimer=setTimeout(saveProject,600);
 }
+// глобальный список «Китай» — общий для всех заказов
+async function loadChina(){
+  try{
+    const d=await (await fetch("/api/projects/china-global/data")).json();
+    CHINA=new Set(d.added||[]);
+  }catch(e){ CHINA=new Set(); }
+}
+async function saveChina(){
+  try{
+    await fetch("/api/projects/china-global/data",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({adjustments:{},excluded:[],added:[...CHINA]})});
+  }catch(e){ alert("Список «Китай» не сохранился: "+e.message); }
+}
 async function saveProject(){
   if(!PID) return;
   try{
     await fetch("/api/projects/"+PID+"/data",{method:"POST",headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({adjustments:ORDERQ,excluded:[...EXCLUDED],added:[...CHINA]})});
+      body:JSON.stringify({adjustments:ORDERQ,excluded:[...EXCLUDED],added:[]})});
     document.getElementById("savestate").textContent="✓ сохранено";
     setTimeout(()=>{document.getElementById("savestate").textContent="";},1500);
   }catch(e){
@@ -742,7 +755,7 @@ document.addEventListener("click",(e)=>{
   if(t.classList&&t.classList.contains("mv-btn")&&t.dataset.to){
     const b=t.dataset.base;
     if(t.dataset.to==="china") CHINA.add(b); else CHINA.delete(b);
-    scheduleSave(); renderAll();
+    saveChina(); renderAll();
   }
   if(t.classList&&t.classList.contains("ret-btn")){
     const b=t.dataset.base;
