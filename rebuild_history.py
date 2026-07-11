@@ -319,6 +319,113 @@ def cost_prices():
     return data
 
 
+_sbm_cache = {"t": 0.0, "data": None}
+
+
+def sales_by_month():
+    """Нетто-продажи по месяцам и позициям: {base: {"2026-07": [qty, rev]}}. Кэш 1 час."""
+    if _sbm_cache["data"] is not None and time.time() - _sbm_cache["t"] < 3600:
+        return _sbm_cache["data"]
+    import main as site
+    conn = site.get_db()
+    rows = conn.execute("""
+        SELECT substr(date,1,7) AS m, sku_name,
+               SUM(CASE WHEN doc_type='sale' THEN qty ELSE -qty END) AS q,
+               SUM(CASE WHEN doc_type='sale' THEN revenue ELSE -revenue END) AS r
+        FROM sales_data GROUP BY 1, 2""").fetchall()
+    conn.close()
+    out = {}
+    for row in rows:
+        base = site._canon_name(row["sku_name"])
+        d = out.setdefault(base, {})
+        cur = d.get(row["m"]) or [0.0, 0.0]
+        cur[0] += row["q"] or 0
+        cur[1] += row["r"] or 0
+        d[row["m"]] = cur
+    for base, d in out.items():
+        for m, v in d.items():
+            d[m] = [round(v[0], 1), round(v[1])]
+    _sbm_cache["t"] = time.time()
+    _sbm_cache["data"] = out
+    return out
+
+
+def sales_range(date_from: str = "", date_to: str = ""):
+    """Нетто-продажи по позициям за период: {base: [qty, rev]}."""
+    import main as site
+    conn = site.get_db()
+    q = """SELECT sku_name,
+               SUM(CASE WHEN doc_type='sale' THEN qty ELSE -qty END) AS q,
+               SUM(CASE WHEN doc_type='sale' THEN revenue ELSE -revenue END) AS r
+           FROM sales_data WHERE 1=1"""
+    args = []
+    if date_from:
+        q += " AND date >= ?"; args.append(date_from)
+    if date_to:
+        q += " AND date <= ?"; args.append(date_to)
+    q += " GROUP BY sku_name"
+    rows = conn.execute(q, args).fetchall()
+    conn.close()
+    out = {}
+    for row in rows:
+        base = site._canon_name(row["sku_name"])
+        cur = out.get(base) or [0.0, 0.0]
+        cur[0] += row["q"] or 0
+        cur[1] += row["r"] or 0
+        out[base] = cur
+    return {b: [round(v[0], 1), round(v[1])] for b, v in out.items()}
+
+
+_sod_cache = {}
+
+
+def stock_on_date(date: str = ""):
+    """Остатки по 3 торговым складам на конец дня date — живой запрос к МойСкладу.
+    {date, stores:[имена], skus:{name:[q1,q2,q3]}}"""
+    import httpx
+    from datetime import date as _d
+    if not date:
+        date = _d.today().isoformat()
+    today = _d.today().isoformat()
+    ttl = 600 if date == today else 86400
+    hit = _sod_cache.get(date)
+    if hit and time.time() - hit[0] < ttl:
+        return hit[1]
+    stores = list(TRADE_STORES.items())
+    skus = {}
+    for idx, (sid, sname) in enumerate(stores):
+        flt = f"moment={date} 23:59:00;store={MS_API_BASE}/entity/store/{sid}"
+        offset = 0
+        while True:
+            r = None
+            for _attempt in range(6):
+                r = httpx.get(f"{MS_API_BASE}/report/stock/all",
+                              params={"filter": flt, "groupBy": "variant",
+                                      "limit": 1000, "offset": offset},
+                              headers=_ms_headers(), timeout=90)
+                if r.status_code == 429:
+                    time.sleep(3.5)
+                    continue
+                r.raise_for_status()
+                break
+            else:
+                raise RuntimeError("МойСклад: слишком много 429")
+            rows = r.json().get("rows", [])
+            for row in rows:
+                n = row.get("name")
+                q = float(row.get("stock") or 0)
+                if n and q:
+                    skus.setdefault(n, [0.0] * len(stores))[idx] += q
+            if len(rows) < 1000:
+                break
+            offset += 1000
+    data = {"date": date, "stores": [s for _, s in stores], "skus": skus}
+    if len(_sod_cache) > 120:
+        _sod_cache.clear()
+    _sod_cache[date] = (time.time(), data)
+    return data
+
+
 def attach(app):
     """Регистрирует роуты В НАЧАЛО списка — до catch-all /{full_path:path}."""
     try:
@@ -331,6 +438,9 @@ def attach(app):
     app.add_api_route("/api/rebuild-history-restore", rebuild_history_restore, methods=["POST"])
     app.add_api_route("/api/retail-prices", retail_prices, methods=["GET"])
     app.add_api_route("/api/cost-prices", cost_prices, methods=["GET"])
+    app.add_api_route("/api/sales-by-month", sales_by_month, methods=["GET"])
+    app.add_api_route("/api/sales-range", sales_range, methods=["GET"])
+    app.add_api_route("/api/stock-on-date", stock_on_date, methods=["GET"])
     new = app.router.routes[n0:]
     del app.router.routes[n0:]
     app.router.routes[:0] = new
