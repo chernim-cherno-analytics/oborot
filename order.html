@@ -254,10 +254,10 @@
     </div>
     <div class="note">Сортировка — по потенциалу выручки. В заказ автоматически не попадают: позиции с расчётом меньше 10 шт и позиции из архива оборачиваемости. Жёлтое поле — правлено вручную (себес сохраняется глобально, для всех заказов).</div>
 
-    <div class="excl-title" onclick="toggleExcl()"><span id="exclarrow">▸</span> Убранные из заказа (<span id="exclcnt">0</span>)</div>
+    <div class="excl-title" onclick="toggleExcl()"><span id="exclarrow">▸</span> Убранные из заказа — остальное в этой категории (<span id="exclcnt">0</span>)</div>
     <div class="table-outer" id="exclwrap" style="display:none;max-height:40vh">
-      <table style="min-width:700px">
-        <thead><tr><th>Название</th><th>Остаток</th><th>Необходимо</th><th></th></tr></thead>
+      <table style="min-width:800px">
+        <thead><tr><th>Название</th><th>Остаток</th><th>Необходимо</th><th>Почему не в заказе</th><th></th></tr></thead>
         <tbody id="etb"></tbody>
       </table>
     </div>
@@ -588,15 +588,22 @@ function renderTable(lab,china){
 
 function renderExcluded(){
   const etb=document.getElementById("etb");
+  // все остальные вещи текущей категории, не попавшие в заказ (кроме архива оборачиваемости)
   const list=Object.entries(computed)
-    .filter(([b])=>EXCLUDED.has(b))
+    .filter(([b,d])=>!hiddenItems.has(b)
+      &&(currentTab!=="lab"||d.cat===currentCat)
+      &&(EXCLUDED.has(b)||!inOrder(b,d)))
     .sort((a,b)=>(b[1].turn||0)-(a[1].turn||0));
   document.getElementById("exclcnt").textContent=list.length;
-  etb.innerHTML=list.length?"":'<tr><td colspan="4" class="loading">Пусто</td></tr>';
+  etb.innerHTML=list.length?"":'<tr><td colspan="5" class="loading">Пусто</td></tr>';
   for(const [base,d] of list){
+    const reason=EXCLUDED.has(base)
+      ?'<span style="font-size:10px;padding:1px 8px;border-radius:9px;background:rgba(221,0,4,0.12);color:#7a0002;font-weight:600">убрано вручную</span>'
+      :'<span style="font-size:10px;padding:1px 8px;border-radius:9px;background:rgba(31,31,31,0.08);color:#434446;font-weight:600">расчёт &lt; '+MIN_ORDER+' шт</span>';
     const tr=document.createElement("tr");
     tr.className=rowCls(d.turn,d.nr);
     tr.innerHTML=`<td>${base}</td><td class="nb">${fmt(stockAt(base,d))}</td><td class="nb">${fmt(necOf(base,d))}</td>
+      <td>${reason}</td>
       <td><button class="mv-btn ret-btn" data-base="${base.replace(/"/g,"&quot;")}">вернуть в заказ</button></td>`;
     etb.appendChild(tr);
   }
@@ -617,7 +624,10 @@ document.addEventListener("click",(e)=>{
     scheduleSave(); renderAll();
   }
   if(t.classList&&t.classList.contains("ret-btn")){
-    EXCLUDED.delete(t.dataset.base);
+    const b=t.dataset.base;
+    EXCLUDED.delete(b);
+    const d=computed[b];
+    if(d&&!inOrder(b,d)) ORDERQ[b]=Math.max(necOf(b,d),1); // авто-исключённую (< 10 шт) возвращаем принудительно
     scheduleSave(); renderAll();
   }
   if(t.classList&&t.classList.contains("x-btn")){
