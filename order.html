@@ -342,7 +342,7 @@ function computeAll(){
     const incoming=INCOMING[base]||0;
     const dsq=dis>0?skNq/dis:0;
     const need=Math.round(dsq*90);
-    computed[base]={cat,turn,nr:skNr,cs,incoming,need};
+    computed[base]={cat,turn,nr:skNr,cs,incoming,need,dsq};
   }
 }
 
@@ -357,9 +357,19 @@ function costOf(base){
 }
 // остаток на день заказа (снапшот); «едет к нам» учитывается под капотом
 function stockAt(base,d){ return STOCK_SNAP[base]!==undefined?STOCK_SNAP[base]:d.cs; }
-function necOf(base,d){
+// дней от сегодня до прихода заказа
+function daysUntilArrival(){
+  if(!PDATE) return 0;
+  return Math.max(0,Math.ceil((new Date(PDATE).getTime()-Date.now())/86400000));
+}
+// прогноз остатка на дату прихода: остаток + «едет к нам» − продажи до прихода
+function projStock(base,d){
   const inc=STOCK_SNAP[base]!==undefined?(INC_SNAP[base]||0):d.incoming;
-  return Math.max(0,d.need-(stockAt(base,d)+inc));
+  return Math.max(0,Math.round(stockAt(base,d)+inc-(d.dsq||0)*daysUntilArrival()));
+}
+// необходимо заказать = потребность на 90 дней после прихода − прогнозный остаток
+function necOf(base,d){
+  return Math.max(0,d.need-projStock(base,d));
 }
 function inOrder(base,d){
   if(hiddenItems.has(base)) return false;
@@ -368,6 +378,8 @@ function inOrder(base,d){
 }
 function qtyOf(base,d){ return ORDERQ[base]!==undefined?ORDERQ[base]:necOf(base,d); }
 function revOf(base,d){ return qtyOf(base,d)*costOf(base).price; }
+// профит с заказанных штук — по нему сортируется таблица
+function profOf(base,d){ const c=costOf(base); return qtyOf(base,d)*Math.max(0,c.price-c.total); }
 
 // ══════ Проекты ══════
 async function loadProjects(){
@@ -490,7 +502,7 @@ async function saveCost(base,v){
 
 // ══════ Рендер ══════
 // Лаборатория и Китай — параллельные корзины: каждая вещь принадлежит одной из них
-const byRev=(a,b)=>revOf(b[0],b[1])-revOf(a[0],a[1]);
+const byRev=(a,b)=>profOf(b[0],b[1])-profOf(a[0],a[1]);   // сортировка по профиту с заказа
 const inOrd=([b,d])=>inOrder(b,d)&&!EXCLUDED.has(b);
 function splitAll(){
   const all=Object.entries(computed).filter(([b])=>!hiddenItems.has(b));
@@ -550,7 +562,7 @@ function selCat(c){ currentCat=c; renderAll(); }
 
 function renderHead(){
   const common='<th>Название</th>'+
-    '<th>Остаток<br><span class="sub">на день заказа</span></th>'+
+    '<th>Остаток<br><span class="sub">прогноз к приходу</span></th>'+
     '<th>Необходимо<br><span class="sub">на 90 дней</span></th>'+
     '<th>Заказ<br><span class="sub">шт</span></th>';
   let cols;
@@ -593,8 +605,8 @@ function renderTable(lab,china){
     tr.className=rowCls(d.turn,d.nr);
     const head=`
       <td>${base}</td>
-      <td class="nb">${fmt(stockAt(base,d))}</td>
-      <td class="nb nbig">${fmt(nec)}</td>
+      <td class="nb">${fmt(projStock(base,d))}</td>
+      <td class="nb nbig">${fmt(d.need)}</td>
       <td><input class="qin${manualQ?' manual':''}" type="number" min="0" step="1" value="${q}" data-base="${esc}"></td>`;
     const tail=`
       <td><button class="mv-btn" data-base="${esc}" data-to="${currentTab==="lab"?"china":"lab"}">${currentTab==="lab"?"в Китай →":"← в Лабу"}</button></td>
@@ -638,7 +650,7 @@ function renderExcluded(labAll,chinaAll){
     const tr=document.createElement("tr");
     tr.className=rowCls(d.turn,d.nr);
     tr.innerHTML=`<td>${base}</td>
-      <td class="nb">${fmt(stockAt(base,d))}</td><td class="nb">${fmt(necOf(base,d))}</td>
+      <td class="nb">${fmt(projStock(base,d))}</td><td class="nb">${fmt(necOf(base,d))}</td>
       <td>${reason}</td>
       <td><button class="mv-btn ret-btn" data-base="${base.replace(/"/g,"&quot;")}">вернуть в заказ</button></td>`;
     etb.appendChild(tr);
