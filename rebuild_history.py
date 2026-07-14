@@ -512,6 +512,71 @@ def yandex_live():
     return data
 
 
+_bys_cache = {"t": 0.0, "data": None}
+
+
+def stocks_bystore_live():
+    """Замена /api/stocks-bystore: остатки берём ЖИВЬЁМ из МойСклада
+    (отчёт остатков зеркала LensSklad может отставать), хронологию продаж — из зеркала.
+    Формат совместим со старым эндпоинтом."""
+    import re as _re2
+    import main as site
+    if _bys_cache["data"] is not None and time.time() - _bys_cache["t"] < 300:
+        return _bys_cache["data"]
+    data = stock_on_date()          # сегодня, напрямую из МойСклада
+    stores = data["stores"]
+    skus = {}
+    for full, per in data["skus"].items():
+        base = site._canon_name(full)
+        m = _re2.search(r"\(([^)]+)\)\s*$", full)
+        size = m.group(1) if m else ""
+        rec = skus.setdefault(base, {"per_store": [0.0] * len(stores), "total": 0.0, "sizes": {}})
+        for i, q in enumerate(per):
+            rec["per_store"][i] += q
+        rec["total"] += sum(per)
+        srec = rec["sizes"].setdefault(size, {"full": full, "per": [0.0] * len(stores),
+                                              "last": [None] * len(stores), "seen": [None] * len(stores)})
+        for i, q in enumerate(per):
+            srec["per"][i] += q
+    # хронология последних продаж — из зеркала (отгрузки там свежие)
+    try:
+        import sync
+        pg = sync.get_pg()
+        cur = pg.cursor()
+        cur.execute("""
+            SELECT sku, store, MAX(last)::date FROM (
+                SELECT COALESCE(v.name, p.name) AS sku, st.name AS store, MAX(h.moment) AS last
+                FROM lendemand_position dp
+                JOIN lendemand h ON h.id = dp.id
+                JOIN lenstore st ON st.id = h.store_id
+                LEFT JOIN lenvariant v ON v.id = RIGHT(dp.assortment_id, 36)
+                LEFT JOIN lenproduct p ON p.id = RIGHT(dp.assortment_id, 36)
+                WHERE COALESCE(v.name, p.name) IS NOT NULL GROUP BY 1, 2
+                UNION ALL
+                SELECT COALESCE(v.name, p.name), st.name, MAX(h.moment)
+                FROM lenretaildemand_position rp
+                JOIN lenretaildemand h ON h.id = rp.id
+                JOIN lenstore st ON st.id = h.store_id
+                LEFT JOIN lenvariant v ON v.id = RIGHT(rp.assortment_id, 36)
+                LEFT JOIN lenproduct p ON p.id = RIGHT(rp.assortment_id, 36)
+                WHERE COALESCE(v.name, p.name) IS NOT NULL GROUP BY 1, 2
+            ) t GROUP BY 1, 2""")
+        last_map = {(str(a), str(b)): str(c) for a, b, c in cur.fetchall() if a and b and c}
+        pg.close()
+        seen = site._seen_map()
+        for base, rec in skus.items():
+            for size, srec in rec["sizes"].items():
+                for i, st in enumerate(stores):
+                    srec["last"][i] = last_map.get((srec["full"], st))
+                    srec["seen"][i] = seen.get((srec["full"], site._store_key(st)))
+    except Exception:
+        pass
+    out = {"stores": stores, "skus": skus}
+    _bys_cache["t"] = time.time()
+    _bys_cache["data"] = out
+    return out
+
+
 def attach(app):
     """Регистрирует роуты В НАЧАЛО списка — до catch-all /{full_path:path}."""
     try:
@@ -528,6 +593,8 @@ def attach(app):
     app.add_api_route("/api/sales-range", sales_range, methods=["GET"])
     app.add_api_route("/api/stock-on-date", stock_on_date, methods=["GET"])
     app.add_api_route("/api/yandex-live", yandex_live, methods=["GET"])
+    # перекрывает старый /api/stocks-bystore (зеркало) — остатки теперь напрямую из МойСклада
+    app.add_api_route("/api/stocks-bystore", stocks_bystore_live, methods=["GET"])
     new = app.router.routes[n0:]
     del app.router.routes[n0:]
     app.router.routes[:0] = new

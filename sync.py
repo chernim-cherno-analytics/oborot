@@ -1,56 +1,32 @@
 # -*- coding: utf-8 -*-
 """
-sync.py — автосинк данных МойСклад (PostgreSQL, выгрузка LensSklad) → SQLite сайта.
+sync.py — автосинк данных МойСклад → SQLite сайта.
+
+Остатки: НАПРЯМУЮ из МойСклад API (через rebuild_history.stock_on_date) —
+отчёт остатков зеркала LensSklad может отставать от реальности.
+Продажи/возвраты: из зеркала Postgres (LensSklad) — документы там свежие.
 
 Пишет в те же таблицы и в том же формате, что ручные загрузчики:
   - stock_snapshots (date, sku_name, stock_qty)  — снапшот остатков на сегодня
+  - stock_bystore (date, store, sku_name, qty)   — по складам (хронология)
   - sales_data (date, sku_name, qty, revenue, doc_type)  — продажи/возвраты по дням
-
-Ничего в существующей логике сайта не меняет. Идемпотентен: повторный запуск
-за тот же день даёт тот же результат (REPLACE / delete+insert).
-
-Перед первым боевым запуском:
-  1. Дождаться окончания первичной выгрузки LensSklad.
-  2. GET /api/sync-inspect  — посмотреть реальные имена таблиц/колонок в PG
-     и при расхождении поправить блок SCHEMA ниже.
-  3. POST /api/sync-now?dry=1  — прогон без записи, вернёт сверку.
-  4. POST /api/sync-now        — боевой прогон, затем сверить цифры на сайте.
 """
 
 import os
-import json
 import sqlite3
 from datetime import date, datetime, timedelta
 
 PG_URL = os.environ.get("PG_URL", "")
 DB_PATH = "/data/stocks.db"
 
-# ── SCHEMA: имена таблиц/колонок в PG (префикс LensSklad = "len") ─────────────
-# LensSklad выгружает сущности "практически как в API МойСклад".
-# Если /api/sync-inspect покажет другие имена — правьте только этот блок.
-# Имена таблиц сверены с вкладкой «Таблицы» LensSklad 09.07.2026:
-# lendemand / lendemand_position, lenretaildemand / lenretaildemand_position,
-# lensalesreturn / lensalesreturn_position, lenreport_stock_bystore,
-# lenproduct, lenvariant, lencustomerorder, lenstore, lenmove...
-# Имена КОЛОНОК — проверить через /api/sync-inspect после окончания выгрузки.
 SCHEMA = {
-    "stock_table":   "lenreport_stock_bystore",   # остатки по складам (сверено)
-    "stock_name":    "name",                      # колонка с названием — проверить в inspect
-    "stock_qty":     "stock",                     # колонка с количеством — проверить в inspect
-    "demand":        "lendemand",                 # отгрузки, шапки (сверено)
-    "retaildemand":  "lenretaildemand",           # розничные продажи, шапки (сверено)
-    "salesreturn":   "lensalesreturn",            # возвраты, шапки (сверено)
-    "positions_suffix": "_position",              # позиции: lendemand_position (сверено)
-    "pos_parent_id": "{parent}_id",               # FK позиции на шапку — проверить в inspect
-    "pos_assortment":"assortment_name",           # название позиции — проверить в inspect
-    "moment":        "moment",                    # дата документа в шапке
-    "qty":           "quantity",
-    "price":         "price",                     # в КОПЕЙКАХ (API МойСклад)
-    "discount":      "discount",                  # % скидки на позицию
+    "demand":        "lendemand",
+    "retaildemand":  "lenretaildemand",
+    "salesreturn":   "lensalesreturn",
 }
 
 SALES_DAYS_BACK = int(os.environ.get("SYNC_DAYS_BACK", "3"))
-MIN_STOCK_ROWS = 10   # защита: не пишем снапшот, если в PG подозрительно пусто
+MIN_STOCK_ROWS = 10   # защита: не пишем снапшот, если данных подозрительно мало
 
 
 # ── подключения ───────────────────────────────────────────────────────────────
@@ -59,7 +35,7 @@ def get_pg():
     import psycopg2
     import psycopg2.extras
     conn = psycopg2.connect(PG_URL, sslmode="prefer", connect_timeout=15)
-    conn.set_session(readonly=True)   # из PG только читаем — гарантия безопасности
+    conn.set_session(readonly=True)
     return conn
 
 
@@ -69,10 +45,9 @@ def get_sqlite():
     return conn
 
 
-# ── инспектор схемы PG (для первичной настройки) ─────────────────────────────
+# ── инспектор схемы PG (для отладки) ─────────────────────────────────────────
 
 def inspect_schema(prefix: str = "len"):
-    """Список таблиц len_* и их колонок — чтобы выверить SCHEMA."""
     pg = get_pg()
     cur = pg.cursor()
     cur.execute("""
@@ -93,12 +68,6 @@ def inspect_schema(prefix: str = "len"):
     return {"tables": out, "row_counts": counts}
 
 
-# ── остатки: снапшот на сегодня ───────────────────────────────────────────────
-
-STORE_FILTERS = [x.strip().lower() for x in os.environ.get(
-    "STORES", "мясницк,горохов,интернет").split(",") if x.strip()]
-
-
 def _init_bystore_table(lite):
     lite.execute("""CREATE TABLE IF NOT EXISTS stock_bystore (
         date TEXT NOT NULL, store TEXT NOT NULL, sku_name TEXT NOT NULL,
@@ -107,27 +76,22 @@ def _init_bystore_table(lite):
     lite.execute("CREATE INDEX IF NOT EXISTS idx_bs_sku ON stock_bystore(sku_name)")
 
 
+# ── остатки: снапшот на сегодня — НАПРЯМУЮ ИЗ МОЙСКЛАДА ─────────────────────
+
 def sync_stock(dry: bool = False):
-    """Снапшот остатков ТОЛЬКО по нужным складам (как на сайте):
-    суммарно — в stock_snapshots, по складам — в stock_bystore (хронология)."""
-    pg = get_pg()
-    cur = pg.cursor()
-    # r.id = id модификации/товара; имя через lenvariant/lenproduct
-    cur.execute("""SELECT COALESCE(v.name, p.name, pp.name) AS sku,
-                          st.name AS store, SUM(COALESCE(r.stock,0))
-                   FROM lenreport_stock_bystore r
-                   JOIN lenstore st ON st.id = r.store_id
-                   LEFT JOIN lenvariant v ON v.id = r.id
-                   LEFT JOIN lenproduct p ON p.id = r.id
-                   LEFT JOIN lenproduct pp ON pp.id = r.product_id
-                   WHERE COALESCE(v.name, p.name, pp.name) IS NOT NULL
-                   GROUP BY 1, 2""")
-    rows = [(str(n), str(st), float(q or 0)) for n, st, q in cur.fetchall()
-            if n and st and any(f in str(st).lower() for f in STORE_FILTERS)]
-    pg.close()
+    """Снапшот остатков по 3 торговым складам из живого МойСклад API:
+    суммарно — в stock_snapshots, по складам — в stock_bystore."""
+    import rebuild_history as rh
+    data = rh.stock_on_date()          # сегодня, из МойСклада (кэш 10 мин)
+    stores = data["stores"]
+    rows = []
+    for name, per in data["skus"].items():
+        for st, q in zip(stores, per):
+            if q:
+                rows.append((str(name), str(st), float(q)))
 
     if len(rows) < MIN_STOCK_ROWS:
-        raise RuntimeError(f"Остатки в PG подозрительно пусты ({len(rows)} строк) — снапшот не записан")
+        raise RuntimeError(f"Остатки из МойСклада подозрительно пусты ({len(rows)} строк) — снапшот не записан")
 
     totals = {}
     for n, st, q in rows:
@@ -137,7 +101,7 @@ def sync_stock(dry: bool = False):
     now = datetime.now().isoformat()
     if dry:
         return {"stock_skus": len(totals), "stock_total_qty": sum(totals.values()),
-                "stores": sorted({st for _, st, _ in rows}), "date": today, "dry": True}
+                "stores": stores, "date": today, "source": "moysklad-live", "dry": True}
 
     lite = get_sqlite()
     _init_bystore_table(lite)
@@ -152,16 +116,13 @@ def sync_stock(dry: bool = False):
         [(today, st, n, q) for n, st, q in rows]
     )
     lite.commit(); lite.close()
-    return {"stock_skus": len(totals), "bystore_rows": len(rows), "date": today}
+    return {"stock_skus": len(totals), "bystore_rows": len(rows), "date": today,
+            "source": "moysklad-live"}
 
 
-# ── продажи/возвраты за последние N дней ─────────────────────────────────────
+# ── продажи/возвраты за последние N дней (из зеркала — документы свежие) ─────
 
 def _fetch_docs(pg, head_table: str, days_back: int):
-    """Позиции документов, агрегированные по (день, имя SKU).
-    Схема LensSklad: у таблицы позиций id = id документа-родителя,
-    товар — через assortment_id → lenvariant/lenproduct.
-    Выручка = price*quantity*(1-discount/100)/100  (копейки → рубли)."""
     pos_table = head_table + "_position"
     cutoff = (date.today() - timedelta(days=days_back)).isoformat()
     cur = pg.cursor()
@@ -188,7 +149,7 @@ def sync_sales(dry: bool = False, days_back: int = SALES_DAYS_BACK):
     try:
         sales += _fetch_docs(pg, SCHEMA["retaildemand"], days_back)
     except Exception:
-        pg.rollback()   # розницы может не быть — не критично
+        pg.rollback()
     try:
         returns = _fetch_docs(pg, SCHEMA["salesreturn"], days_back)
     except Exception:
@@ -196,7 +157,6 @@ def sync_sales(dry: bool = False, days_back: int = SALES_DAYS_BACK):
         returns = []
     pg.close()
 
-    # схлопываем demand+retaildemand по (день, SKU)
     agg = {}
     for d, sku, qty, rev in sales:
         k = (d, sku)
@@ -216,7 +176,6 @@ def sync_sales(dry: bool = False, days_back: int = SALES_DAYS_BACK):
         }
 
     lite = get_sqlite()
-    # тот же механизм, что в ручном загрузчике: delete по датам → insert
     for d in dates_sales:
         lite.execute("DELETE FROM sales_data WHERE date=? AND doc_type='sale'", (d,))
     lite.executemany(
@@ -236,16 +195,12 @@ def sync_sales(dry: bool = False, days_back: int = SALES_DAYS_BACK):
             "returns_days": dates_ret, "returns_rows": len(returns)}
 
 
-# ── сверка имён SKU (этап проверки перед включением) ─────────────────────────
+# ── сверка имён SKU ───────────────────────────────────────────────────────────
 
 def verify_names(limit: int = 50):
-    """Имена из PG, которых нет в stock_snapshots сайта (кандидаты в SKU_ALIASES)."""
-    s = SCHEMA
-    pg = get_pg()
-    cur = pg.cursor()
-    cur.execute(f"SELECT DISTINCT {s['stock_name']} FROM {s['stock_table']}")
-    pg_names = {str(r[0]) for r in cur.fetchall() if r[0]}
-    pg.close()
+    import rebuild_history as rh
+    data = rh.stock_on_date()
+    pg_names = set(data["skus"].keys())
 
     lite = get_sqlite()
     site_names = {r[0] for r in lite.execute("SELECT DISTINCT sku_name FROM stock_snapshots")}
@@ -274,7 +229,7 @@ def sync_all(dry: bool = False):
             result["caches"] = "rebuilt"
         result["ok"] = True
         _notify(f"✅ Синк ОК {started}\n"
-                f"Остатки: {result['stock'].get('stock_skus')} SKU\n"
+                f"Остатки (МойСклад напрямую): {result['stock'].get('stock_skus')} SKU\n"
                 f"Продажи: {result['sales'].get('sales_rows')} строк за {len(result['sales'].get('sales_days', []))} дн.",
                 dry)
     except Exception as e:
@@ -285,7 +240,6 @@ def sync_all(dry: bool = False):
 
 
 def _notify(text: str, dry: bool):
-    """Синхронная отправка в Telegram (работает и из фонового планировщика)."""
     if dry:
         return
     tok = os.environ.get("TG_TOKEN", "")
@@ -297,4 +251,4 @@ def _notify(text: str, dry: bool):
         httpx.post(f"https://api.telegram.org/bot{tok}/sendMessage",
                    json={"chat_id": chat, "text": text}, timeout=10)
     except Exception:
-        pass  # телега не критична
+        pass
