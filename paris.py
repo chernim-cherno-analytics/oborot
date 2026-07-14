@@ -16,7 +16,7 @@
 Либо (запасной вариант) статический SHOPIFY_TOKEN.
 """
 import os, time, json
-import requests
+import httpx
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse, FileResponse
 
@@ -37,7 +37,7 @@ def _get_token():
     now = time.time()
     if _TOK["token"] and now - _TOK["t"] < 23 * 3600:
         return _TOK["token"]
-    r = requests.post(
+    r = httpx.post(
         f"https://{SHOP}/admin/oauth/access_token",
         data={"grant_type": "client_credentials",
               "client_id": CLIENT_ID, "client_secret": CLIENT_SECRET},
@@ -269,9 +269,9 @@ def _fetch_shopify():
     }"""
     items, after = [], None
     for _ in range(20):
-        r = requests.post(url, headers=headers,
-                          json={"query": q, "variables": {"first": 100, "after": after}},
-                          timeout=30)
+        r = httpx.post(url, headers=headers,
+                       json={"query": q, "variables": {"first": 100, "after": after}},
+                       timeout=30)
         if r.status_code == 429:
             time.sleep(2.5)
             continue
