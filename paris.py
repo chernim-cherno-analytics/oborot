@@ -205,7 +205,7 @@ PARIS_MAP = {
     "\"Amalfi\" Brown Sweater": "Коричневый свитер \"Амальфи\"",
     "\"The Sea is Restless\" Milk Sweatshirt": "Молочный свитшот \"Море волнуется раз\"",
     # ---- соответствие не найдено (нет очевидного русского имени) ----
-    "\"Puck\" Black Trousers": None,
+    "\"Puck\" Black Trousers": "Брюки со складками",
     "\"Cowboy\" White Shirt": "Белая рубашка \"Ковбой\"",
     "\"Cowboy\" Black Shirt": "Черная рубашка \"Ковбой\"",
     "\"Heads and Tails\" Blue-Light Blue Shirt": "Рубашка сине-голубая \"Орёл и Решка\"",
@@ -231,7 +231,7 @@ PARIS_MAP = {
     "Chainmail Crop Top": "Кроп кольчуга",
     "Chainmail Bib": "Манишка кольчуга",
     "Black & White Scarf": "Шарф",
-    "11 mm Hoop Earring": None,
+    "12 mm Hoop Earring": "Серьга 12 мм",
     "\"Rugby\" Black Bomber": "Черный бомбер \"Регби\"",
 }
 
