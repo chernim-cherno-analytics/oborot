@@ -577,6 +577,80 @@ def stocks_bystore_live():
     return out
 
 
+_settle_cache = {"t": 0.0}
+
+
+def settle_incoming(force: int = 0):
+    """Взаимозачёт: приёмки и оприходования из МойСклада (на любые склады,
+    включая Съёмку/Списания/БРАК) автоматически вычитаются из графы «Заказано»
+    (analytics-ordered) на странице Остатков. Каждый документ учитывается один раз."""
+    import httpx
+    import main as site
+    if not force and time.time() - _settle_cache["t"] < 600:
+        return {"ok": True, "cached": True}
+    _settle_cache["t"] = time.time()
+    conn = site.get_db()
+    done = {r["sku_base"] for r in conn.execute(
+        "SELECT sku_base FROM order_added WHERE project_id='settled-docs'").fetchall()}
+    ordered = {r["sku_base"]: r["qty_adj"] for r in conn.execute(
+        "SELECT sku_base, qty_adj FROM sku_adjustments "
+        "WHERE project_id='analytics-ordered' AND qty_adj>0").fetchall()}
+    from datetime import date as _d, timedelta as _td
+    cutoff = (_d.today() - _td(days=60)).isoformat()
+    new_docs = []
+    deltas = {}
+    for ent in ("supply", "enter"):
+        offset = 0
+        while True:
+            r = None
+            for _attempt in range(6):
+                r = httpx.get(f"{MS_API_BASE}/entity/{ent}",
+                              params={"filter": f"moment>={cutoff} 00:00:00",
+                                      "expand": "positions.assortment",
+                                      "limit": 50, "offset": offset},
+                              headers=_ms_headers(), timeout=60)
+                if r.status_code == 429:
+                    time.sleep(3.5)
+                    continue
+                r.raise_for_status()
+                break
+            else:
+                raise RuntimeError("МойСклад: слишком много 429")
+            rows = r.json().get("rows", [])
+            for doc in rows:
+                did = ent + ":" + str(doc.get("id", ""))
+                if not doc.get("id") or did in done:
+                    continue
+                pos = (doc.get("positions") or {}).get("rows") or []
+                for p in pos:
+                    nm = ((p.get("assortment") or {}).get("name")) or ""
+                    if not nm:
+                        continue
+                    base = site._canon_name(nm)
+                    deltas[base] = deltas.get(base, 0.0) + float(p.get("quantity") or 0)
+                new_docs.append(did)
+            if len(rows) < 50:
+                break
+            offset += 50
+    applied = {}
+    now = datetime.now().isoformat()
+    for base, q in deltas.items():
+        cur = ordered.get(base, 0)
+        if cur <= 0:
+            continue
+        newv = max(0, int(round(cur - q)))
+        conn.execute("INSERT OR REPLACE INTO sku_adjustments "
+                     "(project_id, sku_base, qty_adj, updated_at) "
+                     "VALUES ('analytics-ordered', ?, ?, ?)", (base, newv, now))
+        applied[base] = {"was": cur, "received": round(q, 1), "now": newv}
+    for did in new_docs:
+        conn.execute("INSERT OR IGNORE INTO order_added (project_id, sku_base, added_at) "
+                     "VALUES ('settled-docs', ?, ?)", (did, now))
+    conn.commit()
+    conn.close()
+    return {"ok": True, "new_docs": len(new_docs), "applied": applied}
+
+
 def attach(app):
     """Регистрирует роуты В НАЧАЛО списка — до catch-all /{full_path:path}."""
     try:
@@ -595,6 +669,7 @@ def attach(app):
     app.add_api_route("/api/yandex-live", yandex_live, methods=["GET"])
     # перекрывает старый /api/stocks-bystore (зеркало) — остатки теперь напрямую из МойСклада
     app.add_api_route("/api/stocks-bystore", stocks_bystore_live, methods=["GET"])
+    app.add_api_route("/api/settle-incoming", settle_incoming, methods=["GET", "POST"])
     new = app.router.routes[n0:]
     del app.router.routes[n0:]
     app.router.routes[:0] = new

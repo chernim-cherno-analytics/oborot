@@ -272,6 +272,8 @@ function shortStore(s){
 }
 
 async function loadAll(){
+  // взаимозачёт: свежие приёмки из МойСклада вычитаются из «Заказано» до загрузки
+  try{ await fetch("/api/settle-incoming",{method:"POST"}); }catch(e){}
   try{
     const [aRes,tRes,hRes,bRes,oRes]=await Promise.all([
       fetch("/api/analytics-data"), fetch("/api/turnover-data"),
@@ -436,7 +438,7 @@ function renderHead(){
   if(hasStores){ for(const s of STORES) cols+='<th>'+shortStore(s)+'<span class="sub">шт</span></th>'; }
   else cols+='<th>Остаток<span class="sub">все склады</span></th>';
   cols+='<th>Сток на 90 дн<span class="sub">запас</span></th><th>Недостаток<span class="sub">шт на 90 дн</span></th>';
-  cols+='<th>Заказано<span class="sub">ждём подсортировку</span></th>';
+  cols+='<th>Заказано<span class="sub">приёмки вычитаются сами</span></th>';
   document.getElementById("thead").innerHTML='<tr>'+cols+'</tr>';
 }
 

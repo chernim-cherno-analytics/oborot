@@ -222,6 +222,12 @@ def sync_all(dry: bool = False):
         result["stock"] = sync_stock(dry=dry)
         result["sales"] = sync_sales(dry=dry)
         if not dry:
+            try:
+                import rebuild_history as rh
+                result["settle"] = rh.settle_incoming(force=1)   # приёмки → вычет из «Заказано»
+            except Exception as e:
+                result["settle"] = {"error": str(e)}
+        if not dry:
             import main as site
             conn = site.get_db()
             site.rebuild_analytics_json(conn)
