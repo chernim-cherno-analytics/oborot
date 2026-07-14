@@ -143,6 +143,7 @@
 <div class="ctip" id="ctip"></div>
 
 <script>
+function mw(name,q){ if(!q) return true; const nl=name.toLowerCase(); return q.split(/\s+/).every(w=>nl.includes(w)); }
 const CATEGORIES = {
   "Верхняя одежда": ["бомбер","куртка","тренч","пальто","ветровка","олимпийка","комбинезон","фрак","меховой пиджак"],
   "Костюмы": ["пиджак","жилет-галстук","корсетный жилет"],
@@ -246,7 +247,7 @@ async function applyPeriod(from,to){
 let LAST_ITEMS=[], LAST_TOTR=0;
 function renderTop(){
   const q=(document.getElementById("search").value||"").toLowerCase();
-  const list=q?LAST_ITEMS.filter(it=>it.base.toLowerCase().includes(q)).slice(0,50):LAST_ITEMS.slice(0,15);
+  const list=q?LAST_ITEMS.filter(it=>mw(it.base,q)).slice(0,50):LAST_ITEMS.slice(0,15);
   document.getElementById("top-title").textContent=(q?"Найдено: "+list.length+" · ":"Топ-15 позиций · ")+periodLabel();
   const maxTop=list.length?Math.max(...list.map(x=>x.r)):1;
   document.getElementById("toptb").innerHTML=list.map((it,i)=>

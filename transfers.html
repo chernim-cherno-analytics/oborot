@@ -128,6 +128,7 @@
 </div>
 
 <script>
+function mw(name,q){ if(!q) return true; const nl=name.toLowerCase(); return q.split(/\s+/).every(w=>nl.includes(w)); }
 const CATEGORIES = {
   "Верхняя одежда": ["бомбер","куртка","тренч","пальто","ветровка","олимпийка","комбинезон","фрак","меховой пиджак"],
   "Костюмы": ["пиджак","жилет-галстук","корсетный жилет"],
@@ -228,7 +229,7 @@ function render(){
   const tb=document.getElementById("tb");
   tb.innerHTML="";
   const items=Object.entries(GROUPS)
-    .filter(([b,g])=>g.total>0&&(q?b.toLowerCase().includes(q):g.cat===currentCat))
+    .filter(([b,g])=>g.total>0&&(q?mw(b,q):g.cat===currentCat))
     .sort((a,b)=>b[1].total-a[1].total);
   if(!items.length){ tb.innerHTML='<tr><td colspan="5" class="loading">Пусто</td></tr>'; return; }
   const frag=document.createDocumentFragment();

@@ -251,6 +251,7 @@
 
 <script>
 // ══════ Справочники ══════
+function mw(name,q){ if(!q) return true; const nl=name.toLowerCase(); return q.split(/\s+/).every(w=>nl.includes(w)); }
 const CATEGORIES = {
   "Верхняя одежда": ["бомбер","куртка","тренч","пальто","ветровка","олимпийка","комбинезон","фрак","меховой пиджак"],
   "Костюмы": ["пиджак","жилет-галстук","корсетный жилет"],
@@ -608,7 +609,7 @@ function renderTable(lab,china){
   const tb=document.getElementById("tb");
   tb.innerHTML="";
   const q=(document.getElementById("search").value||"").toLowerCase();
-  const rows=(currentTab==="lab"?lab:china).filter(([b,d])=>q?b.toLowerCase().includes(q):d.cat===currentCat);
+  const rows=(currentTab==="lab"?lab:china).filter(([b,d])=>q?mw(b,q):d.cat===currentCat);
   if(!rows.length){
     tb.innerHTML=`<tr><td colspan="13" class="loading">${currentTab==="china"&&!china.length?"В Китай пока ничего не отправлено — используй кнопку «в Китай» в таблице Лаборатории":"В этой категории пусто"}</td></tr>`;
     return;
@@ -655,7 +656,7 @@ function renderExcluded(labAll,chinaAll){
   const etb=document.getElementById("etb");
   // убранные — только из своей корзины: у Лабы своя категория, у Китая только китайские
   const qe=(document.getElementById("search").value||"").toLowerCase();
-  const pool=(currentTab==="lab"?labAll:chinaAll).filter(([b,d])=>qe?b.toLowerCase().includes(qe):d.cat===currentCat);
+  const pool=(currentTab==="lab"?labAll:chinaAll).filter(([b,d])=>qe?mw(b,qe):d.cat===currentCat);
   const list=pool
     .filter(([b,d])=>EXCLUDED.has(b)||!inOrder(b,d))
     .sort((a,b)=>(b[1].turn||0)-(a[1].turn||0));

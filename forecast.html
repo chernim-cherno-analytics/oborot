@@ -123,6 +123,7 @@
 <div class="ctip" id="ctip"></div>
 
 <script>
+function mw(name,q){ if(!q) return true; const nl=name.toLowerCase(); return q.split(/\s+/).every(w=>nl.includes(w)); }
 const CATEGORIES = {
   "Верхняя одежда": ["бомбер","куртка","тренч","пальто","ветровка","олимпийка","комбинезон","фрак","меховой пиджак"],
   "Костюмы": ["пиджак","жилет-галстук","корсетный жилет"],
@@ -164,7 +165,7 @@ function renderSearch(){
   const q=(document.getElementById("search").value||"").toLowerCase();
   const tbl=document.getElementById("stbl");
   if(q.length<2){ tbl.style.display="none"; return; }
-  const list=ITEMS.filter(x=>x.base.toLowerCase().includes(q)).sort((a,b)=>(b.cs+b.inc)*b.ap-(a.cs+a.inc)*a.ap).slice(0,30);
+  const list=ITEMS.filter(x=>mw(x.base,q)).sort((a,b)=>(b.cs+b.inc)*b.ap-(a.cs+a.inc)*a.ap).slice(0,30);
   tbl.style.display="";
   document.getElementById("stb").innerHTML=list.map(x=>{
     const days=x.dsq>0?Math.round((x.cs+x.inc)/x.dsq):null;

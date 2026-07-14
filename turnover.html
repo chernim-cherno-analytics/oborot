@@ -288,6 +288,7 @@ let CHART_DATES = [];
 let SKUS = {};
 let RETAIL = {};
 
+function mw(name,q){ if(!q) return true; const nl=name.toLowerCase(); return q.split(/\s+/).every(w=>nl.includes(w)); }
 const CATEGORIES = {
   "Верхняя одежда": ["бомбер","куртка","тренч","пальто","ветровка","олимпийка","комбинезон","фрак","меховой пиджак"],
   "Костюмы": ["пиджак","жилет-галстук","корсетный жилет"],
@@ -578,7 +579,7 @@ function render() {
   tb.innerHTML="";
   const q=(document.getElementById("search").value||"").toLowerCase();
   const items=Object.entries(computed)
-    .filter(([b])=>!hiddenItems.has(b)&&getCat(b)&&(q?b.toLowerCase().includes(q):getCat(b)===currentCat))
+    .filter(([b])=>!hiddenItems.has(b)&&getCat(b)&&(q?mw(b,q):getCat(b)===currentCat))
     .sort((a,b)=>(b[1].turn||0)-(a[1].turn||0));
   if(!items.length){tb.innerHTML=`<tr><td colspan="15" class="loading">Нет данных</td></tr>`;return;}
   const withS=items.filter(([,d])=>d.nr>0);
@@ -713,7 +714,7 @@ function renderArchive() {
   atb.innerHTML="";
   const qa=(document.getElementById("search").value||"").toLowerCase();
   const items=Object.entries(computed)
-    .filter(([b])=>hiddenItems.has(b)&&getCat(b)&&(qa?b.toLowerCase().includes(qa):true))
+    .filter(([b])=>hiddenItems.has(b)&&getCat(b)&&(qa?mw(b,qa):true))
     .sort((a,b)=>(b[1].turn||0)-(a[1].turn||0));
   document.getElementById("acnt").textContent=items.length?("· "+items.length+" позиций"):"";
   if(!items.length){atb.innerHTML=`<tr><td colspan="15" class="loading">Архив пуст</td></tr>`;return;}

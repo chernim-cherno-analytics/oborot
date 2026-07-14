@@ -217,6 +217,7 @@ let computed={}, currentCat="Верхняя одежда";
 let ORDERED={};                      // sku_base -> заказано шт (ждём подсортировку)
 const ORD_PID="analytics-ordered";   // project_id для серверного хранения
 
+function mw(name,q){ if(!q) return true; const nl=name.toLowerCase(); return q.split(/\s+/).every(w=>nl.includes(w)); }
 const CATEGORIES = {
   "Верхняя одежда": ["бомбер","куртка","тренч","пальто","ветровка","олимпийка","комбинезон","фрак","меховой пиджак"],
   "Костюмы": ["пиджак","жилет-галстук","корсетный жилет"],
@@ -516,7 +517,7 @@ function render(){
   const tb=document.getElementById("tb"); tb.innerHTML="";
   const items=Object.entries(computed)
     .filter(function(e){ return !hiddenItems.has(e[0])
-      &&(q?e[0].toLowerCase().includes(q):e[1].cat===currentCat); })
+      &&(q?mw(e[0],q):e[1].cat===currentCat); })
     .sort(function(x,y){ return (y[1].turn||0)-(x[1].turn||0); });
   const withS=items.filter(function(e){return e[1].nr>0;}), noS=items.filter(function(e){return e[1].nr===0;});
   const ncols=(hasStores?STORES.length:1)+4;

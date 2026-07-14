@@ -128,6 +128,7 @@
 <div class="ctip" id="ctip"></div>
 
 <script>
+function mw(name,q){ if(!q) return true; const nl=name.toLowerCase(); return q.split(/\s+/).every(w=>nl.includes(w)); }
 function fmt(n){ return Math.round(n||0).toLocaleString("ru-RU"); }
 function fmtM(n){
   n=n||0;
@@ -191,7 +192,7 @@ function render(){
   // топ
   const qs=(document.getElementById("search").value||"").toLowerCase();
   const sorted=items.sort((a,b)=>b.r-a.r);
-  const top=qs?sorted.filter(it=>it.base.toLowerCase().includes(qs)).slice(0,50):sorted.slice(0,20);
+  const top=qs?sorted.filter(it=>mw(it.base,qs)).slice(0,50):sorted.slice(0,20);
   document.getElementById("top-title").textContent=(qs?"Найдено: "+top.length+" · ":"Топ позиций · ")+label;
   const maxTop=top.length?top[0].r:1;
   document.getElementById("toptb").innerHTML=top.map((it,i)=>
