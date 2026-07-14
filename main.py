@@ -2113,3 +2113,8 @@ def serve_frontend(full_path: str):
 try: import rebuild_history as _rbh; _rbh.attach(app)
 except Exception as _e: print("rebuild_history attach failed:", _e)
     
+
+# --- paris: остатки Shopify (Париж) + подсортировка ---
+try: import paris as _prs; _prs.attach(app)
+except Exception as _e: print("paris attach failed:", _e)
+    
