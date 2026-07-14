@@ -110,22 +110,14 @@
     .cat-btn:hover { background:rgba(31,31,31,0.09); color:#1f1f1f }
     .cat-btn.active { background:rgba(31,31,31,0.16); color:#1f1f1f; border-color:rgba(31,31,31,0.45) }
     .cat-btn .cnt { font-size:10px; opacity:.6; margin-left:3px }
-    .catsum-wrap { background:rgba(255,255,255,0.55); backdrop-filter:blur(10px);
-      border:1px solid rgba(31,31,31,0.08); border-radius:12px; margin-bottom:12px; overflow:hidden }
-    .catsum-title { font-size:11px; font-weight:600; letter-spacing:.07em; text-transform:uppercase;
-      color:rgba(31,31,31,0.5); padding:9px 16px; cursor:pointer; user-select:none }
-    .catsum-title:hover { color:#1f1f1f }
-    table.catsum { min-width:0; font-size:12px }
-    .catsum thead th { position:static; background:transparent; backdrop-filter:none;
-      padding:5px 10px; border-bottom:1px solid rgba(31,31,31,0.12) }
-    .catsum tbody td { padding:6px 10px; border-bottom:1px solid rgba(31,31,31,0.05) }
-    .catsum tbody tr { cursor:pointer }
-    .catsum tbody tr:hover td { background:rgba(31,31,31,0.05) }
-    .catsum tbody tr.cur td { background:rgba(31,31,31,0.09); font-weight:600 }
-    .catsum tbody tr.totrow { cursor:default }
-    .catsum tbody tr.totrow td { background:rgba(31,31,31,0.04); border-top:2px solid rgba(31,31,31,0.25);
-      border-bottom:none; font-weight:700 }
-    .catsum td.rv { color:#3c6300; font-weight:600 }
+    tfoot td { position:sticky; bottom:0; z-index:9; background:#ece2d8;
+      padding:10px 8px; text-align:center; font-weight:700; font-size:12px;
+      border-top:2px solid rgba(31,31,31,0.35); font-variant-numeric:tabular-nums }
+    tfoot td:first-child { text-align:left; padding-left:14px; text-transform:uppercase;
+      font-size:10px; letter-spacing:.06em }
+    tfoot td .tl { display:block; font-size:9px; font-weight:500; color:rgba(31,31,31,0.5);
+      text-transform:uppercase; letter-spacing:.05em; margin-bottom:2px }
+    tfoot td.rv { color:#3c6300 }
     .table-outer { background: rgba(255,255,255,0.55); backdrop-filter: blur(16px);
       border:1px solid rgba(31,31,31,0.09); border-radius:12px; overflow:auto;
       max-height: calc(100vh - 380px); }
@@ -248,15 +240,11 @@
       <input class="search" id="search" placeholder="Поиск по всем категориям...">
     </div>
 
-    <div class="catsum-wrap" id="catsum-wrap" style="display:none">
-      <div class="catsum-title" onclick="toggleCatSum()"><span id="cs-arrow">▾</span> Подитоги по категориям · обновляются на лету</div>
-      <div id="catsum-body"><table class="catsum" id="catsum-table"></table></div>
-    </div>
-
     <div class="table-outer">
       <table>
         <thead id="thead"></thead>
         <tbody id="tb"><tr><td colspan="13" class="loading">Загружаю...</td></tr></tbody>
+        <tfoot id="tfoot"></tfoot>
       </table>
     </div>
     <div class="note">Сортировка — по потенциалу выручки. В заказ автоматически не попадают: позиции с расчётом меньше 10 шт и позиции из архива оборачиваемости. Жёлтое поле — правлено вручную (себес сохраняется глобально, для всех заказов).</div>
@@ -595,48 +583,41 @@ function renderAll(){
   if(!has[currentCat]){ const first=CAT_ORDER.find(c=>has[c]); if(first) currentCat=first; }
   catbar.innerHTML=CAT_ORDER.filter(c=>has[c]).map(c=>
     `<button class="cat-btn ${c===currentCat?"active":""}" onclick="selCat('${c}')">${c}<span class="cnt">${cnt[c]||0}</span></button>`).join("");
-  renderCatSum(lab,china);
   renderTable(lab,china);
   renderExcluded(labAll,chinaAll);
 }
 function selTab(t){ currentTab=t; renderAll(); }
 function selCat(c){ currentCat=c; renderAll(); }
 
-// живые подитоги по всем категориям активной вкладки (при поиске — по найденному)
-let catSumOpen=true;
-function toggleCatSum(){
-  catSumOpen=!catSumOpen;
-  document.getElementById("catsum-body").style.display=catSumOpen?"":"none";
-  document.getElementById("cs-arrow").textContent=catSumOpen?"▾":"▸";
-}
-function renderCatSum(lab,china){
-  const wrap=document.getElementById("catsum-wrap");
-  const q=(document.getElementById("search").value||"").toLowerCase();
-  const rows=(currentTab==="lab"?lab:china).filter(([b,d])=>!q||mw(b,q));
-  if(!rows.length){ wrap.style.display="none"; return; }
-  const isLab=currentTab==="lab";
-  const agg={}, T={n:0,q:0,f:0,s:0,t:0,r:0};
-  for(const [b,d] of rows){
-    const n=qtyOf(b,d), c=costOf(b);
-    const a=agg[d.cat]||(agg[d.cat]={n:0,q:0,f:0,s:0,t:0,r:0});
-    a.n++; a.q+=n; a.f+=n*c.fabric; a.s+=n*c.sew; a.t+=n*c.total; a.r+=n*c.price;
-    T.n++; T.q+=n; T.f+=n*c.fabric; T.s+=n*c.sew; T.t+=n*c.total; T.r+=n*c.price;
+// подитог по видимым строкам — прибит к низу таблицы, продолжает столбцы сумм
+function renderFoot(rows,label){
+  const tf=document.getElementById("tfoot");
+  if(!rows.length){ tf.innerHTML=""; return; }
+  let qty=0,f=0,s=0,t=0,r=0;
+  for(const [b,d] of rows){ const n=qtyOf(b,d), c=costOf(b);
+    qty+=n; f+=n*c.fabric; s+=n*c.sew; t+=n*c.total; r+=n*c.price; }
+  const cell=(v,lbl,cls)=>'<td class="'+(cls||'')+'"><span class="tl">'+lbl+'</span>'+fmt(v)+'</td>';
+  if(currentTab==="lab"){
+    tf.innerHTML='<tr>'+
+      '<td>Итого · '+label+'</td>'+
+      '<td></td><td></td>'+
+      cell(qty,'шт')+
+      '<td></td><td></td><td></td>'+
+      cell(f,'ткань Σ')+
+      cell(s,'пошив Σ')+
+      cell(t,'стоимость')+
+      cell(r,'выручка','rv')+
+      '<td></td><td></td></tr>';
+  } else {
+    tf.innerHTML='<tr>'+
+      '<td>Итого · '+label+'</td>'+
+      '<td></td><td></td>'+
+      cell(qty,'шт')+
+      '<td></td>'+
+      cell(t,'стоимость')+
+      cell(r,'выручка','rv')+
+      '<td></td><td></td></tr>';
   }
-  let h='<thead><tr><th style="text-align:left;padding-left:16px">Категория</th><th>Позиций</th><th>Шт</th>'+
-    (isLab?'<th>Ткань</th><th>Пошив</th>':'')+
-    '<th>Себестоимость</th><th>Выручка</th></tr></thead><tbody>';
-  for(const cat of CAT_ORDER){
-    const a=agg[cat]; if(!a) continue;
-    h+='<tr class="'+(cat===currentCat&&!q?'cur':'')+'" onclick="selCat(\''+cat+'\')">'+
-      '<td style="padding-left:16px">'+cat+'</td><td class="nb">'+a.n+'</td><td class="nb">'+fmt(a.q)+'</td>'+
-      (isLab?'<td class="nb">'+fmtMoney(a.f)+'</td><td class="nb">'+fmtMoney(a.s)+'</td>':'')+
-      '<td class="nb"><b>'+fmtMoney(a.t)+'</b></td><td class="nb rv">'+fmtMoney(a.r)+'</td></tr>';
-  }
-  h+='<tr class="totrow"><td style="padding-left:16px">Итого'+(q?' по поиску':'')+'</td><td class="nb">'+T.n+'</td><td class="nb">'+fmt(T.q)+'</td>'+
-    (isLab?'<td class="nb">'+fmtMoney(T.f)+'</td><td class="nb">'+fmtMoney(T.s)+'</td>':'')+
-    '<td class="nb">'+fmtMoney(T.t)+'</td><td class="nb rv">'+fmtMoney(T.r)+'</td></tr></tbody>';
-  document.getElementById("catsum-table").innerHTML=h;
-  wrap.style.display="";
 }
 
 function renderHead(){
@@ -670,6 +651,7 @@ function renderTable(lab,china){
   tb.innerHTML="";
   const q=(document.getElementById("search").value||"").toLowerCase();
   const rows=(currentTab==="lab"?lab:china).filter(([b,d])=>q?mw(b,q):d.cat===currentCat);
+  renderFoot(rows,q?("поиск «"+q+"»"):currentCat);
   if(!rows.length){
     tb.innerHTML=`<tr><td colspan="13" class="loading">${currentTab==="china"&&!china.length?"В Китай пока ничего не отправлено — используй кнопку «в Китай» в таблице Лаборатории":"В этой категории пусто"}</td></tr>`;
     return;
