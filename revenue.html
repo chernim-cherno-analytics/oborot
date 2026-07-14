@@ -113,6 +113,7 @@
     <input type="date" class="dinp" id="d-from">
     <input type="date" class="dinp" id="d-to">
     <button class="preset" id="applyCustom">Показать</button>
+    <input class="dinp" id="search" placeholder="Поиск позиции..." style="margin-left:auto;width:240px">
   </div>
 
   <div class="cards">
@@ -237,16 +238,26 @@ async function applyPeriod(from,to){
     </div>`;
   }).join("")||'<div class="loading">Нет продаж за период</div>';
   // топ позиций
-  const top=items.sort((a,b)=>b.r-a.r).slice(0,15);
-  document.getElementById("top-title").textContent="Топ-15 позиций · "+periodLabel();
-  const maxTop=top.length?top[0].r:1;
-  document.getElementById("toptb").innerHTML=top.map((it,i)=>
+  LAST_ITEMS=items.sort((a,b)=>b.r-a.r);
+  LAST_TOTR=totR;
+  renderTop();
+}
+
+let LAST_ITEMS=[], LAST_TOTR=0;
+function renderTop(){
+  const q=(document.getElementById("search").value||"").toLowerCase();
+  const list=q?LAST_ITEMS.filter(it=>it.base.toLowerCase().includes(q)).slice(0,50):LAST_ITEMS.slice(0,15);
+  document.getElementById("top-title").textContent=(q?"Найдено: "+list.length+" · ":"Топ-15 позиций · ")+periodLabel();
+  const maxTop=list.length?Math.max(...list.map(x=>x.r)):1;
+  document.getElementById("toptb").innerHTML=list.map((it,i)=>
     `<tr><td>${i+1}</td><td>${it.base}</td>
      <td><span style="font-size:11px;color:${CAT_COLORS[it.cat]||'#888'};font-weight:600">${it.cat}</span></td>
      <td class="r">${fmt(it.q)}</td>
      <td class="r"><span class="minibar" style="width:${Math.max(2,it.r/maxTop*80)}px;background:${CAT_COLORS[it.cat]||'#888'}b0"></span><b>${fmt(it.r)} ₽</b></td>
-     <td class="r">${totR>0?(it.r/totR*100).toFixed(1):0}%</td></tr>`).join("");
+     <td class="r">${LAST_TOTR>0?(it.r/LAST_TOTR*100).toFixed(1):0}%</td></tr>`).join("")
+    ||'<tr><td colspan="6" class="loading">Ничего не найдено</td></tr>';
 }
+document.addEventListener("input",(e)=>{ if(e.target&&e.target.id==="search") renderTop(); });
 
 // ── месячный stacked-бар ──
 let mchartData=null;

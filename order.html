@@ -155,6 +155,9 @@
     .back-btn { font-size:12px; font-weight:600; padding:6px 14px; border-radius:9px;
       border:1px solid rgba(31,31,31,0.25); background:rgba(255,255,255,0.6); cursor:pointer }
     .back-btn:hover { background:rgba(31,31,31,0.08) }
+    .search { width:300px; padding:7px 14px; border-radius:10px; font-size:13px;
+      border:1px solid rgba(31,31,31,0.16); background:rgba(255,255,255,0.7); outline:none }
+    .search:focus { border-color: rgba(31,31,31,0.45) }
     .excl-title { font-size:11px; font-weight:600; letter-spacing:.08em; text-transform:uppercase;
       color:rgba(31,31,31,0.45); margin:20px 0 8px; cursor:pointer; user-select:none }
     .loading { text-align:center; padding:60px; color:rgba(31,31,31,0.45); font-size:13px }
@@ -223,7 +226,10 @@
       </div>
     </div>
 
-    <div class="cat-bar" id="cat-bar"></div>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+      <div class="cat-bar" id="cat-bar" style="margin-bottom:0;flex:1"></div>
+      <input class="search" id="search" placeholder="Поиск по всем категориям...">
+    </div>
 
     <div class="table-outer">
       <table>
@@ -601,7 +607,8 @@ function renderHead(){
 function renderTable(lab,china){
   const tb=document.getElementById("tb");
   tb.innerHTML="";
-  const rows=(currentTab==="lab"?lab:china).filter(([b,d])=>d.cat===currentCat);
+  const q=(document.getElementById("search").value||"").toLowerCase();
+  const rows=(currentTab==="lab"?lab:china).filter(([b,d])=>q?b.toLowerCase().includes(q):d.cat===currentCat);
   if(!rows.length){
     tb.innerHTML=`<tr><td colspan="13" class="loading">${currentTab==="china"&&!china.length?"В Китай пока ничего не отправлено — используй кнопку «в Китай» в таблице Лаборатории":"В этой категории пусто"}</td></tr>`;
     return;
@@ -647,7 +654,8 @@ function renderTable(lab,china){
 function renderExcluded(labAll,chinaAll){
   const etb=document.getElementById("etb");
   // убранные — только из своей корзины: у Лабы своя категория, у Китая только китайские
-  const pool=(currentTab==="lab"?labAll:chinaAll).filter(([b,d])=>d.cat===currentCat);
+  const qe=(document.getElementById("search").value||"").toLowerCase();
+  const pool=(currentTab==="lab"?labAll:chinaAll).filter(([b,d])=>qe?b.toLowerCase().includes(qe):d.cat===currentCat);
   const list=pool
     .filter(([b,d])=>EXCLUDED.has(b)||!inOrder(b,d))
     .sort((a,b)=>(b[1].turn||0)-(a[1].turn||0));
@@ -790,6 +798,10 @@ document.addEventListener("change",(e)=>{
     saveCost(b, COSTS[b]!==undefined?v:0);
     renderAll();
   }
+});
+
+document.addEventListener("input",(e)=>{
+  if(e.target&&e.target.id==="search"&&PID) renderAll();
 });
 
 // ══════ Старт ══════

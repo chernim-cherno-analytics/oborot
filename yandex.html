@@ -102,6 +102,7 @@
     <button class="preset active" data-m="6">6 месяцев</button>
     <button class="preset" data-m="12">Год</button>
     <button class="preset" data-m="all">Всё время</button>
+    <input class="preset" id="search" placeholder="Поиск позиции..." style="margin-left:auto;width:240px;cursor:text;text-align:left">
     <span class="agent" id="agent"></span>
   </div>
 
@@ -188,8 +189,10 @@ function render(){
   document.getElementById("c-prof").textContent=fmtM(totR-retR-cost);
 
   // топ
-  const top=items.sort((a,b)=>b.r-a.r).slice(0,20);
-  document.getElementById("top-title").textContent="Топ позиций · "+label;
+  const qs=(document.getElementById("search").value||"").toLowerCase();
+  const sorted=items.sort((a,b)=>b.r-a.r);
+  const top=qs?sorted.filter(it=>it.base.toLowerCase().includes(qs)).slice(0,50):sorted.slice(0,20);
+  document.getElementById("top-title").textContent=(qs?"Найдено: "+top.length+" · ":"Топ позиций · ")+label;
   const maxTop=top.length?top[0].r:1;
   document.getElementById("toptb").innerHTML=top.map((it,i)=>
     `<tr><td>${i+1}</td><td>${it.base}</td><td class="r">${fmt(it.q)}</td>
@@ -261,6 +264,7 @@ document.querySelectorAll(".preset").forEach(b=>{
     render();
   });
 });
+document.addEventListener("input",(e)=>{ if(e.target&&e.target.id==="search"&&DATA&&!DATA.error) render(); });
 window.addEventListener("resize",()=>{ if(DATA&&!DATA.error) render(); });
 load();
 </script>

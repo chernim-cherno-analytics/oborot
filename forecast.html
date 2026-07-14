@@ -104,6 +104,15 @@
   </div>
 
   <div class="panel">
+    <div class="ptitle">Поиск по позициям</div>
+    <input id="search" placeholder="Название позиции..." style="width:320px;padding:7px 14px;border-radius:10px;font-size:13px;border:1px solid rgba(31,31,31,0.16);background:rgba(255,255,255,0.85);outline:none;margin-bottom:10px">
+    <table id="stbl" style="display:none"><thead><tr>
+      <th>Название</th><th class="r">Сток, шт</th><th class="r">+ в пути</th>
+      <th class="r">Темп, шт/день</th><th class="r">Темп, ₽/день</th><th class="r">Распродастся за</th>
+    </tr></thead><tbody id="stb"></tbody></table>
+  </div>
+
+  <div class="panel">
     <div class="ptitle">Категории: чем богаты и как быстро распродаётся</div>
     <table><thead><tr>
       <th>Категория</th><th class="r">Сток, шт</th><th class="r">+ в пути</th>
@@ -150,6 +159,24 @@ function fmtM(n){
   return Math.round(n).toLocaleString("ru-RU")+" ₽";
 }
 
+let ITEMS=[];
+function renderSearch(){
+  const q=(document.getElementById("search").value||"").toLowerCase();
+  const tbl=document.getElementById("stbl");
+  if(q.length<2){ tbl.style.display="none"; return; }
+  const list=ITEMS.filter(x=>x.base.toLowerCase().includes(q)).sort((a,b)=>(b.cs+b.inc)*b.ap-(a.cs+a.inc)*a.ap).slice(0,30);
+  tbl.style.display="";
+  document.getElementById("stb").innerHTML=list.map(x=>{
+    const days=x.dsq>0?Math.round((x.cs+x.inc)/x.dsq):null;
+    return `<tr><td><b>${x.base}</b></td><td class="r">${fmt(x.cs)}</td>
+      <td class="r">${x.inc?("+"+fmt(x.inc)):"—"}</td>
+      <td class="r">${x.dsq>0?x.dsq.toFixed(2):"—"}</td>
+      <td class="r">${x.dsq>0?fmtM(x.dsq*x.ap):"—"}</td>
+      <td class="r">${days!==null?days+" дн":"нет продаж"}</td></tr>`;
+  }).join("")||'<tr><td colspan="6" class="loading">Не найдено</td></tr>';
+}
+document.addEventListener("input",(e)=>{ if(e.target&&e.target.id==="search") renderSearch(); });
+
 async function init(){
   const [aRes,tRes,oRes]=await Promise.all([
     fetch("/api/analytics-data"), fetch("/api/turnover-data"),
@@ -164,7 +191,7 @@ async function init(){
   }catch(e){}
 
   // собираем позиции
-  const items=[];
+  const items=ITEMS;
   for(const base of Object.keys(stockData)){
     const stripped=base.replace(/\s*\([^)]*\)\s*$/,"").trim();
     if(base!==stripped&&(stockData[stripped]||SKUS[stripped])) continue;
