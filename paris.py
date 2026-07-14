@@ -9,9 +9,11 @@
     except Exception as e:
         print("paris attach failed:", e)
 
-Требует переменные окружения:
-    SHOPIFY_TOKEN — Admin API access token (custom app, scopes: read_products, read_inventory)
-    SHOPIFY_SHOP  — домен магазина (по умолчанию chernim-cherno.myshopify.com)
+Требует переменные окружения (client credentials grant, Dev Dashboard app "oborot"):
+    SHOPIFY_CLIENT_ID     — Client ID приложения
+    SHOPIFY_CLIENT_SECRET — Secret приложения
+    SHOPIFY_SHOP          — домен магазина (по умолчанию chernim-cherno.myshopify.com)
+Либо (запасной вариант) статический SHOPIFY_TOKEN.
 """
 import os, time, json
 import requests
@@ -19,8 +21,32 @@ from fastapi import FastAPI
 from fastapi.responses import JSONResponse, FileResponse
 
 SHOP = os.environ.get("SHOPIFY_SHOP", "chernim-cherno.myshopify.com")
-TOKEN = os.environ.get("SHOPIFY_TOKEN", "")
+STATIC_TOKEN = os.environ.get("SHOPIFY_TOKEN", "")
+CLIENT_ID = os.environ.get("SHOPIFY_CLIENT_ID", "")
+CLIENT_SECRET = os.environ.get("SHOPIFY_CLIENT_SECRET", "")
 API_VER = "2024-10"
+
+_TOK = {"t": 0, "token": None}  # access token, живёт 24 ч — обновляем каждые 23 ч
+
+
+def _get_token():
+    if STATIC_TOKEN:
+        return STATIC_TOKEN
+    if not (CLIENT_ID and CLIENT_SECRET):
+        return None
+    now = time.time()
+    if _TOK["token"] and now - _TOK["t"] < 23 * 3600:
+        return _TOK["token"]
+    r = requests.post(
+        f"https://{SHOP}/admin/oauth/access_token",
+        data={"grant_type": "client_credentials",
+              "client_id": CLIENT_ID, "client_secret": CLIENT_SECRET},
+        timeout=20)
+    r.raise_for_status()
+    tok = r.json().get("access_token")
+    _TOK["token"] = tok
+    _TOK["t"] = now
+    return tok
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -222,10 +248,14 @@ def _norm_size(s):
 
 
 def _fetch_shopify():
-    if not TOKEN:
-        return {"error": "SHOPIFY_TOKEN не задан в переменных окружения Render"}
+    try:
+        token = _get_token()
+    except Exception as e:
+        return {"error": "не удалось получить токен Shopify: " + str(e)[:200]}
+    if not token:
+        return {"error": "SHOPIFY_CLIENT_ID / SHOPIFY_CLIENT_SECRET не заданы в Environment на Render"}
     url = f"https://{SHOP}/admin/api/{API_VER}/graphql.json"
-    headers = {"X-Shopify-Access-Token": TOKEN, "Content-Type": "application/json"}
+    headers = {"X-Shopify-Access-Token": token, "Content-Type": "application/json"}
     q = """
     query($first: Int!, $after: String) {
       products(first: $first, after: $after, query: "status:active") {
@@ -244,6 +274,11 @@ def _fetch_shopify():
                           timeout=30)
         if r.status_code == 429:
             time.sleep(2.5)
+            continue
+        if r.status_code == 401 and not STATIC_TOKEN:
+            _TOK["token"] = None  # токен истёк — берём свежий и повторяем
+            token = _get_token()
+            headers["X-Shopify-Access-Token"] = token
             continue
         r.raise_for_status()
         j = r.json()
