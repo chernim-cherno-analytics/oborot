@@ -48,13 +48,18 @@
     .nav a:hover { color: #434446 }
     .nav a.active { color: #1f1f1f; font-weight: 500; }
     .main { padding: 20px 28px; max-width: 1500px; margin: 0 auto; position: relative; z-index: 3; }
-    .toolbar { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:16px }
-    .search { flex:0 0 280px; padding:7px 14px; border-radius:10px; font-size:13px;
+
+    .hero { display:flex; align-items:flex-end; gap:14px; flex-wrap:wrap; margin-bottom:16px }
+    .hero h1 { font-size:22px; font-weight:700; letter-spacing:.03em }
+    .hero .sub { font-size:12px; color:rgba(31,31,31,0.5); padding-bottom:3px }
+    .hero .right { margin-left:auto; display:flex; gap:10px; align-items:center }
+    .search { width:280px; padding:8px 14px; border-radius:10px; font-size:13px;
       border:1px solid rgba(31,31,31,0.16); background:rgba(255,255,255,0.7); outline:none }
-    .hint { font-size:11px; color:rgba(31,31,31,0.45) }
-    .btn { font-size:12px; font-weight:600; padding:8px 18px; border-radius:20px;
+    .search:focus { border-color:rgba(31,31,31,0.45) }
+    .btn { font-size:12px; font-weight:600; padding:9px 18px; border-radius:20px;
       border:1px solid rgba(31,31,31,0.25); background:#1f1f1f; color:#f3e9e0; cursor:pointer }
     .btn:hover { background:#3a3a3a }
+
     .cards { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:16px }
     .card { background:rgba(255,255,255,0.6); backdrop-filter:blur(10px);
       border:1px solid rgba(31,31,31,0.08); border-radius:12px; padding:13px 17px }
@@ -62,6 +67,11 @@
       color:rgba(31,31,31,0.5); margin-bottom:5px }
     .card .v { font-size:22px; font-weight:700 }
     .card .s { font-size:11px; color:rgba(31,31,31,0.5); margin-top:3px }
+    .card.dark { background:#1f1f1f; border-color:#1f1f1f }
+    .card.dark .l { color:rgba(243,233,224,0.55) }
+    .card.dark .v { color:#f3e9e0 }
+    .card.dark .s { color:rgba(243,233,224,0.5) }
+
     .cat-bar { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px }
     .cat-btn { font-size:12px; font-weight:500; padding:5px 14px; border-radius:20px;
       border:1px solid rgba(31,31,31,0.09); background:rgba(255,255,255,0.55);
@@ -69,6 +79,9 @@
     .cat-btn:hover { background:rgba(31,31,31,0.09) }
     .cat-btn.active { background:rgba(31,31,31,0.16); color:#1f1f1f; border-color:rgba(31,31,31,0.45) }
     .cat-btn .cnt { font-size:10px; opacity:.6; margin-left:3px }
+    .cat-btn.newcat { border-color:rgba(31,31,31,0.45); font-weight:700 }
+    .cat-btn.newcat.active { background:#1f1f1f; color:#f3e9e0 }
+
     .table-outer { background:rgba(255,255,255,0.55); backdrop-filter:blur(16px);
       border:1px solid rgba(31,31,31,0.09); border-radius:12px; overflow:auto;
       max-height:calc(100vh - 300px) }
@@ -77,35 +90,52 @@
       font-size:10px; font-weight:500; color:rgba(31,31,31,0.62); letter-spacing:.06em;
       text-transform:uppercase; position:sticky; top:0; z-index:10;
       border-bottom:1px solid rgba(31,31,31,0.09) }
-    thead th:first-child { text-align:left; padding-left:14px }
-    tbody td { padding:8px 10px; border-bottom:1px solid rgba(31,31,31,0.06);
+    thead th:first-child { text-align:left; padding-left:16px }
+    thead th .sub { display:block; font-size:9px; font-weight:400; letter-spacing:0; text-transform:none; opacity:.5; margin-top:2px }
+    tbody td { padding:9px 10px; border-bottom:1px solid rgba(31,31,31,0.06);
       text-align:center; vertical-align:middle }
-    tbody td:first-child { text-align:left; padding-left:14px }
-    tr.cat-row td { background:rgba(31,31,31,0.07); font-weight:700; font-size:11.5px;
-      letter-spacing:.05em; text-transform:uppercase; padding:7px 14px; text-align:left }
-    .ru-name { font-weight:600 }
-    .en-name { font-size:11px; color:rgba(31,31,31,0.45); display:block; margin-top:1px }
-    .nomap { color:#7a0002; font-weight:600 }
+    tbody td:first-child { text-align:left; padding-left:16px }
+    tbody tr:hover td { background:rgba(255,255,255,0.55) }
+    tr.cat-row td { background:rgba(31,31,31,0.07); font-weight:700; font-size:11px;
+      letter-spacing:.07em; text-transform:uppercase; padding:8px 16px; text-align:left;
+      color:rgba(31,31,31,0.75) }
+    tr.cat-row:hover td { background:rgba(31,31,31,0.07) }
+    tr.cat-row.newcat td { background:#1f1f1f; color:#f3e9e0 }
+    tr.cat-row.newcat:hover td { background:#1f1f1f }
+    tr.cat-row td .ccnt { font-weight:400; opacity:.55; margin-left:6px }
+
+    .ru-name { font-weight:600; font-size:13px }
+    .en-name { font-size:11px; color:rgba(31,31,31,0.45); display:block; margin-top:2px }
+    .nomap { color:#7a0002 }
+    .new-badge { display:inline-block; vertical-align:2px; margin-left:8px; padding:2px 8px;
+      border-radius:9px; background:#1f1f1f; color:#f3e9e0; font-size:9px; font-weight:700;
+      letter-spacing:.09em; text-transform:uppercase }
+    .warn { color:#7a5a00; font-size:10.5px }
+
     .szchips { display:flex; gap:5px; flex-wrap:wrap; justify-content:center }
-    .szc { display:inline-block; padding:2px 7px; border-radius:8px; font-size:11px;
-      background:rgba(31,31,31,0.07); white-space:nowrap }
-    .szc b { font-size:11.5px }
-    .szc.zero { opacity:.35 }
-    .szc.ru0 { background:rgba(166,3,3,0.12); color:#7a0002 }
-    .tot { font-weight:700; font-size:13px }
-    .tot.zero { opacity:.3; font-weight:400 }
-    .tin { width:52px; padding:4px 5px; text-align:center; font-size:12px; font-weight:600;
-      border:1px solid rgba(31,31,31,0.18); border-radius:7px; background:rgba(255,255,255,0.85); outline:none }
-    .tin:focus { border-color:rgba(31,31,31,0.45) }
+    .szc { display:inline-flex; flex-direction:column; align-items:center; min-width:36px;
+      padding:3px 8px; border-radius:9px; background:rgba(255,255,255,0.8);
+      border:1px solid rgba(31,31,31,0.1) }
+    .szc .sn { font-size:9px; color:rgba(31,31,31,0.5); text-transform:uppercase; letter-spacing:.03em }
+    .szc .sq { font-size:13px; font-weight:700; font-variant-numeric:tabular-nums }
+    .szc.zero { opacity:.35; background:transparent; border-style:dashed }
+    .szc.dash { border:none; background:none; opacity:.3; font-size:12px; justify-content:center }
+    .tot { font-weight:700; font-size:14px; font-variant-numeric:tabular-nums }
+    .tot.zero { opacity:.25; font-weight:400 }
+
+    .tinwrap { display:flex; gap:6px; flex-wrap:wrap; justify-content:center; align-items:flex-end }
+    .tincell { display:flex; flex-direction:column; align-items:center; gap:2px }
+    .tinlbl { font-size:9px; color:rgba(31,31,31,0.5); text-transform:uppercase; letter-spacing:.03em }
+    .tin { width:50px; padding:5px 4px; text-align:center; font-size:12.5px; font-weight:700;
+      border:1px solid rgba(31,31,31,0.18); border-radius:8px; background:rgba(255,255,255,0.85); outline:none }
+    .tin:focus { border-color:rgba(31,31,31,0.5); background:#fff }
     .tin.has { background:rgba(143,233,0,0.3); border-color:rgba(60,99,0,0.4) }
     .tin::-webkit-outer-spin-button, .tin::-webkit-inner-spin-button { -webkit-appearance:none; margin:0 }
     .tin[type=number] { -moz-appearance:textfield }
-    .tinwrap { display:flex; gap:6px; flex-wrap:wrap; justify-content:center; align-items:center }
-    .tinlbl { font-size:10px; color:rgba(31,31,31,0.5); margin-right:1px }
+
     .loading { text-align:center; padding:60px; color:rgba(31,31,31,0.45); font-size:13px }
     .errbox { background:#fdeaea; border:1px solid #e7b3b3; color:#7a0002; border-radius:12px;
       padding:14px 18px; font-size:13px; margin-bottom:16px }
-    .warn { color:#7a5a00; font-size:10.5px }
   </style>
 </head>
 <body>
@@ -127,11 +157,13 @@
 </div>
 
 <div class="main">
-  <div class="toolbar">
-    <span style="font-size:13px;font-weight:600">Париж · Chernim Cherno France</span>
-    <span class="hint" id="fetched"></span>
-    <input class="search" id="search" placeholder="Поиск по названию..." style="margin-left:auto">
-    <button class="btn" onclick="downloadShipment()">Скачать отгрузку</button>
+  <div class="hero">
+    <h1>Париж</h1>
+    <span class="sub" id="fetched">склад Chernim Cherno France · загрузка…</span>
+    <div class="right">
+      <input class="search" id="search" placeholder="Поиск по названию...">
+      <button class="btn" onclick="downloadShipment()">⬇ Скачать отгрузку</button>
+    </div>
   </div>
 
   <div id="err"></div>
@@ -142,11 +174,11 @@
     <table>
       <thead><tr>
         <th style="min-width:260px">Позиция</th>
-        <th>Россия (3 склада)</th>
-        <th style="width:60px">РФ всего</th>
-        <th>Париж</th>
-        <th style="width:60px">Париж всего</th>
-        <th style="min-width:220px">Привезти в Париж</th>
+        <th>Россия<br><span class="sub">склад Интернет-магазин — с него едет отгрузка</span></th>
+        <th style="width:64px">РФ<br><span class="sub">всего</span></th>
+        <th>Париж<br><span class="sub">по размерам</span></th>
+        <th style="width:64px">Париж<br><span class="sub">всего</span></th>
+        <th style="min-width:220px">Привезти в Париж<br><span class="sub">шт по размерам</span></th>
       </tr></thead>
       <tbody id="tbody"><tr><td colspan="6" class="loading">Загрузка остатков из Shopify и МойСклада...</td></tr></tbody>
     </table>
@@ -155,6 +187,7 @@
 
 <script>
 const PT_PID = "paris-transfer";
+const NEW_DAYS = 30;   // новинка = появилась в стоке за последние N дней
 const CATEGORIES = {
   "Верхняя одежда": ["бомбер","куртка","тренч","пальто","ветровка","олимпийка","комбинезон","фрак","меховой пиджак","trench","bomber","jacket","coat"],
   "Костюмы": ["пиджак","жилет-галстук","корсетный жилет"],
@@ -173,11 +206,14 @@ const CATEGORIES = {
   "Прочее": []
 };
 const CAT_ORDER = ["Верхняя одежда","Костюмы","Брюки","Джинсы","Рубашки","Свитера","Худи и свитшоты","Шорты","Майки","Футболки","Сумки","Аксессуары","Украшения","Нижнее белье","Прочее"];
+const GROUP_ORDER = ["Новинки"].concat(CAT_ORDER);
 const SIZE_ORDER = ["xxs","xs","xs-s","s","s-m","s / 168-178","s / 178-188","168-178 / s","178-188 / s","m","m-l","m / 168-178","m / 178-188","168-178 / m","178-188 / m","l","l-xl","l / 168-178","l / 178-188","168-178 / l","178-188 / l","xl","xxl","168-178","178-188","168-178 / one size","178-188 / one size","one size",""];
 
-let SHOP = null;      // ответ /api/paris-stock
-let RU = {};          // /api/stocks-bystore .skus
-let PT = {};          // "en||size" -> qty
+let SHOP = null;        // ответ /api/paris-stock
+let RU = {};            // /api/stocks-bystore .skus
+let INET_IDX = -1;      // индекс склада «Интернет-магазин» в списке складов
+let PT = {};            // "en||size" -> qty
+let NEWSET = new Set(); // русские базовые имена-новинки
 let currentCat = "all";
 let Q = "";
 
@@ -195,10 +231,11 @@ function ptKey(en,sz){ return en+"||"+sz; }
 
 async function loadAll(){
   try{
-    const [pRes,bRes,aRes] = await Promise.all([
+    const [pRes,bRes,aRes,adRes] = await Promise.all([
       fetch("/api/paris-stock"),
       fetch("/api/stocks-bystore"),
-      fetch("/api/adjustments?project_id="+PT_PID)
+      fetch("/api/adjustments?project_id="+PT_PID),
+      fetch("/api/analytics-data")
     ]);
     SHOP = await pRes.json();
     if(SHOP.error){
@@ -208,13 +245,30 @@ async function loadAll(){
       document.getElementById("tbody").innerHTML="";
       return;
     }
-    try{ const b=await bRes.json(); RU=b.skus||{}; }catch(e){}
+    try{
+      const b=await bRes.json(); RU=b.skus||{};
+      const stores=b.stores||[];
+      INET_IDX=stores.findIndex(s=>String(s).toLowerCase().includes("интернет"));
+    }catch(e){}
     try{
       const o=await aRes.json(); PT={};
       for(const [k,v] of Object.entries(o||{})) if(v>0) PT[k]=v;
     }catch(e){}
+    // новинки: первое появление в истории остатков за последние NEW_DAYS дней
+    try{
+      const a=await adRes.json();
+      const dates=a.dates||[], stock=a.stock||{};
+      if(dates.length){
+        const ref=new Date(dates[dates.length-1]).getTime();
+        for(const [base,dm] of Object.entries(stock)){
+          let first=null;
+          for(const d of dates){ if((dm[d]||0)>0){ first=d; break; } }
+          if(first && (ref-new Date(first).getTime())/86400000 <= NEW_DAYS) NEWSET.add(base);
+        }
+      }
+    }catch(e){}
     document.getElementById("fetched").textContent =
-      "остатки Shopify на "+(SHOP.fetched||"")+" · Россия — живые данные МойСклад";
+      "склад Chernim Cherno France · Shopify на "+(SHOP.fetched||"")+" · Россия — склад Интернет-магазин, живой МойСклад";
     buildCats(); render(); renderCards();
   }catch(e){
     document.getElementById("tbody").innerHTML =
@@ -223,19 +277,21 @@ async function loadAll(){
 }
 
 function itemCat(it){ return getCat(it.ru || it.en); }
+function isNew(it){ return !!(it.ru && NEWSET.has(it.ru)); }
+function itemGroup(it){ return isNew(it)?"Новинки":itemCat(it); }
 function itemVisible(it){
   if(Q && !mw((it.ru||"")+" "+it.en, Q)) return false;
-  if(currentCat!=="all" && itemCat(it)!==currentCat) return false;
+  if(currentCat!=="all" && itemGroup(it)!==currentCat) return false;
   return true;
 }
 
 function buildCats(){
   const cnt={};
-  for(const it of SHOP.items){ const c=itemCat(it); cnt[c]=(cnt[c]||0)+1; }
+  for(const it of SHOP.items){ const c=itemGroup(it); cnt[c]=(cnt[c]||0)+1; }
   let html='<button class="cat-btn '+(currentCat==="all"?"active":"")+'" onclick="selCat(\'all\')">Все</button>';
-  html+=CAT_ORDER.filter(c=>cnt[c]>0).map(c=>
-    '<button class="cat-btn '+(c===currentCat?"active":"")+'" onclick="selCat(\''+c+'\')">'+c+
-    '<span class="cnt">'+cnt[c]+'</span></button>').join("");
+  html+=GROUP_ORDER.filter(c=>cnt[c]>0).map(c=>
+    '<button class="cat-btn '+(c==="Новинки"?"newcat ":"")+(c===currentCat?"active":"")+'" onclick="selCat(\''+c+'\')">'+
+    (c==="Новинки"?"★ Новинки":c)+'<span class="cnt">'+cnt[c]+'</span></button>').join("");
   document.getElementById("cat-bar").innerHTML=html;
 }
 function selCat(c){ currentCat=c; buildCats(); render(); }
@@ -243,6 +299,17 @@ function selCat(c){ currentCat=c; buildCats(); render(); }
 function ruInfo(it){
   if(!it.ru) return null;
   return RU[it.ru] || null;
+}
+// количество на складе Интернет-магазин по размеру
+function ruSizeQty(ri,s){
+  const per=(ri.sizes[s]&&ri.sizes[s].per)||[];
+  if(INET_IDX>=0) return per[INET_IDX]||0;
+  return per.reduce((a,b)=>a+(b||0),0);
+}
+function ruTotal(ri){
+  let t=0;
+  for(const s of Object.keys(ri.sizes||{})) t+=ruSizeQty(ri,s);
+  return t;
 }
 
 function unionSizes(it){
@@ -256,46 +323,49 @@ function render(){
   const groups={};
   for(const it of SHOP.items){
     if(!itemVisible(it)) continue;
-    const c=itemCat(it);
+    const c=itemGroup(it);
     (groups[c]=groups[c]||[]).push(it);
   }
   let html="";
-  for(const cat of CAT_ORDER){
+  for(const cat of GROUP_ORDER){
     const arr=groups[cat]; if(!arr||!arr.length) continue;
     arr.sort((a,b)=>((a.ru||a.en)).localeCompare(b.ru||b.en,"ru"));
-    html+='<tr class="cat-row"><td colspan="6">'+cat+' · '+arr.length+'</td></tr>';
+    html+='<tr class="cat-row'+(cat==="Новинки"?' newcat':'')+'"><td colspan="6">'+
+      (cat==="Новинки"?"★ Новинки — в стоке меньше "+NEW_DAYS+" дней":cat)+
+      '<span class="ccnt">'+arr.length+'</span></td></tr>';
     for(const it of arr) html+=rowHtml(it);
   }
   if(!html) html='<tr><td colspan="6" class="loading">Не найдено</td></tr>';
   document.getElementById("tbody").innerHTML=html;
 }
 
+function szChip(s,q){
+  return '<span class="szc'+(q?'':' zero')+'"><span class="sn">'+esc(s||'—')+'</span><span class="sq">'+q+'</span></span>';
+}
+
 function rowHtml(it){
   const ri=ruInfo(it);
+  const badge=isNew(it)?'<span class="new-badge">new</span>':'';
   const name = it.ru
-    ? '<span class="ru-name">'+esc(it.ru)+'</span><span class="en-name">'+esc(it.en)+'</span>'
+    ? '<span class="ru-name">'+esc(it.ru)+'</span>'+badge+'<span class="en-name">'+esc(it.en)+'</span>'
     : '<span class="ru-name nomap">нет привязки к МойСклад</span><span class="en-name">'+esc(it.en)+'</span>';
   const warn = (it.ru && !ri) ? '<span class="warn">⚠ имя не найдено в текущем РФ стоке</span>' : '';
-  // РФ по размерам
-  let ruChips='<span class="szc zero">—</span>', ruTot=0;
+  // РФ (Интернет-магазин) по размерам
+  let ruChips='<span class="szc dash">—</span>', ruTot=0;
   if(ri){
     const szs=Object.keys(ri.sizes||{}).sort((a,b)=>szIdx(a)-szIdx(b));
-    ruChips=szs.map(s=>{
-      const q=(ri.sizes[s].per||[]).reduce((x,y)=>x+(y||0),0);
-      return '<span class="szc'+(q?'':' ru0')+'">'+esc(s)+' <b>'+q+'</b></span>';
-    }).join("");
-    ruTot=ri.total||0;
+    ruChips=szs.map(s=>szChip(s,ruSizeQty(ri,s))).join("");
+    ruTot=ruTotal(ri);
   }
   // Париж по размерам
   const psz=Object.keys(it.sizes||{}).sort((a,b)=>szIdx(a)-szIdx(b));
-  const pChips=psz.length?psz.map(s=>
-    '<span class="szc'+(it.sizes[s]?'':' zero')+'">'+esc(s)+' <b>'+it.sizes[s]+'</b></span>').join("")
-    :'<span class="szc zero">—</span>';
+  const pChips=psz.length?psz.map(s=>szChip(s,it.sizes[s])).join("")
+    :'<span class="szc dash">—</span>';
   // инпуты «привезти» по объединению размеров
   const inputs=unionSizes(it).map(s=>{
     const k=ptKey(it.en,s), v=PT[k]||0;
-    return '<span class="tinlbl">'+esc(s)+'</span><input class="tin'+(v>0?' has':'')+
-      '" type="number" min="0" step="1" value="'+v+'" onchange="saveTr(this,\''+jse(it.en)+'\',\''+jse(s)+'\')">';
+    return '<span class="tincell"><span class="tinlbl">'+esc(s||'—')+'</span><input class="tin'+(v>0?' has':'')+
+      '" type="number" min="0" step="1" value="'+v+'" onchange="saveTr(this,\''+jse(it.en)+'\',\''+jse(s)+'\')"></span>';
   }).join("");
   return '<tr><td>'+name+(warn?'<br>'+warn:'')+'</td>'+
     '<td><div class="szchips">'+ruChips+'</div></td>'+
@@ -322,25 +392,26 @@ async function saveTr(inp,en,sz){
 
 function renderCards(){
   if(!SHOP||!SHOP.items) return;
-  let pPos=0,pQty=0,ruQty=0;
+  let pPos=0,pQty=0,ruQty=0,newCnt=0;
   for(const it of SHOP.items){
     if(it.total>0){ pPos++; pQty+=it.total; }
-    const ri=ruInfo(it); if(ri) ruQty+=ri.total||0;
+    const ri=ruInfo(it); if(ri) ruQty+=ruTotal(ri);
+    if(isNew(it)) newCnt++;
   }
   const send=Object.values(PT).reduce((a,b)=>a+b,0);
   const sendPos=new Set(Object.keys(PT).map(k=>k.split("||")[0])).size;
   document.getElementById("cards").innerHTML=
-    '<div class="card"><div class="l">В Париже</div><div class="v">'+pQty+' шт</div><div class="s">'+pPos+' позиций в наличии</div></div>'+
-    '<div class="card"><div class="l">В России (эти позиции)</div><div class="v">'+ruQty+' шт</div><div class="s">по трём торговым складам</div></div>'+
-    '<div class="card"><div class="l">К отправке в Париж</div><div class="v">'+send+' шт</div><div class="s">'+sendPos+' позиций в списке</div></div>'+
-    '<div class="card"><div class="l">Позиций в магазине</div><div class="v">'+SHOP.items.length+'</div><div class="s">активных в Shopify</div></div>';
+    '<div class="card"><div class="l">В Париже</div><div class="v">'+pQty+' шт</div><div class="s">'+pPos+' позиций в наличии из '+SHOP.items.length+' активных</div></div>'+
+    '<div class="card"><div class="l">Доступно к отправке из РФ</div><div class="v">'+ruQty+' шт</div><div class="s">склад Интернет-магазин</div></div>'+
+    '<div class="card dark"><div class="l">К отправке в Париж</div><div class="v">'+send+' шт</div><div class="s">'+sendPos+' позиций в списке</div></div>'+
+    '<div class="card"><div class="l">★ Новинки</div><div class="v">'+newCnt+'</div><div class="s">в стоке меньше '+NEW_DAYS+' дней</div></div>';
 }
 
 function downloadShipment(){
   if(!SHOP) return;
   const rows=[];
-  for(const cat of CAT_ORDER){
-    for(const it of SHOP.items.filter(x=>itemCat(x)===cat)){
+  for(const cat of GROUP_ORDER){
+    for(const it of SHOP.items.filter(x=>itemGroup(x)===cat)){
       const szs=unionSizes(it);
       for(const s of szs){
         const q=PT[ptKey(it.en,s)]||0;
@@ -366,7 +437,7 @@ function downloadShipment(){
     'tr.c td{background:#efe9e2;font-weight:700;text-transform:uppercase;font-size:11px;letter-spacing:.05em}'+
     '.e{color:#999;font-size:11px}.tot{margin-top:16px;font-size:15px;font-weight:700}'+
     '@media print{body{padding:0}}</style></head><body>'+
-    '<h1>Отгрузка в Париж · Chernim Cherno</h1><div class="sub">сформировано '+ds+' · склад назначения: Chernim Cherno France</div>'+
+    '<h1>Отгрузка в Париж · Chernim Cherno</h1><div class="sub">сформировано '+ds+' · отгрузка со склада Интернет-магазин → Chernim Cherno France</div>'+
     '<table><thead><tr><th>№</th><th>Позиция</th><th>Размер</th><th>Кол-во</th></tr></thead><tbody>'+body+'</tbody></table>'+
     '<div class="tot">Итого: '+total+' шт · '+new Set(rows.map(r=>r.en)).size+' позиций</div>'+
     '</body></html>';
