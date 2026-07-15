@@ -349,7 +349,7 @@ function rowHtml(it){
   const name = it.ru
     ? '<span class="ru-name">'+esc(it.ru)+'</span>'+badge+'<span class="en-name">'+esc(it.en)+'</span>'
     : '<span class="ru-name nomap">нет привязки к МойСклад</span><span class="en-name">'+esc(it.en)+'</span>';
-  const warn = (it.ru && !ri) ? '<span class="warn">⚠ имя не найдено в текущем РФ стоке</span>' : '';
+  const warn = (it.ru && !ri) ? '<span class="warn">в РФ нет остатка (0 на всех складах)</span>' : '';
   // РФ (Интернет-магазин) по размерам
   let ruChips='<span class="szc dash">—</span>', ruTot=0;
   if(ri){
