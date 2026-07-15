@@ -322,11 +322,46 @@ def paris_page():
     return FileResponse(os.path.join(BASE_DIR, "paris.html"))
 
 
+_SBS_CACHE = {"t": 0, "data": None}
+
+
+def sales_by_size(days: int = 365):
+    """Нетто-продажи по размерам за последние N дней: {base: {size: qty}}.
+    Размер — из скобок в конце полного имени МойСклада. Кэш 1 час."""
+    import re
+    import main as site
+    from datetime import date, timedelta
+    now = time.time()
+    if _SBS_CACHE["data"] is not None and now - _SBS_CACHE["t"] < 3600:
+        return JSONResponse(_SBS_CACHE["data"])
+    cutoff = (date.today() - timedelta(days=days)).isoformat()
+    conn = site.get_db()
+    rows = conn.execute(
+        "SELECT sku_name, SUM(CASE WHEN doc_type='sale' THEN qty ELSE -qty END) AS q "
+        "FROM sales_data WHERE date >= ? GROUP BY sku_name", (cutoff,)).fetchall()
+    conn.close()
+    out = {}
+    for row in rows:
+        full = str(row["sku_name"] or "")
+        q = float(row["q"] or 0)
+        if not full or q <= 0:
+            continue
+        base = site._canon_name(full)
+        m = re.search(r"\(([^)]+)\)\s*$", full)
+        size = m.group(1).strip() if m else "One Size"
+        d = out.setdefault(base, {})
+        d[size] = round(d.get(size, 0) + q, 1)
+    _SBS_CACHE["data"] = out
+    _SBS_CACHE["t"] = now
+    return JSONResponse(out)
+
+
 def attach(app: FastAPI):
     from fastapi.routing import APIRoute
     routes = [
         APIRoute("/paris", paris_page, methods=["GET"]),
         APIRoute("/api/paris-stock", paris_stock, methods=["GET"]),
+        APIRoute("/api/sales-by-size", sales_by_size, methods=["GET"]),
     ]
     for r in routes:
         app.router.routes.insert(0, r)

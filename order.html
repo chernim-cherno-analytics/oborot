@@ -118,6 +118,19 @@
     tfoot td .tl { display:block; font-size:9px; font-weight:500; color:rgba(31,31,31,0.5);
       text-transform:uppercase; letter-spacing:.05em; margin-bottom:2px }
     tfoot td.rv { color:#3c6300 }
+    .sz-arrow { display:inline-block; width:16px; cursor:pointer; color:rgba(31,31,31,0.4);
+      font-size:10px; user-select:none }
+    .sz-arrow:hover { color:#1f1f1f }
+    tr.szrow td { background:rgba(255,255,255,0.8); text-align:left; padding:8px 14px 12px 36px }
+    tr.szrow:hover td { background:rgba(255,255,255,0.8) }
+    .szwrap { display:flex; gap:6px; flex-wrap:wrap; align-items:center }
+    .szlbl2 { font-size:10px; font-weight:600; letter-spacing:.06em; text-transform:uppercase;
+      color:rgba(31,31,31,0.45); margin-right:10px }
+    .szc2 { display:inline-flex; flex-direction:column; align-items:center; min-width:42px;
+      padding:3px 9px; border-radius:9px; background:#fff; border:1px solid rgba(31,31,31,0.14) }
+    .szc2 .sn { font-size:9px; color:rgba(31,31,31,0.5); text-transform:uppercase; letter-spacing:.03em }
+    .szc2 .sq { font-size:13px; font-weight:700; font-variant-numeric:tabular-nums }
+    .sznote { font-size:10px; color:rgba(31,31,31,0.4); margin-left:10px }
     .table-outer { background: rgba(255,255,255,0.55); backdrop-filter: blur(16px);
       border:1px solid rgba(31,31,31,0.09); border-radius:12px; overflow:auto;
       max-height: calc(100vh - 380px); }
@@ -219,6 +232,7 @@
         <div class="date" id="ord-date"></div>
       </div>
       <button class="btn" style="margin-left:12px" onclick="downloadOrder()">⬇ Скачать заказ</button>
+      <button class="btn ghost" onclick="downloadOrderPlain()" title="Версия для производства: без цен и финансов, только позиции, размеры и количество">⬇ Без цен</button>
       <div class="savestate" id="savestate"></div>
     </div>
 
@@ -282,6 +296,8 @@ const CATEGORIES = {
 const CAT_ORDER = ["Верхняя одежда","Костюмы","Брюки","Джинсы","Рубашки","Свитера","Худи и свитшоты","Шорты","Майки","Футболки","Сумки","Аксессуары","Украшения","Нижнее белье","Прочее"];
 const NON_MERCH = ["сертификат","кошелек","sample","сэмпл","упаковоч","пакет","коробк","вешалк","бирк","кофр","наклейк","кейс для","чехол для","нитк","бумага тишью"];
 const MIN_ORDER = 10;
+const SIZE_ORDER = ["xxs","xs","xs-s","s","s-m","s / 168-178","s / 178-188","168-178 / s","178-188 / s","m","m-l","m / 168-178","m / 178-188","168-178 / m","178-188 / m","l","l-xl","l / 168-178","l / 178-188","168-178 / l","178-188 / l","xl","xxl","168-178","178-188","168-178 / one size","178-188 / one size","one size",""];
+function szIdx(s){ const i=SIZE_ORDER.indexOf((s||"").toLowerCase()); return i<0?90:i; }
 
 function getCat(n){
   const nl = n.toLowerCase();
@@ -318,13 +334,16 @@ let ORDERQ={}, EXCLUDED=new Set(), CHINA=new Set();
 let STOCK_SNAP={}, INC_SNAP={};   // остаток и «едет к нам», зафиксированные на день заказа
 let currentTab="lab", currentCat="Верхняя одежда";
 let dataReady=false;
+let SBS={};                       // продажи по размерам за 12 мес: {base:{size:qty}}
+const OPEN=new Set();             // раскрытые строки с разбивкой по размерам
 
 async function loadData(){
-  const [aRes,tRes,hRes,oRes,cpRes,cRes] = await Promise.all([
+  const [aRes,tRes,hRes,oRes,cpRes,cRes,sbsRes] = await Promise.all([
     fetch("/api/analytics-data"), fetch("/api/turnover-data"),
     fetch("/api/hidden"), fetch("/api/adjustments?project_id=analytics-ordered"),
-    fetch("/api/cost-prices"), fetch("/api/costs")
+    fetch("/api/cost-prices"), fetch("/api/costs"), fetch("/api/sales-by-size")
   ]);
+  try{ SBS=await sbsRes.json(); if(SBS.detail||SBS.error) SBS={}; }catch(e){ SBS={}; }
   const a=await aRes.json(), t=await tRes.json();
   allDates=a.dates||[]; stockData=a.stock||{};
   SKUS=(t&&t.skus)||{};
@@ -396,6 +415,20 @@ function qtyOf(base,d){ return ORDERQ[base]!==undefined?ORDERQ[base]:necOf(base,
 function revOf(base,d){ return qtyOf(base,d)*costOf(base).price; }
 // профит с заказанных штук — по нему сортируется таблица
 function profOf(base,d){ const c=costOf(base); return qtyOf(base,d)*Math.max(0,c.price-c.total); }
+// разбивка заказа по размерам пропорционально продажам за 12 мес (метод наибольших остатков)
+function sizeSplit(base,total){
+  const dist=SBS[base];
+  if(!dist||total<=0) return null;
+  const entries=Object.entries(dist).filter(([s,q])=>q>0);
+  if(!entries.length) return null;
+  const sum=entries.reduce((a,[,q])=>a+q,0);
+  if(sum<=0) return null;
+  let alloc=entries.map(([s,q])=>{const ex=total*q/sum; const fl=Math.floor(ex); return [s,fl,ex-fl];});
+  let used=alloc.reduce((a,x)=>a+x[1],0);
+  alloc.sort((a,b)=>b[2]-a[2]);
+  for(let i=0;used<total&&alloc.length;i=(i+1)%alloc.length){ alloc[i][1]++; used++; }
+  return alloc.filter(x=>x[1]>0).sort((a,b)=>szIdx(a[0])-szIdx(b[0])).map(x=>[x[0],x[1]]);
+}
 
 // ══════ Проекты ══════
 async function loadProjects(){
@@ -663,10 +696,11 @@ function renderTable(lab,china){
     const c=costOf(base);
     const manualQ=ORDERQ[base]!==undefined&&ORDERQ[base]!==nec;
     const esc=base.replace(/"/g,"&quot;");
+    const isOpen=OPEN.has(base);
     const tr=document.createElement("tr");
     tr.className=rowCls(d.turn,d.nr);
     const head=`
-      <td>${base}</td>
+      <td><span class="sz-arrow" data-base="${esc}" title="Разбивка заказа по размерам">${isOpen?"▾":"▸"}</span>${base}</td>
       <td class="nb">${fmt(projStock(base,d))}</td>
       <td class="nb nbig">${fmt(d.need)}</td>
       <td><input class="qin${manualQ?' manual':''}" type="number" min="0" step="1" value="${q}" data-base="${esc}"></td>`;
@@ -690,6 +724,18 @@ function renderTable(lab,china){
       <td class="nb rev">${fmt(q*c.price)}</td>`+tail;
     }
     frag.appendChild(tr);
+    if(isOpen){
+      const sp=sizeSplit(base,q);
+      const str=document.createElement("tr");
+      str.className="szrow";
+      const inner=sp
+        ?'<div class="szwrap"><span class="szlbl2">Заказ по размерам</span>'+
+          sp.map(([s,x])=>'<span class="szc2"><span class="sn">'+s+'</span><span class="sq">'+x+'</span></span>').join("")+
+          '<span class="sznote">пропорционально продажам за 12 мес · пересчитывается при изменении общего кол-ва</span></div>'
+        :'<div class="szwrap"><span class="szlbl2">Заказ по размерам</span><span class="sznote">нет данных о продажах по размерам за 12 мес</span></div>';
+      str.innerHTML='<td colspan="'+(currentTab==="lab"?13:9)+'">'+inner+'</td>';
+      frag.appendChild(str);
+    }
   }
   tb.appendChild(frag);
 }
@@ -806,9 +852,74 @@ ${html}
   document.body.appendChild(a); a.click(); a.remove();
 }
 
+// ══════ Скачать заказ без цен (для производства) ══════
+function downloadOrderPlain(){
+  const {labAll,chinaAll}=splitAll();
+  const lab=labAll.filter(inOrd).sort(byRev);
+  const china=chinaAll.filter(inOrd).sort(byRev);
+  const today=new Date().toLocaleDateString("ru-RU",{day:"numeric",month:"long",year:"numeric"});
+  const arrival=PDATE?new Date(PDATE).toLocaleDateString("ru-RU",{day:"numeric",month:"long",year:"numeric"}):"—";
+  const szText=(base,q)=>{
+    const sp=sizeSplit(base,q);
+    return sp?sp.map(([s,x])=>s+" — <b>"+x+"</b>").join(" &nbsp;·&nbsp; "):'<span style="color:#aaa">—</span>';
+  };
+  let n=1;
+  const section=(ttl,rows)=>{
+    let out='<h2>'+ttl+'</h2>', tq=0, any=false;
+    for(const cat of CAT_ORDER){
+      const rr=rows.filter(([b,d])=>d.cat===cat);
+      if(!rr.length) continue;
+      any=true;
+      let cq=0;
+      out+='<h3>'+cat+'</h3><table><thead><tr><th>№</th><th class="l">Название</th><th class="l">Размеры</th><th>Кол-во, шт</th></tr></thead><tbody>';
+      for(const [base,d] of rr){
+        const q=qtyOf(base,d); tq+=q; cq+=q;
+        out+='<tr><td>'+(n++)+'</td><td class="l">'+base+'</td><td class="l">'+szText(base,q)+'</td><td><b>'+q+'</b></td></tr>';
+      }
+      out+='</tbody></table><div class="cattot">Итого «'+cat+'»: <b>'+cq.toLocaleString("ru-RU")+' шт</b></div>';
+    }
+    if(!any) out+='<p style="color:#888">Пусто</p>';
+    out+='<div class="tot">Итого '+ttl+': <b>'+tq.toLocaleString("ru-RU")+' шт</b></div>';
+    return {out,tq};
+  };
+  const L=section("Лаборатория",lab), C=section("Китай",china);
+  const html=L.out+C.out+
+    '<div class="tot grand">Всего по заказу: <b>'+(L.tq+C.tq).toLocaleString("ru-RU")+' шт</b></div>';
+  const doc=`<!DOCTYPE html><html lang="ru"><head><meta charset="UTF-8">
+<title>Заказ — ${PNAME} (производство)</title><style>
+body{font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;color:#1f1f1f;margin:40px;max-width:900px}
+h1{font-size:22px;margin-bottom:2px} .meta{color:#777;font-size:13px;margin-bottom:24px}
+h2{font-size:16px;text-transform:uppercase;letter-spacing:.08em;margin:28px 0 6px;border-bottom:2px solid #1f1f1f;padding-bottom:4px}
+h3{font-size:13px;margin:16px 0 6px;color:#555}
+table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:8px}
+th{background:#f0ebe4;text-align:center;padding:6px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.05em;border:1px solid #ddd}
+td{padding:5px 8px;text-align:center;border:1px solid #e5e0d9;font-variant-numeric:tabular-nums}
+td.l,th.l{text-align:left}
+tr:nth-child(even) td{background:#faf7f3}
+.cattot{margin:2px 0 14px;font-size:12px;color:#555;background:#faf7f3;padding:7px 12px;border-radius:6px;border:1px solid #eee}
+.tot{margin:10px 0 18px;font-size:13px;background:#f0ebe4;padding:10px 14px;border-radius:8px}
+.tot.grand{background:#1f1f1f;color:#f3e9e0;font-size:14px}
+@media print{body{margin:12mm} h2{page-break-after:avoid} table{page-break-inside:auto} tr{page-break-inside:avoid}}
+</style></head><body>
+<h1>Заказ «${PNAME}»</h1>
+<div class="meta">версия для производства — без цен · ожидаемый приход: ${arrival} · сформировано: ${today} · разбивка по размерам — пропорционально продажам за 12 месяцев · Chernim Cherno</div>
+${html}
+</body></html>`;
+  const blob=new Blob([doc],{type:"text/html;charset=utf-8"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download=`Заказ ${PNAME} (производство) — ${new Date().toISOString().slice(0,10)}.html`;
+  document.body.appendChild(a); a.click(); a.remove();
+}
+
 // ══════ События ══════
 document.addEventListener("click",(e)=>{
   const t=e.target;
+  if(t.classList&&t.classList.contains("sz-arrow")){
+    const b=t.dataset.base;
+    if(OPEN.has(b)) OPEN.delete(b); else OPEN.add(b);
+    renderAll();
+  }
   if(t.classList&&t.classList.contains("mv-btn")&&t.dataset.to){
     const b=t.dataset.base;
     if(t.dataset.to==="china") CHINA.add(b); else CHINA.delete(b);
