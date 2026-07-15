@@ -89,7 +89,28 @@
     .qty { font-weight:700; font-size:13px }
     .qty.zero { opacity:.3; font-weight:400 }
     .loading { text-align:center; padding:60px; color:rgba(31,31,31,0.45); font-size:13px }
+
+    /* ── Рекомендации переброса ── */
+    .reco-wrap { background:rgba(255,255,255,0.55); backdrop-filter:blur(16px);
+      border:1px solid rgba(31,31,31,0.09); border-radius:12px; margin-bottom:16px; overflow:hidden }
+    .reco-head { display:flex; align-items:center; gap:12px; padding:12px 16px; cursor:pointer; user-select:none }
+    .reco-arrow { font-size:10px; color:rgba(31,31,31,0.45) }
+    .reco-title { font-size:12px; font-weight:700; letter-spacing:.07em; text-transform:uppercase }
+    .reco-sub { font-size:11px; color:rgba(31,31,31,0.5) }
+    .reco-btn { margin-left:auto; font-size:12px; font-weight:600; padding:7px 16px; border-radius:20px;
+      border:1px solid rgba(31,31,31,0.25); background:#1f1f1f; color:#f3e9e0; cursor:pointer }
+    .reco-btn:hover { background:#3a3a3a }
+    .reco-body { max-height:420px; overflow:auto; border-top:1px solid rgba(31,31,31,0.08) }
+    tr.rst td { background:rgba(31,31,31,0.08); font-weight:700; font-size:10.5px; letter-spacing:.06em;
+      text-transform:uppercase; text-align:left; padding:7px 14px; color:rgba(31,31,31,0.7) }
+    .rqty { width:52px; padding:4px; text-align:center; font-size:12.5px; font-weight:700;
+      border:1px solid rgba(31,31,31,0.2); border-radius:7px; background:#fff; outline:none }
+    .rqty::-webkit-outer-spin-button, .rqty::-webkit-inner-spin-button { -webkit-appearance:none; margin:0 }
+    .rchk { width:15px; height:15px; accent-color:#1f1f1f; cursor:pointer }
+    .lastd { font-size:11px; color:rgba(31,31,31,0.55) }
+    tr.roff td { opacity:.35 }
   </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
 <body>
 <div class="gradient-bg"><div class="b1"></div><div class="b2"></div><div class="b3"></div></div>
@@ -104,6 +125,7 @@
     <a href="/forecast">Прогноз</a>
     <a href="/revenue">Оборот</a>
     <a href="/transfers" class="active">Перемещения</a>
+    <a href="/money">Деньги</a>
     <a href="/paris">Париж</a>
     <a href="/yandex">Яндекс</a>
   </nav>
@@ -115,6 +137,16 @@
     <input type="date" class="dinp" id="datePick">
     <span class="hint">данные тянутся напрямую из МойСклада — можно выбрать любой день</span>
     <input class="search" id="search" placeholder="Поиск по названию..." style="margin-left:auto">
+  </div>
+
+  <div class="reco-wrap" id="reco-wrap" style="display:none">
+    <div class="reco-head" onclick="toggleReco(event)">
+      <span class="reco-arrow" id="reco-arrow">▾</span>
+      <span class="reco-title">Рекомендации переброса</span>
+      <span class="reco-sub" id="reco-sub">считаю…</span>
+      <button class="reco-btn" onclick="event.stopPropagation();downloadMoves()">⬇ Скачать перемещение</button>
+    </div>
+    <div class="reco-body" id="reco-body"></div>
   </div>
 
   <div class="cards" id="cards"></div>
@@ -267,11 +299,172 @@ function render(){
   tb.appendChild(frag);
 }
 
+// ══════ Рекомендации переброса ══════
+// Правило: размер продавался на складе за последние RECENT_DAYS дней, сейчас там 0,
+// а на другом складе остаток ≥2 (донору оставляем минимум 1 шт).
+const RECENT_DAYS=60;
+let RECS=[], RSTORES=[], recoOpen=true;
+
+async function loadReco(){
+  let bys, hidden=new Set();
+  try{ bys=await (await fetch("/api/stocks-bystore")).json(); }catch(e){ return; }
+  try{ hidden=new Set(await (await fetch("/api/hidden")).json()); }catch(e){}
+  const stores=bys.stores||[];
+  RSTORES=stores.map(shortStore);
+  const now=Date.now();
+  RECS=[];
+  for(const [base,rec] of Object.entries(bys.skus||{})){
+    if(hidden.has(base)) continue;
+    if(!getCat(base)) continue;
+    for(const [size,srec] of Object.entries(rec.sizes||{})){
+      const per=srec.per||[], last=srec.last||[];
+      for(let t=0;t<stores.length;t++){
+        if((per[t]||0)>0) continue;                       // на складе уже есть
+        if(!last[t]) continue;                            // там никогда не продавался
+        const days=(now-new Date(last[t]).getTime())/86400000;
+        if(days>RECENT_DAYS) continue;                    // спрос неактуален
+        let d=-1;                                         // донор: макс. остаток, ≥2
+        for(let s=0;s<stores.length;s++)
+          if(s!==t&&(per[s]||0)>=2&&(d<0||per[s]>per[d])) d=s;
+        if(d<0) continue;
+        RECS.push({base,size,from:d,to:t,qty:per[d]>=4?2:1,avail:per[d],
+          last:last[t],days:Math.round(days),on:true});
+      }
+    }
+  }
+  RECS.sort((a,b)=>a.to-b.to||a.days-b.days||a.base.localeCompare(b.base,"ru"));
+  renderReco();
+}
+
+function renderReco(){
+  const wrap=document.getElementById("reco-wrap");
+  if(!RECS.length){ wrap.style.display="none"; return; }
+  wrap.style.display="";
+  document.getElementById("reco-sub").textContent=
+    RECS.length+" строк · размер продавался на складе за "+RECENT_DAYS+" дн, сейчас там 0, у другого склада есть запас";
+  let html='<table><thead><tr><th style="width:36px"></th><th style="text-align:left;padding-left:14px">Позиция</th><th>Размер</th><th>Откуда</th><th>Куда</th><th>Шт</th><th>У донора</th><th>Последняя продажа там</th></tr></thead><tbody>';
+  let lastTo=-1;
+  RECS.forEach((r,i)=>{
+    if(r.to!==lastTo){ lastTo=r.to; html+='<tr class="rst"><td colspan="8">→ Довезти: '+RSTORES[r.to]+'</td></tr>'; }
+    html+='<tr class="'+(r.on?'':'roff')+'" data-row="'+i+'">'+
+      '<td><input type="checkbox" class="rchk" data-i="'+i+'"'+(r.on?' checked':'')+'></td>'+
+      '<td style="text-align:left;padding-left:14px;font-weight:500">'+r.base+'</td>'+
+      '<td>'+(r.size||'One Size')+'</td>'+
+      '<td>'+RSTORES[r.from]+'</td><td><b>'+RSTORES[r.to]+'</b></td>'+
+      '<td><input type="number" min="1" max="'+Math.max(1,r.avail-1)+'" class="rqty" data-i="'+i+'" value="'+r.qty+'"></td>'+
+      '<td>'+r.avail+' шт</td>'+
+      '<td class="lastd">'+new Date(r.last).toLocaleDateString("ru-RU")+' · '+r.days+' дн назад</td></tr>';
+  });
+  html+='</tbody></table>';
+  document.getElementById("reco-body").innerHTML=html;
+}
+
+function toggleReco(e){
+  if(e.target.closest(".reco-btn")||e.target.tagName==="INPUT") return;
+  recoOpen=!recoOpen;
+  document.getElementById("reco-body").style.display=recoOpen?"":"none";
+  document.getElementById("reco-arrow").textContent=recoOpen?"▾":"▸";
+}
+
+document.addEventListener("change",e=>{
+  const t=e.target;
+  if(t.classList&&t.classList.contains("rchk")){
+    const r=RECS[+t.dataset.i];
+    r.on=t.checked;
+    const row=document.querySelector('tr[data-row="'+t.dataset.i+'"]');
+    if(row) row.className=r.on?'':'roff';
+  }
+  if(t.classList&&t.classList.contains("rqty")){
+    const r=RECS[+t.dataset.i];
+    let v=parseInt(t.value,10);
+    if(!isFinite(v)||v<1) v=1;
+    if(v>Math.max(1,r.avail-1)) v=Math.max(1,r.avail-1);
+    t.value=v; r.qty=v;
+  }
+});
+
+function downloadMoves(){
+  const sel=RECS.filter(r=>r.on);
+  if(!sel.length){ alert("Не выбрано ни одной строки"); return; }
+  const pairs={};
+  for(const r of sel){ const k=r.from+">"+r.to; (pairs[k]=pairs[k]||[]).push(r); }
+  const today=new Date(), ds=today.toLocaleDateString("ru-RU");
+  let body='', grand=0;
+  for(const k of Object.keys(pairs)){
+    const [f,t]=k.split(">").map(Number);
+    const rows=pairs[k];
+    body+='<h2>'+RSTORES[f]+' → '+RSTORES[t]+'</h2><table><thead><tr><th>№</th><th class="l">Позиция</th><th>Размер</th><th>Кол-во</th></tr></thead><tbody>';
+    let i=0,sub=0;
+    for(const r of rows){
+      i++; sub+=r.qty; grand+=r.qty;
+      body+='<tr><td>'+i+'</td><td class="l">'+r.base+'</td><td>'+(r.size||'One Size')+'</td><td><b>'+r.qty+'</b></td></tr>';
+    }
+    body+='</tbody></table><div class="tot">Итого '+RSTORES[f]+' → '+RSTORES[t]+': <b>'+sub+' шт</b> · '+rows.length+' строк</div>';
+  }
+  body+='<div class="tot grand">Всего к перемещению: <b>'+grand+' шт</b></div>';
+  const doc='<!DOCTYPE html><html lang="ru"><head><meta charset="UTF-8"><title>Перемещение '+ds+'</title><style>'+
+    'body{font-family:Helvetica,Arial,sans-serif;color:#1f1f1f;padding:32px;max-width:800px;margin:0 auto}'+
+    'h1{font-size:20px;margin-bottom:2px}.sub{color:#888;font-size:12px;margin-bottom:20px}'+
+    'h2{font-size:15px;text-transform:uppercase;letter-spacing:.06em;margin:22px 0 6px;border-bottom:2px solid #1f1f1f;padding-bottom:4px}'+
+    'table{width:100%;border-collapse:collapse;font-size:13px}'+
+    'th{background:#1f1f1f;color:#fff;text-align:left;padding:7px 10px;font-size:11px}'+
+    'td{padding:6px 10px;border-bottom:1px solid #e3e3e3;vertical-align:top}'+
+    'tr:nth-child(even) td{background:#faf7f3}'+
+    '.tot{margin:8px 0 16px;font-size:13px;background:#f0ebe4;padding:9px 13px;border-radius:8px}'+
+    '.tot.grand{background:#1f1f1f;color:#f3e9e0;font-size:14px}'+
+    '@media print{body{padding:0}}</style></head><body>'+
+    '<h1>Перемещение между складами · Chernim Cherno</h1>'+
+    '<div class="sub">сформировано '+ds+' · рекомендации по продажам за последние '+RECENT_DAYS+' дней</div>'+
+    body+'</body></html>';
+  savePdf(doc, "перемещение-"+today.toISOString().slice(0,10)+".pdf");
+}
+
+// печатная версия → PDF (html2pdf с CDN; если недоступен — HTML)
+async function savePdf(doc, filename){
+  if(typeof html2pdf==="undefined"){
+    const blob=new Blob([doc],{type:"text/html;charset=utf-8"});
+    const a=document.createElement("a");
+    a.href=URL.createObjectURL(blob);
+    a.download=filename.replace(/\.pdf$/i,".html");
+    document.body.appendChild(a); a.click(); a.remove();
+    return;
+  }
+  const ifr=document.createElement("iframe");
+  ifr.style.cssText="position:fixed;left:-10000px;top:0;width:920px;height:1200px;border:0";
+  document.body.appendChild(ifr);
+  ifr.srcdoc=doc;
+  await new Promise(r=>{ ifr.onload=r; });
+  await new Promise(r=>setTimeout(r,150));
+  const dd=ifr.contentDocument;
+  const extra=dd.createElement("style");
+  extra.textContent="h2{page-break-after:avoid}tr,.tot{page-break-inside:avoid}";
+  dd.head.appendChild(extra);
+  try{
+    await html2pdf().set({
+      margin:[10,8,12,8],
+      filename:filename,
+      image:{type:"jpeg",quality:0.95},
+      html2canvas:{scale:2,useCORS:true,windowWidth:920},
+      jsPDF:{unit:"mm",format:"a4",orientation:"portrait"},
+      pagebreak:{mode:["css","legacy"]}
+    }).from(dd.body).save();
+  }catch(e){
+    alert("PDF не собрался ("+e.message+") — скачиваю HTML");
+    const blob=new Blob([doc],{type:"text/html;charset=utf-8"});
+    const a=document.createElement("a");
+    a.href=URL.createObjectURL(blob);
+    a.download=filename.replace(/\.pdf$/i,".html");
+    document.body.appendChild(a); a.click(); a.remove();
+  }
+  ifr.remove();
+}
+
 document.getElementById("search").addEventListener("input",render);
 const dp=document.getElementById("datePick");
 dp.value=new Date().toISOString().slice(0,10);
 dp.addEventListener("change",()=>{ if(dp.value) loadDate(dp.value); });
 loadDate(dp.value);
+loadReco();
 </script>
 </body>
 </html>

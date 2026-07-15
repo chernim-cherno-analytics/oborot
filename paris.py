@@ -322,6 +322,10 @@ def paris_page():
     return FileResponse(os.path.join(BASE_DIR, "paris.html"))
 
 
+def money_page():
+    return FileResponse(os.path.join(BASE_DIR, "money.html"))
+
+
 _SBS_CACHE = {"t": 0, "data": None}
 
 
@@ -360,6 +364,7 @@ def attach(app: FastAPI):
     from fastapi.routing import APIRoute
     routes = [
         APIRoute("/paris", paris_page, methods=["GET"]),
+        APIRoute("/money", money_page, methods=["GET"]),
         APIRoute("/api/paris-stock", paris_stock, methods=["GET"]),
         APIRoute("/api/sales-by-size", sales_by_size, methods=["GET"]),
     ]
