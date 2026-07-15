@@ -188,6 +188,7 @@
     .loading { text-align:center; padding:60px; color:rgba(31,31,31,0.45); font-size:13px }
     .note { font-size:11px; color:rgba(31,31,31,0.45); margin:8px 2px }
   </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
 <body>
 <div class="gradient-bg"><div class="b1"></div><div class="b2"></div><div class="b3"></div></div>
@@ -843,6 +844,50 @@ function toggleExcl(){
   document.getElementById("exclarrow").textContent=o?"▾":"▸";
 }
 
+// ══════ Сохранение печатной версии в PDF ══════
+async function savePdf(doc, filename){
+  if(typeof html2pdf==="undefined"){
+    // CDN недоступен — отдаём HTML как раньше
+    const blob=new Blob([doc],{type:"text/html;charset=utf-8"});
+    const a=document.createElement("a");
+    a.href=URL.createObjectURL(blob);
+    a.download=filename.replace(/\.pdf$/i,".html");
+    document.body.appendChild(a); a.click(); a.remove();
+    return;
+  }
+  const st8=document.getElementById("savestate");
+  if(st8) st8.textContent="готовлю PDF…";
+  const ifr=document.createElement("iframe");
+  ifr.style.cssText="position:fixed;left:-10000px;top:0;width:920px;height:1200px;border:0";
+  document.body.appendChild(ifr);
+  ifr.srcdoc=doc;
+  await new Promise(r=>{ ifr.onload=r; });
+  await new Promise(r=>setTimeout(r,150));
+  const d=ifr.contentDocument;
+  const extra=d.createElement("style");
+  extra.textContent="h2,h3{page-break-after:avoid}tr,.cattot,.tot{page-break-inside:avoid}";
+  d.head.appendChild(extra);
+  try{
+    await html2pdf().set({
+      margin:[10,8,12,8],
+      filename:filename,
+      image:{type:"jpeg",quality:0.95},
+      html2canvas:{scale:2,useCORS:true,windowWidth:920},
+      jsPDF:{unit:"mm",format:"a4",orientation:"portrait"},
+      pagebreak:{mode:["css","legacy"]}
+    }).from(d.body).save();
+  }catch(e){
+    alert("PDF не собрался ("+e.message+") — скачиваю HTML");
+    const blob=new Blob([doc],{type:"text/html;charset=utf-8"});
+    const a=document.createElement("a");
+    a.href=URL.createObjectURL(blob);
+    a.download=filename.replace(/\.pdf$/i,".html");
+    document.body.appendChild(a); a.click(); a.remove();
+  }
+  ifr.remove();
+  if(st8) st8.textContent="";
+}
+
 // ══════ Скачать заказ ══════
 function downloadOrder(){
   const {labAll,chinaAll}=splitAll();
@@ -916,11 +961,7 @@ tr:nth-child(even) td{background:#faf7f3}
 ${html}
 </body></html>`;
 
-  const blob=new Blob([doc],{type:"text/html;charset=utf-8"});
-  const a=document.createElement("a");
-  a.href=URL.createObjectURL(blob);
-  a.download=`Заказ ${PNAME} — ${new Date().toISOString().slice(0,10)}.html`;
-  document.body.appendChild(a); a.click(); a.remove();
+  savePdf(doc, `Заказ ${PNAME} — ${new Date().toISOString().slice(0,10)}.pdf`);
 }
 
 // ══════ Скачать заказ без цен (для производства) ══════
@@ -977,11 +1018,7 @@ tr:nth-child(even) td{background:#faf7f3}
 <div class="meta">версия для производства — без цен · ожидаемый приход: ${arrival} · сформировано: ${today} · разбивка по размерам — пропорционально продажам за 12 месяцев · Chernim Cherno</div>
 ${html}
 </body></html>`;
-  const blob=new Blob([doc],{type:"text/html;charset=utf-8"});
-  const a=document.createElement("a");
-  a.href=URL.createObjectURL(blob);
-  a.download=`Заказ ${PNAME} (производство) — ${new Date().toISOString().slice(0,10)}.html`;
-  document.body.appendChild(a); a.click(); a.remove();
+  savePdf(doc, `Заказ ${PNAME} (производство) — ${new Date().toISOString().slice(0,10)}.pdf`);
 }
 
 // ══════ События ══════

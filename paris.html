@@ -137,6 +137,7 @@
     .errbox { background:#fdeaea; border:1px solid #e7b3b3; color:#7a0002; border-radius:12px;
       padding:14px 18px; font-size:13px; margin-bottom:16px }
   </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
 <body>
 <div class="gradient-bg"><div class="b1"></div><div class="b2"></div><div class="b3"></div></div>
@@ -441,11 +442,47 @@ function downloadShipment(){
     '<table><thead><tr><th>№</th><th>Позиция</th><th>Размер</th><th>Кол-во</th></tr></thead><tbody>'+body+'</tbody></table>'+
     '<div class="tot">Итого: '+total+' шт · '+new Set(rows.map(r=>r.en)).size+' позиций</div>'+
     '</body></html>';
-  const blob=new Blob([html],{type:"text/html;charset=utf-8"});
-  const a=document.createElement("a");
-  a.href=URL.createObjectURL(blob);
-  a.download="отгрузка-париж-"+d.toISOString().slice(0,10)+".html";
-  a.click();
+  savePdf(html, "отгрузка-париж-"+d.toISOString().slice(0,10)+".pdf");
+}
+
+// печатная версия → PDF (html2pdf с CDN; если недоступен — HTML как раньше)
+async function savePdf(doc, filename){
+  if(typeof html2pdf==="undefined"){
+    const blob=new Blob([doc],{type:"text/html;charset=utf-8"});
+    const a=document.createElement("a");
+    a.href=URL.createObjectURL(blob);
+    a.download=filename.replace(/\.pdf$/i,".html");
+    document.body.appendChild(a); a.click(); a.remove();
+    return;
+  }
+  const ifr=document.createElement("iframe");
+  ifr.style.cssText="position:fixed;left:-10000px;top:0;width:920px;height:1200px;border:0";
+  document.body.appendChild(ifr);
+  ifr.srcdoc=doc;
+  await new Promise(r=>{ ifr.onload=r; });
+  await new Promise(r=>setTimeout(r,150));
+  const dd=ifr.contentDocument;
+  const extra=dd.createElement("style");
+  extra.textContent="h1{page-break-after:avoid}tr,.tot{page-break-inside:avoid}";
+  dd.head.appendChild(extra);
+  try{
+    await html2pdf().set({
+      margin:[10,8,12,8],
+      filename:filename,
+      image:{type:"jpeg",quality:0.95},
+      html2canvas:{scale:2,useCORS:true,windowWidth:920},
+      jsPDF:{unit:"mm",format:"a4",orientation:"portrait"},
+      pagebreak:{mode:["css","legacy"]}
+    }).from(dd.body).save();
+  }catch(e){
+    alert("PDF не собрался ("+e.message+") — скачиваю HTML");
+    const blob=new Blob([doc],{type:"text/html;charset=utf-8"});
+    const a=document.createElement("a");
+    a.href=URL.createObjectURL(blob);
+    a.download=filename.replace(/\.pdf$/i,".html");
+    document.body.appendChild(a); a.click(); a.remove();
+  }
+  ifr.remove();
 }
 
 function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
