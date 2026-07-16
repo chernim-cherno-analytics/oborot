@@ -873,7 +873,7 @@ async function savePdf(doc, filename){
       margin:[10,8,12,8],
       filename:filename,
       image:{type:"jpeg",quality:0.95},
-      html2canvas:{scale:2,useCORS:true,windowWidth:920,scrollX:0,scrollY:0},
+      html2canvas:{scale:2,useCORS:true,scrollX:0,scrollY:0},
       jsPDF:{unit:"mm",format:"a4",orientation:"portrait"},
       pagebreak:{mode:["css","legacy"]}
     }).from(d.body).save();
