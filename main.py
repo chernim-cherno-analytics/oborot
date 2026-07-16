@@ -1191,6 +1191,12 @@ def serve_transfers():
         return FileResponse("transfers.html", media_type="text/html")
     return FileResponse("index.html", media_type="text/html")
 
+@app.get("/sizes")
+def serve_sizes():
+    if os.path.exists("sizes.html"):
+        return FileResponse("sizes.html", media_type="text/html")
+    return FileResponse("index.html", media_type="text/html")
+
 @app.get("/revenue")
 def serve_revenue():
     if os.path.exists("revenue.html"):
