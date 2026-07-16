@@ -271,14 +271,14 @@ function paintHl(){
 }
 function showDD(){
   const q=(inp.value||"").toLowerCase().trim();
+  if(!q){ dd.style.display="none"; return; }
   ddItems=PRODUCTS.filter(p=>mw(p.base,q)).slice(0,60);
   hlIdx=0;
-  if(!ddItems.length||!q){ dd.style.display=q?"":"none"; if(!q){dd.style.display="none";return;} }
   dd.innerHTML=ddItems.map(p=>
     '<div data-b="'+encodeURIComponent(p.base)+'">'+p.base+
     '<span class="sub">· продано '+fmt(p.sold)+' · на складе '+fmt(p.inStock)+'</span></div>').join("")
     ||'<div style="color:rgba(31,31,31,0.4)">ничего не нашлось</div>';
-  dd.style.display="";
+  dd.style.display="block";
   paintHl();
   [...dd.children].forEach(el=>el.addEventListener("mousedown",e=>{
     e.preventDefault();
