@@ -145,6 +145,10 @@
         <button data-p="6">6 мес</button>
         <button data-p="12" class="active">12 мес</button>
         <button data-p="0">всё время</button>
+        <button data-p="spring">весна</button>
+        <button data-p="summer">лето</button>
+        <button data-p="autumn">осень</button>
+        <button data-p="winter">зима</button>
       </div>
       <span class="lbl" style="margin-left:14px">Режим</span>
       <div class="seg" id="modeSeg">
@@ -293,7 +297,8 @@ function pick(base){
 // ── переключатели ──
 document.getElementById("periodSeg").addEventListener("click",e=>{
   const b=e.target.closest("button"); if(!b) return;
-  PERIOD=+b.dataset.p;
+  const p=b.dataset.p;
+  PERIOD=SEASONS[p]?p:+p;
   [...e.currentTarget.children].forEach(x=>x.classList.toggle("active",x===b));
   calc();
 });
@@ -306,7 +311,22 @@ document.getElementById("modeSeg").addEventListener("click",e=>{
 document.getElementById("qty").addEventListener("input",()=>calc());
 
 // ── расчёт ──
-function periodMonths(){ return PERIOD===0?MONTHS:MONTHS.slice(0,PERIOD); }
+// сезоны: месяцы календарного сезона за все годы истории
+const SEASONS={
+  spring:{name:"весна", mm:["03","04","05"]},
+  summer:{name:"лето",  mm:["06","07","08"]},
+  autumn:{name:"осень", mm:["09","10","11"]},
+  winter:{name:"зима",  mm:["12","01","02"]}
+};
+function isSeason(){ return typeof PERIOD==="string" && SEASONS[PERIOD]; }
+function periodMonths(){
+  if(isSeason()) return MONTHS.filter(m=>SEASONS[PERIOD].mm.includes(m.slice(5,7)));
+  return PERIOD===0?MONTHS:MONTHS.slice(0,PERIOD);
+}
+function periodLabel(){
+  if(isSeason()) return SEASONS[PERIOD].name+" · за все годы";
+  return PERIOD===0?"всё время":PERIOD+" мес";
+}
 
 function largestRemainder(weights,total){
   // веса -> целые, сумма ровно total
@@ -346,29 +366,38 @@ function calc(){
   }
   const totSales=sizes.reduce((a,s)=>a+(sales[s]||0),0);
   const totStock=sizes.reduce((a,s)=>a+(stock[s]||0),0);
-  let shares;
+  let shares, pure, withStock;
   let usedFallback=false;
   if(totSales>0){
     shares=sizes.map(s=>(sales[s]||0)/totSales);
+    pure=largestRemainder(shares,Q);
+    const targets=shares.map(sh=>sh*(Q+totStock));
+    const needs=targets.map((t,i)=>Math.max(0,t-(stock[sizes[i]]||0)));
+    const sumNeeds=needs.reduce((a,b)=>a+b,0);
+    withStock=sumNeeds>0?largestRemainder(needs,Q):pure.slice();
+  }else if(isSeason()){
+    // нет статистики за сезон — показываем нули
+    shares=sizes.map(()=>0);
+    pure=sizes.map(()=>0);
+    withStock=sizes.map(()=>0);
+    warnBox.innerHTML='<div class="warn">За сезон «'+SEASONS[PERIOD].name+'» статистики продаж по этой позиции нет — показываю нули.</div>';
   }else{
     shares=sizes.map(()=>1/sizes.length);
     usedFallback=true;
     warnBox.innerHTML='<div class="warn">За выбранный период продаж не было — делю поровну по размерам. Попробуй период «всё время».</div>';
+    pure=largestRemainder(shares,Q);
+    const targets=shares.map(sh=>sh*(Q+totStock));
+    const needs=targets.map((t,i)=>Math.max(0,t-(stock[sizes[i]]||0)));
+    const sumNeeds=needs.reduce((a,b)=>a+b,0);
+    withStock=sumNeeds>0?largestRemainder(needs,Q):pure.slice();
   }
-  // чистая пропорция
-  const pure=largestRemainder(shares,Q);
-  // с учётом остатков
-  const targets=shares.map(sh=>sh*(Q+totStock));
-  const needs=targets.map((t,i)=>Math.max(0,t-(stock[sizes[i]]||0)));
-  const sumNeeds=needs.reduce((a,b)=>a+b,0);
-  const withStock=sumNeeds>0?largestRemainder(needs,Q):pure.slice();
 
   // карточки
   const monthsCnt=months.length;
   const rate=monthsCnt?totSales/monthsCnt:0;
   document.getElementById("cards").style.display="";
   document.getElementById("cards").innerHTML=
-    '<div class="card"><div class="l">Продано за период</div><div class="v">'+fmt(totSales)+' шт</div><div class="s">'+(PERIOD===0?"за всё время":"за "+monthsCnt+" мес")+'</div></div>'+
+    '<div class="card"><div class="l">Продано за период</div><div class="v">'+fmt(totSales)+' шт</div><div class="s">'+periodLabel()+(isSeason()?" · "+monthsCnt+" мес":"")+'</div></div>'+
     '<div class="card"><div class="l">Темп</div><div class="v">'+(Math.round(rate*10)/10).toLocaleString("ru-RU")+'</div><div class="s">шт / месяц</div></div>'+
     '<div class="card"><div class="l">Остаток сейчас</div><div class="v">'+fmt(totStock)+' шт</div><div class="s">3 торговых склада</div></div>'+
     '<div class="card" style="background:rgba(76,187,23,0.2)"><div class="l">Заказ</div><div class="v">'+fmt(Q)+' шт</div><div class="s">'+sizes.length+' размер(а/ов)</div></div>';
@@ -417,7 +446,7 @@ function downloadOrder(){
     'tr:nth-child(even) td{background:#faf7f3}'+
     '@media print{body{padding:0}}</style></head><body>'+
     '<h1>'+L.base+' — заказ '+L.Q+' шт по размерам</h1>'+
-    '<div class="sub">сформировано '+ds+' · продажи за '+(PERIOD===0?"всё время":PERIOD+" мес")+
+    '<div class="sub">сформировано '+ds+' · продажи: '+periodLabel()+
     ' ('+L.monthsCnt+' мес) · режим: '+modeName+'</div>'+body+'</body></html>';
   savePdf(doc,"размеры-"+L.base.replace(/[^\wа-яА-ЯёЁ-]+/g,"_")+".pdf");
 }
