@@ -105,6 +105,7 @@ def init_db():
         warehouses TEXT NOT NULL,
         data TEXT NOT NULL,
         UNIQUE(report_date))""")
+    conn.execute("""CREATE TABLE IF NOT EXISTS paris_shipments (id INTEGER PRIMARY KEY AUTOINCREMENT, shipment_date TEXT NOT NULL, saved_at TEXT NOT NULL, items TEXT NOT NULL, total_qty INTEGER NOT NULL DEFAULT 0, total_positions INTEGER NOT NULL DEFAULT 0)""")
     conn.commit(); conn.close()
 
 init_db()
@@ -942,7 +943,14 @@ async def set_adjustment(data: dict):
     conn.commit(); conn.close()
     return {"ok": True}
 
-# ─── Order excluded ───────────────────────────────────────────────────────────
+@app.post("/api/paris/save")
+async def save_paris_shipment(data: dict): import json as _j; rows = data.get("rows", []); assert rows, "rows required"; total_qty = int(data.get("total", sum(int(r.get("qty",0)) for r in rows))); total_positions = len(set(r.get("en","") for r in rows)); conn = get_db(); cur = conn.execute("INSERT INTO paris_shipments (shipment_date, saved_at, items, total_qty, total_positions) VALUES (?,?,?,?,?)", (datetime.now().strftime("%Y-%m-%d"), datetime.now().isoformat()[:19], _j.dumps(rows, ensure_ascii=False), total_qty, total_positions)); conn.execute("DELETE FROM sku_adjustments WHERE project_id=?", ("paris-transfer",)); conn.commit(); new_id = cur.lastrowid; conn.close(); return {"ok": True, "id": new_id}
+# ──── Order excluded ───────────────────────────────────────────────────────────
+@app.get("/api/paris/list")
+def list_paris_shipments(): conn = get_db(); rows = conn.execute("SELECT id, shipment_date, saved_at, total_qty, total_positions FROM paris_shipments ORDER BY id DESC").fetchall(); conn.close(); return [{"id":r[0],"shipment_date":r[1],"saved_at":r[2],"total_qty":r[3],"total_positions":r[4]} for r in rows]
+@app.get("/api/paris/{shipment_id}")
+def get_paris_shipment(shipment_id: int): import json as _j; conn = get_db(); row = conn.execute("SELECT id, shipment_date, saved_at, items, total_qty, total_positions FROM paris_shipments WHERE id=?", (shipment_id,)).fetchone(); conn.close(); assert row, "Not found"; return {"id":row[0],"shipment_date":row[1],"saved_at":row[2],"rows":_j.loads(row[3]),"total_qty":row[4],"total_positions":row[5]}
+    
 @app.get("/api/excluded")
 def get_excluded(project_id: str = ""):
     conn = get_db()
