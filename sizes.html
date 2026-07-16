@@ -354,7 +354,15 @@ function calc(){
   }
   for(const k of Object.keys(sales)) sales[k]=Math.max(0,Math.round(sales[k]*10)/10);
   const stock=STOCK[SEL]||{};
-  const sizes=[...new Set([...Object.keys(sales),...Object.keys(stock)])].sort(sizeSort);
+  // размерная сетка — из ВСЕЙ истории продаж + текущего стока,
+  // чтобы при пустом сезоне показывать нули по существующим размерам
+  const allSales={};
+  for(const m of MONTHS){
+    const sm=(MONTHLY[m]||{})[SEL];
+    if(!sm) continue;
+    for(const [sz,v] of Object.entries(sm)) allSales[sz]=(allSales[sz]||0)+v;
+  }
+  const sizes=[...new Set([...Object.keys(allSales),...Object.keys(stock)])].sort(sizeSort);
   const warnBox=document.getElementById("warnBox");
   warnBox.innerHTML="";
   if(!sizes.length){
