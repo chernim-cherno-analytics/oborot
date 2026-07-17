@@ -64,6 +64,14 @@
       border:1px solid rgba(31,31,31,0.25); background:#1f1f1f; color:#f3e9e0; cursor:pointer }
     .dl-btn:hover { background:#3a3a3a }
 
+    .cat-bar { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px }
+    .cat-btn { font-size:12px; font-weight:500; padding:5px 14px; border-radius:20px;
+      border:1px solid rgba(31,31,31,0.09); background:rgba(255,255,255,0.55);
+      color:#434446; cursor:pointer; transition:all .15s }
+    .cat-btn:hover { background:rgba(31,31,31,0.09) }
+    .cat-btn.on { background:rgba(31,31,31,0.16); color:#1f1f1f; border-color:rgba(31,31,31,0.45) }
+    .cat-btn.off { opacity:.4; text-decoration:line-through }
+
     .cards { display:grid; grid-template-columns:repeat(5,1fr); gap:12px; margin-bottom:12px }
     .card { background:rgba(255,255,255,0.6); backdrop-filter:blur(10px);
       border:1px solid rgba(31,31,31,0.08); border-radius:12px; padding:13px 17px }
@@ -79,12 +87,12 @@
     .table-outer { background:rgba(255,255,255,0.55); backdrop-filter:blur(16px);
       border:1px solid rgba(31,31,31,0.09); border-radius:12px; overflow:auto; margin-bottom:16px }
     table { width:100%; border-collapse:collapse; font-size:12.5px }
-    thead th { background:rgba(255,255,255,0.88); padding:9px 8px; text-align:center;
+    thead th { background:rgba(255,255,255,0.88); padding:9px 7px; text-align:center;
       font-size:10px; font-weight:500; color:rgba(31,31,31,0.62); letter-spacing:.05em;
       text-transform:uppercase; position:sticky; top:0; z-index:10;
       border-bottom:1px solid rgba(31,31,31,0.09) }
     thead th:first-child { text-align:left; padding-left:14px }
-    tbody td { padding:7px 8px; border-bottom:1px solid rgba(31,31,31,0.06);
+    tbody td { padding:7px 7px; border-bottom:1px solid rgba(31,31,31,0.06);
       text-align:center; vertical-align:middle }
     tbody td:first-child { text-align:left; padding-left:14px; font-weight:500 }
     tr.sect td { background:rgba(31,31,31,0.08); font-weight:700; font-size:10.5px; letter-spacing:.06em;
@@ -142,6 +150,8 @@
     </div>
   </div>
 
+  <div class="cat-bar" id="catBar"></div>
+
   <div id="warnBox"></div>
   <div class="cards" id="cards" style="display:none"></div>
   <div class="split" id="split"></div>
@@ -161,6 +171,13 @@
     </div>
     <div class="fold-body" id="skippedBody"></div>
   </div>
+  <div class="fold" id="staleFold" style="display:none">
+    <div class="fold-head" onclick="this.parentElement.classList.toggle('open')">
+      <span class="fold-arrow">▸</span><span class="t">Без продаж 90 дней — исключены</span>
+      <span class="c" id="staleCnt"></span>
+    </div>
+    <div class="fold-body" id="staleBody"></div>
+  </div>
   <div class="fold" id="nocostFold" style="display:none">
     <div class="fold-head" onclick="this.parentElement.classList.toggle('open')">
       <span class="fold-arrow">▸</span><span class="t">Нет себестоимости — пропущены</span>
@@ -170,44 +187,106 @@
   </div>
 
   <div class="hint" style="margin-top:6px;line-height:1.6">
-    <b>Как считается.</b> Для каждой позиции: потребность = темп продаж × 90 дней − остаток − «едет к нам»
-    (из «Заказано»). Приоритет = прибыль на вложенный рубль × срочность (чем ближе распродажа, тем выше;
-    распроданные — с бустом). Бюджет наполняется по приоритету, пока не кончится. Темп честный — как на
-    Оборачиваемости (учитываются только дни с остатком). Прибыль = средняя реальная цена продажи − себестоимость.
-    Лаборатория: себес = ткань + пошив (показаны отдельно); Китай: цена под ключ. Ручные себестоимости
-    (страница Заказ) имеют приоритет. Архивные позиции исключены.
+    <b>Как считается.</b> Приоритет — <b>оборачиваемость</b>, та же метрика и шкала, что на странице
+    Оборачиваемость (нетто-выручка ₽/день за дни в стоке): сначала бюджет получают бестселлеры (тёмно-зелёные,
+    ≥5000), потом хорошие (2000–5000) и так далее. Потребность каждой позиции = темп продаж × 90 дней − остаток −
+    «едет к нам» (из «Заказано»). В расчёт входят только позиции с продажами за последние 90 дней — давно
+    распроданное и неактуальное отсекается (список внизу). Категории можно выключать кнопками — бюджет
+    пересчитается. Лаборатория: себес = ткань + пошив; Китай: цена под ключ; ручные себестоимости имеют
+    приоритет. Архивные позиции исключены.
   </div>
 </div>
 
 <script>
+const CATEGORIES = {
+  "Верхняя одежда": ["бомбер","куртка","тренч","пальто","ветровка","олимпийка","комбинезон","фрак","меховой пиджак"],
+  "Костюмы": ["пиджак","жилет-галстук","корсетный жилет"],
+  "Брюки": ["брюки","спортивные брюки"],
+  "Рубашки": ["рубашка","рубашка-оригами"],
+  "Свитера": ["свитер"],
+  "Худи и свитшоты": ["худи","свитшот"],
+  "Шорты": ["шорты"],
+  "Майки": ["майка","топ","лонгслив","кроп кольчуга","манишка кольчуга","майка кольчуга","укороченная"],
+  "Футболки": ["футболка"],
+  "Джинсы": ["джинсы"],
+  "Сумки": ["сумка","клатч"],
+  "Аксессуары": ["ремень","шарф","шапка","меховой ворот","воротник","очки"],
+  "Украшения": ["браслет","кольцо","подвеска","кафф","цепь","цепочка","сет из","серьга","серёжка","пирсинг"],
+  "Нижнее белье": ["боксер","боксёр","брифы","комплект нижнег","трусы","носки"],
+  "Прочее": []
+};
+const CAT_ORDER = ["Верхняя одежда","Костюмы","Брюки","Джинсы","Рубашки","Свитера","Худи и свитшоты","Шорты","Майки","Футболки","Сумки","Аксессуары","Украшения","Нижнее белье","Прочее"];
 const NON_MERCH = ["сертификат","кошелек","sample","сэмпл","упаковоч","пакет","коробк","вешалк","бирк","кофр","наклейк","кейс для","чехол для","нитк","бумага тишью"];
-function isMerch(n){ const nl=n.toLowerCase(); return !NON_MERCH.some(k=>nl.includes(k)); }
+function getCat(n){
+  const nl=n.toLowerCase();
+  if(NON_MERCH.some(k=>nl.includes(k))) return null;
+  for(const [c,kws] of Object.entries(CATEGORIES)){
+    if(c==="Прочее") continue;
+    if(kws.some(k=>nl.includes(k))) return c;
+  }
+  return "Прочее";
+}
 function fmt(n){ return Math.round(n||0).toLocaleString("ru-RU"); }
 function fmtR(n){ return fmt(n)+" ₽"; }
-const HORIZON=90;
+const HORIZON=90, FRESH_DAYS=90;
 
-let TD=null, CP=null, COSTS=null, CHINA=new Set(), ORDERED={}, HIDDEN=new Set();
-let READY=false, LAST=null;
+let TD=null, CP=null, COSTS=null, CHINA=new Set(), ORDERED={}, HIDDEN=new Set(), LASTSALE={}, RECENT={};
+let OFFCATS=new Set(), READY=false, LAST=null;
 
 async function loadAll(){
   const hint=document.getElementById("statusHint");
   try{
-    const [td, cp, costs, china, ordered, hidden] = await Promise.all([
+    const [td, cp, costs, china, ordered, hidden, bys] = await Promise.all([
       fetch("/api/turnover-data").then(r=>r.json()),
       fetch("/api/cost-prices").then(r=>r.json()),
       fetch("/api/costs").then(r=>r.json()),
       fetch("/api/projects/china-global/data").then(r=>r.json()).catch(()=>({added:[]})),
       fetch("/api/adjustments?project_id=analytics-ordered").then(r=>r.json()).catch(()=>({})),
-      fetch("/api/hidden").then(r=>r.json()).catch(()=>[])
+      fetch("/api/hidden").then(r=>r.json()).catch(()=>[]),
+      fetch("/api/stocks-bystore").then(r=>r.json()).catch(()=>({skus:{}}))
     ]);
     TD=td.skus||{}; CP=cp||{}; COSTS=costs||{};
     CHINA=new Set(china.added||[]); ORDERED=ordered||{}; HIDDEN=new Set(hidden||[]);
+    const now=Date.now();
+    for(const [base,rec] of Object.entries(bys.skus||{})){
+      let latest=0;
+      for(const s of Object.values(rec.sizes||{}))
+        for(const d of (s.last||[]))
+          if(d){ const t=new Date(d).getTime(); if(isFinite(t)&&t>latest) latest=t; }
+      if(latest) LASTSALE[base]=(now-latest)/86400000;
+    }
+    // вторая проверка свежести: продажи за последние ~3 месяца из sales-monthly
+    // (нужна для распроданных в ноль позиций — их нет в stocks-bystore)
+    try{
+      const first=await (await fetch("/api/sales-monthly")).json();
+      const mm=(first.months||[]).slice(0,4);
+      const monthData=await Promise.all(mm.map(m=>
+        fetch("/api/sales-monthly?month="+m).then(r=>r.json()).catch(()=>null)));
+      for(const d of monthData){
+        if(!d) continue;
+        for(const it of (d.items||[]))
+          RECENT[it.base]=(RECENT[it.base]||0)+((it.sale_qty||0)-(it.ret_qty||0));
+      }
+    }catch(e){}
     READY=true;
-    hint.textContent=Object.keys(TD).length+" позиций · темп и остатки с Оборачиваемости · горизонт "+HORIZON+" дней";
+    renderCatBar();
+    hint.textContent=Object.keys(TD).length+" позиций · приоритет: оборачиваемость · продажи за "+FRESH_DAYS+" дн · горизонт "+HORIZON+" дней";
   }catch(e){
     hint.textContent="ошибка загрузки: "+e.message;
   }
 }
+
+function renderCatBar(){
+  document.getElementById("catBar").innerHTML=CAT_ORDER.map(c=>
+    '<button class="cat-btn '+(OFFCATS.has(c)?'off':'on')+'" data-cat="'+c+'">'+c+'</button>').join("");
+}
+document.getElementById("catBar").addEventListener("click",e=>{
+  const b=e.target.closest(".cat-btn"); if(!b) return;
+  const c=b.dataset.cat;
+  if(OFFCATS.has(c)) OFFCATS.delete(c); else OFFCATS.add(c);
+  renderCatBar();
+  if(LAST) calc();
+});
 
 function parseBudget(){
   const raw=(document.getElementById("budget").value||"").replace(/[^\d]/g,"");
@@ -220,41 +299,48 @@ document.getElementById("budget").addEventListener("input",e=>{
 document.getElementById("budget").addEventListener("keydown",e=>{ if(e.key==="Enter") calc(); });
 
 function buildItems(){
-  const items=[], nocost=[];
+  const items=[], nocost=[], stale=[];
   for(const [base,t] of Object.entries(TD)){
-    if(!isMerch(base)||HIDDEN.has(base)) continue;
+    const cat=getCat(base);
+    if(!cat||HIDDEN.has(base)||OFFCATS.has(cat)) continue;
     const dis=t.dis||0, nq=t.nq||0, cs=t.cs||0;
-    if(dis<=0||nq<=0) continue;                      // нет продаж — не претендует на бюджет
+    if(dis<=0||nq<=0) continue;                      // нет продаж вообще
     const rate=nq/dis;                               // шт/день, честный темп
+    const turn=(t.nr||0)/dis;                        // оборачиваемость ₽/день — как на /turnover
     const incoming=ORDERED[base]||0;
     const stockEff=cs+Math.max(0,incoming);
     const need=Math.ceil(Math.max(0, rate*HORIZON - stockEff));
     if(need<3) continue;                             // потребность мизерная
+    const lastDays=LASTSALE[base];
+    const recentQty=RECENT[base]||0;
+    if(!(lastDays<=FRESH_DAYS) && recentQty<=0){     // нет свежих продаж ни по одному источнику
+      stale.push({base, need, days:isFinite(lastDays)?Math.round(lastDays):null, turn});
+      continue;
+    }
     const cpRec=CP[base]||{};
     const override=+COSTS[base]||0;
     const cost=override>0?override:(+cpRec.cost||0);
     const isChina=CHINA.has(base);
-    const sew=+cpRec.purchase||0;                    // пошив (закупочная)
+    const sew=+cpRec.purchase||0;
     const fabric=Math.max(0, cost-sew);
     const price=(+t.ap||0)>0?+t.ap:(+cpRec.price||0);
-    if(cost<=0){ nocost.push({base, need}); continue; }
+    if(cost<=0){ nocost.push({base, need, turn}); continue; }
     const margin=price-cost;
-    if(margin<=0) continue;                          // невыгодно — не претендует
     const daysLeft=rate>0?stockEff/rate:Infinity;
-    const roi=margin/cost;
-    const urgency=stockEff<=0?1.3:Math.min(1.2,Math.max(0.15,(180-daysLeft)/180));
-    items.push({base,isChina,rate,stockEff,incoming,daysLeft,need,cost,sew:isChina?0:sew,
-      fabric:isChina?0:fabric,price,margin,roi,score:roi*urgency});
+    items.push({base,cat,isChina,rate,stockEff,incoming,daysLeft,need,cost,
+      sew:isChina?0:sew,fabric:isChina?0:fabric,price,margin,turn});
   }
-  items.sort((a,b)=>b.score-a.score);
-  return {items,nocost};
+  items.sort((a,b)=>b.turn-a.turn);
+  nocost.sort((a,b)=>b.turn-a.turn);
+  stale.sort((a,b)=>b.turn-a.turn);
+  return {items,nocost,stale};
 }
 
 function calc(){
   if(!READY){ alert("Данные ещё загружаются"); return; }
   const B=parseBudget();
   if(B<=0){ alert("Введи бюджет"); return; }
-  const {items,nocost}=buildItems();
+  const {items,nocost,stale}=buildItems();
   let rest=B;
   const chosen=[], skipped=[];
   for(const it of items){
@@ -267,8 +353,8 @@ function calc(){
       skipped.push(it);
     }
   }
-  render(B, rest, chosen, skipped, nocost);
-  LAST={B, rest, chosen, skipped, nocost};
+  render(B, rest, chosen, skipped, nocost, stale);
+  LAST={B, rest, chosen, skipped, nocost, stale};
 }
 
 function daysCell(d){
@@ -279,8 +365,18 @@ function daysCell(d){
   if(r<60) return '<span class="soon">'+r+' дн</span>';
   return '<span class="ok">'+r+' дн</span>';
 }
+// цвета шкалы оборачиваемости — как на /turnover
+function turnBadge(t){
+  const v=Math.round(t);
+  let c, w=700;
+  if(v<1000) c='#b03a2e';
+  else if(v<2000) c='#b8860b';
+  else if(v<5000) c='rgb(76,187,23)';
+  else c='#1a6b10';
+  return '<span style="font-weight:'+w+';color:'+c+'">'+fmt(v)+'</span>';
+}
 
-function render(B, rest, chosen, skipped, nocost){
+function render(B, rest, chosen, skipped, nocost, stale){
   document.getElementById("placeholder").style.display="none";
   document.getElementById("tblWrap").style.display="";
   document.getElementById("dlBtn").style.display="";
@@ -305,16 +401,17 @@ function render(B, rest, chosen, skipped, nocost){
     '<span class="pill">Лаборатория: <b>'+fmtR(labSum)+'</b> · ткань '+fmtR(labFabric)+' + пошив '+fmtR(labSew)+' · '+lab.length+' поз.</span>'+
     '<span class="pill">Китай: <b>'+fmtR(chinaSum)+'</b> · '+china.length+' поз.</span>';
 
-  document.getElementById("thead").innerHTML='<tr><th>Позиция</th><th>Темп, шт/мес</th><th>Остаток+едет</th><th>Запас</th>'+
+  document.getElementById("thead").innerHTML='<tr><th>Позиция</th><th>Оборач.<br>₽/день</th><th>Темп, шт/мес</th><th>Остаток+едет</th><th>Запас</th>'+
     '<th>Заказать</th><th>Ткань/шт</th><th>Пошив/шт</th><th>Себес/шт</th><th>Сумма</th><th>Прибыль</th></tr>';
 
   let rows="", n=0;
   const section=(title,list)=>{
     if(!list.length) return;
-    rows+='<tr class="sect"><td colspan="10">'+title+' · '+list.length+' поз.</td></tr>';
+    rows+='<tr class="sect"><td colspan="11">'+title+' · '+list.length+' поз.</td></tr>';
     for(const c of list){
       n++;
       rows+='<tr><td>'+n+'. '+c.base+(c.partial?' <span class="hint">(частично, потребность '+c.need+')</span>':'')+'</td>'+
+        '<td>'+turnBadge(c.turn)+'</td>'+
         '<td>'+(c.rate*30).toFixed(1)+'</td>'+
         '<td>'+fmt(c.stockEff)+(c.incoming?' <span class="hint">(+'+fmt(c.incoming)+' едет)</span>':'')+'</td>'+
         '<td>'+daysCell(c.daysLeft)+'</td>'+
@@ -328,35 +425,42 @@ function render(B, rest, chosen, skipped, nocost){
   };
   section("Лаборатория", lab);
   section("Китай", china);
-  rows+='<tr class="total"><td>Итого</td><td></td><td></td><td></td><td>'+units+'</td>'+
+  rows+='<tr class="total"><td>Итого</td><td></td><td></td><td></td><td></td><td>'+units+'</td>'+
     '<td class="money">'+fmtR(labFabric)+'</td><td class="money">'+fmtR(labSew)+'</td><td></td>'+
     '<td class="money">'+fmtR(used)+'</td><td class="money">'+fmtR(profit)+'</td></tr>';
   document.getElementById("tb").innerHTML=rows;
 
-  // не вошло
   const sf=document.getElementById("skippedFold");
   if(skipped.length){
     sf.style.display="";
-    document.getElementById("skippedCnt").textContent=skipped.length+" поз. — следующие по приоритету";
-    let sh='<table><thead><tr><th style="text-align:left;padding-left:14px">Позиция</th><th>Потребность</th><th>Себес/шт</th><th>Надо ₽</th><th>Запас</th></tr></thead><tbody>';
+    document.getElementById("skippedCnt").textContent=skipped.length+" поз. — следующие по оборачиваемости";
+    let sh='<table><thead><tr><th style="text-align:left;padding-left:14px">Позиция</th><th>Оборач.</th><th>Потребность</th><th>Себес/шт</th><th>Надо ₽</th><th>Запас</th></tr></thead><tbody>';
     for(const s of skipped.slice(0,40)){
-      sh+='<tr><td style="text-align:left;padding-left:14px">'+s.base+(s.isChina?' <span class="hint">Китай</span>':'')+'</td><td>'+s.need+' шт</td>'+
+      sh+='<tr><td style="text-align:left;padding-left:14px">'+s.base+(s.isChina?' <span class="hint">Китай</span>':'')+'</td>'+
+        '<td>'+turnBadge(s.turn)+'</td><td>'+s.need+' шт</td>'+
         '<td class="money">'+fmtR(s.cost)+'</td><td class="money">'+fmtR(s.need*s.cost)+'</td><td>'+daysCell(s.daysLeft)+'</td></tr>';
     }
     sh+='</tbody></table>';
     document.getElementById("skippedBody").innerHTML=sh;
   }else sf.style.display="none";
 
-  // нет себеса
+  const stf=document.getElementById("staleFold");
+  if(stale.length){
+    stf.style.display="";
+    document.getElementById("staleCnt").textContent=stale.length+" поз. — есть потребность по темпу, но продаж за "+FRESH_DAYS+" дн не было";
+    document.getElementById("staleBody").innerHTML='<div style="padding:10px 16px;font-size:12px;line-height:1.9">'+
+      stale.slice(0,60).map(x=>x.base+' <span class="hint">('+(x.days!==null?('последняя продажа '+x.days+' дн назад'):'нет данных о продажах')+' · потребность '+x.need+' шт)</span>').join('<br>')+'</div>';
+  }else stf.style.display="none";
+
   const nf=document.getElementById("nocostFold");
   if(nocost.length){
     nf.style.display="";
     document.getElementById("nocostCnt").textContent=nocost.length+" поз. — задай себес в МС или на странице Заказ";
-    document.getElementById("nocostBody").innerHTML='<div style="padding:10px 16px;font-size:12px;line-height:1.8">'+
-      nocost.map(x=>x.base+' <span class="hint">(потребность '+x.need+' шт)</span>').join('<br>')+'</div>';
+    document.getElementById("nocostBody").innerHTML='<div style="padding:10px 16px;font-size:12px;line-height:1.9">'+
+      nocost.map(x=>x.base+' <span class="hint">(оборач. '+fmt(x.turn)+' · потребность '+x.need+' шт)</span>').join('<br>')+'</div>';
   }else nf.style.display="none";
 
-  document.getElementById("warnBox").innerHTML = chosen.length?'':'<div class="warn">Ни одна позиция не поместилась в бюджет — попробуй сумму побольше.</div>';
+  document.getElementById("warnBox").innerHTML = chosen.length?'':'<div class="warn">Ни одна позиция не поместилась в бюджет — попробуй сумму побольше или включи категории.</div>';
 }
 
 function downloadBudget(){
@@ -396,7 +500,7 @@ function downloadBudget(){
     '.tot.grand{background:#1f1f1f;color:#f3e9e0;font-size:14px}'+
     '@media print{body{padding:0}}</style></head><body>'+
     '<h1>Заказ под бюджет '+fmtR(B)+' · Chernim Cherno</h1>'+
-    '<div class="sub">сформировано '+ds+' · горизонт '+HORIZON+' дней · приоритет: прибыль/рубль × срочность</div>'+
+    '<div class="sub">сформировано '+ds+' · горизонт '+HORIZON+' дней · приоритет: оборачиваемость · только позиции с продажами за '+FRESH_DAYS+' дн</div>'+
     sec("Лаборатория",lab)+sec("Китай",china)+
     '<div class="tot grand">Использовано: <b>'+fmtR(used)+'</b> из '+fmtR(B)+' · ожидаемая прибыль: <b>'+fmtR(profit)+'</b></div>'+
     '</body></html>';
