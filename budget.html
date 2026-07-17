@@ -144,6 +144,9 @@
     <div class="row">
       <span class="lbl">Бюджет, ₽</span>
       <input class="binp" id="budget" type="text" inputmode="numeric" value="200 000">
+      <span class="lbl">Макс. на позицию</span>
+      <input class="binp" id="capPct" type="number" min="5" max="100" value="30" style="width:80px;text-align:center">
+      <span class="lbl" style="text-transform:none">%</span>
       <button class="go-btn" onclick="calc()">Распределить</button>
       <span class="hint" id="statusHint">загружаю данные…</span>
       <button class="dl-btn" id="dlBtn" style="display:none" onclick="downloadBudget()">⬇ Скачать</button>
@@ -192,7 +195,8 @@
     ≥5000), потом хорошие (2000–5000) и так далее. Потребность каждой позиции = темп продаж × 90 дней − остаток −
     «едет к нам» (из «Заказано»). В расчёт входят только позиции с продажами за последние 90 дней — давно
     распроданное и неактуальное отсекается (список внизу). Категории можно выключать кнопками — бюджет
-    пересчитается. Лаборатория: себес = ткань + пошив; Китай: цена под ключ; ручные себестоимости имеют
+    пересчитается. «Макс. на позицию» ограничивает долю бюджета на одну позицию (по умолчанию 30%) —
+    один бестселлер не съест весь заказ; освободившиеся деньги уходят следующим по оборачиваемости. Лаборатория: себес = ткань + пошив; Китай: цена под ключ; ручные себестоимости имеют
     приоритет. Архивные позиции исключены.
   </div>
 </div>
@@ -341,13 +345,19 @@ function calc(){
   const B=parseBudget();
   if(B<=0){ alert("Введи бюджет"); return; }
   const {items,nocost,stale}=buildItems();
+  let capPct=parseInt(document.getElementById("capPct").value,10);
+  if(!isFinite(capPct)||capPct<5) capPct=5;
+  if(capPct>100) capPct=100;
+  document.getElementById("capPct").value=capPct;
+  const capSum=B*capPct/100;                        // максимум денег на одну позицию
   let rest=B;
   const chosen=[], skipped=[];
   for(const it of items){
-    const canAfford=Math.floor(rest/it.cost);
-    const q=Math.min(it.need, canAfford);
+    const byCap=Math.floor(capSum/it.cost);
+    const q=Math.min(it.need, Math.floor(rest/it.cost), byCap);
     if(q>=1){
-      chosen.push({...it, qty:q, sum:q*it.cost, profit:q*it.margin, partial:q<it.need});
+      chosen.push({...it, qty:q, sum:q*it.cost, profit:q*it.margin,
+        partial:q<it.need, capped:q<it.need&&q===byCap&&byCap<=Math.floor(rest/it.cost), capPct});
       rest-=q*it.cost;
     }else{
       skipped.push(it);
@@ -410,7 +420,7 @@ function render(B, rest, chosen, skipped, nocost, stale){
     rows+='<tr class="sect"><td colspan="11">'+title+' · '+list.length+' поз.</td></tr>';
     for(const c of list){
       n++;
-      rows+='<tr><td>'+n+'. '+c.base+(c.partial?' <span class="hint">(частично, потребность '+c.need+')</span>':'')+'</td>'+
+      rows+='<tr><td>'+n+'. '+c.base+(c.partial?' <span class="hint">'+(c.capped?'(лимит '+c.capPct+'% бюджета, потребность '+c.need+')':'(частично, потребность '+c.need+')')+'</span>':'')+'</td>'+
         '<td>'+turnBadge(c.turn)+'</td>'+
         '<td>'+(c.rate*30).toFixed(1)+'</td>'+
         '<td>'+fmt(c.stockEff)+(c.incoming?' <span class="hint">(+'+fmt(c.incoming)+' едет)</span>':'')+'</td>'+
@@ -500,7 +510,7 @@ function downloadBudget(){
     '.tot.grand{background:#1f1f1f;color:#f3e9e0;font-size:14px}'+
     '@media print{body{padding:0}}</style></head><body>'+
     '<h1>Заказ под бюджет '+fmtR(B)+' · Chernim Cherno</h1>'+
-    '<div class="sub">сформировано '+ds+' · горизонт '+HORIZON+' дней · приоритет: оборачиваемость · только позиции с продажами за '+FRESH_DAYS+' дн</div>'+
+    '<div class="sub">сформировано '+ds+' · горизонт '+HORIZON+' дней · приоритет: оборачиваемость · только позиции с продажами за '+FRESH_DAYS+' дн · макс. '+(chosen[0]&&chosen[0].capPct?chosen[0].capPct:30)+'% бюджета на позицию</div>'+
     sec("Лаборатория",lab)+sec("Китай",china)+
     '<div class="tot grand">Использовано: <b>'+fmtR(used)+'</b> из '+fmtR(B)+' · ожидаемая прибыль: <b>'+fmtR(profit)+'</b></div>'+
     '</body></html>';
