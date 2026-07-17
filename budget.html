@@ -302,9 +302,27 @@ document.getElementById("budget").addEventListener("input",e=>{
 });
 document.getElementById("budget").addEventListener("keydown",e=>{ if(e.key==="Enter") calc(); });
 
+function stripSize(n){ return n.replace(/\s*\([^)]*\)\s*$/,"").trim(); }
+// себес позиции: ручной override → МС → среднее по размерным вариантам (например, очки:
+// себес проставлен у расцветок «(BLACK-GOLD)», а у базового имени — нет)
+function costOf(base){
+  const ov=+COSTS[base]||0;
+  if(ov>0) return ov;
+  const own=+((CP[base]||{}).cost)||0;
+  if(own>0) return own;
+  const vals=[];
+  for(const [k,v] of Object.entries(CP)){
+    if(k!==base&&stripSize(k)===base&&(+v.cost||0)>0) vals.push(+v.cost);
+  }
+  return vals.length?vals.reduce((a,b)=>a+b,0)/vals.length:0;
+}
 function buildItems(){
   const items=[], nocost=[], stale=[];
   for(const [base,t] of Object.entries(TD)){
+    // пропускаем размерные варианты «Имя (M)», если базовое имя существует отдельно —
+    // как на /turnover; иначе они задваивают позиции и засоряют «нет себестоимости»
+    const sb=stripSize(base);
+    if(sb!==base&&TD[sb]) continue;
     const cat=getCat(base);
     if(!cat||HIDDEN.has(base)||OFFCATS.has(cat)) continue;
     const dis=t.dis||0, nq=t.nq||0, cs=t.cs||0;
@@ -322,10 +340,9 @@ function buildItems(){
       continue;
     }
     const cpRec=CP[base]||{};
-    const override=+COSTS[base]||0;
-    const cost=override>0?override:(+cpRec.cost||0);
+    const cost=costOf(base);
     const isChina=CHINA.has(base);
-    const sew=+cpRec.purchase||0;
+    const sew=Math.min(+cpRec.purchase||0, cost);
     const fabric=Math.max(0, cost-sew);
     const price=(+t.ap||0)>0?+t.ap:(+cpRec.price||0);
     if(cost<=0){ nocost.push({base, need, turn}); continue; }
