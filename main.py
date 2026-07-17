@@ -1197,6 +1197,12 @@ def serve_sizes():
         return FileResponse("sizes.html", media_type="text/html")
     return FileResponse("index.html", media_type="text/html")
 
+@app.get("/budget")
+def serve_budget():
+    if os.path.exists("budget.html"):
+        return FileResponse("budget.html", media_type="text/html")
+    return FileResponse("index.html", media_type="text/html")
+
 @app.get("/revenue")
 def serve_revenue():
     if os.path.exists("revenue.html"):
