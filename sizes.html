@@ -230,6 +230,13 @@ async function loadAll(){
           const k=normSize(s.name);
           sm[k]=(sm[k]||0)+(s.sale_qty||0)-(s.ret_qty||0);
         }
+        // Безразмерные товары: sales-monthly не отдаёт sizes у имён без скобок,
+        // из-за чего сумки/аксессуары показывали «продано 0». Берём нетто позиции
+        // целиком как One Size.
+        if(!(it.sizes||[]).length){
+          const q=(it.sale_qty||0)-(it.ret_qty||0);
+          if(q) sm["One Size"]=q;
+        }
         map[it.base]=sm;
       }
       MONTHLY[MONTHS[i]]=map;

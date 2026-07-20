@@ -224,7 +224,7 @@ PARIS_MAP = {
     "\"Drama\" Black Jacquard Shirt": "Черная жаккардовая рубашка \"Драма\"",
     "\"Tulip\" Khaki and Black Shirt": "Рубашка \"Тюльпан\" хаки с черным",
     "\"Tulip\" Black and White Shirt": "Рубашка \"Тюльпан\" черно-белая",
-    "Boxer Triple Pack Multicolor": "Комплект разноцветных боксеров \"Боксёр\" (3 шт)",
+    "Boxer Triple Pack Multicolor": "Комплект разноцветных боксеров \"Боксёр\"",  # ключи РФ канонизированы (_canon_name срезает финальные скобки) — "(3 шт)" в значении не матчился никогда
     "\"Hitman\" Yellow Bag": "Желтая сумка \"Килл Билл\"",
     "\"Hitman\" Black Bag": "Черная сумка \"Килл Билл\"",
     "\"Evening\" Black Shorts": "Черные шорты \"На вечер\"",
@@ -326,18 +326,23 @@ def money_page():
     return FileResponse(os.path.join(BASE_DIR, "money.html"))
 
 
-_SBS_CACHE = {"t": 0, "data": None}
+_SBS_CACHE = {}   # days -> (timestamp, data)
 
 
 def sales_by_size(days: int = 365):
     """Нетто-продажи по размерам за последние N дней: {base: {size: qty}}.
-    Размер — из скобок в конце полного имени МойСклада. Кэш 1 час."""
+    Размер — из скобок в конце полного имени МойСклада. Кэш 1 час (по ключу days).
+    ВАЖНО: нетто агрегируется по каноническому base+size, фильтр q<=0 — ПОСЛЕ
+    агрегации. Раньше фильтр стоял до неё (по полному имени): возврат по старому/
+    переименованному имени с отрицательным нетто выбрасывался целиком и не вычитался
+    из канонической позиции — доли размеров на /order завышались."""
     import re
     import main as site
     from datetime import date, timedelta
     now = time.time()
-    if _SBS_CACHE["data"] is not None and now - _SBS_CACHE["t"] < 3600:
-        return JSONResponse(_SBS_CACHE["data"])
+    cached = _SBS_CACHE.get(days)
+    if cached is not None and now - cached[0] < 3600:
+        return JSONResponse(cached[1])
     cutoff = (date.today() - timedelta(days=days)).isoformat()
     conn = site.get_db()
     rows = conn.execute(
@@ -348,15 +353,18 @@ def sales_by_size(days: int = 365):
     for row in rows:
         full = str(row["sku_name"] or "")
         q = float(row["q"] or 0)
-        if not full or q <= 0:
+        if not full:
             continue
         base = site._canon_name(full)
         m = re.search(r"\(([^)]+)\)\s*$", full)
         size = m.group(1).strip() if m else "One Size"
         d = out.setdefault(base, {})
-        d[size] = round(d.get(size, 0) + q, 1)
-    _SBS_CACHE["data"] = out
-    _SBS_CACHE["t"] = now
+        d[size] = d.get(size, 0) + q            # со знаком: возвраты вычитаются
+    for base in list(out.keys()):               # фильтр после агрегации
+        out[base] = {s: round(q, 1) for s, q in out[base].items() if q > 0}
+        if not out[base]:
+            del out[base]
+    _SBS_CACHE[days] = (now, out)
     return JSONResponse(out)
 
 

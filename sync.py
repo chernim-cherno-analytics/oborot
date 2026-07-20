@@ -105,10 +105,29 @@ def sync_stock(dry: bool = False):
 
     lite = get_sqlite()
     _init_bystore_table(lite)
+    # Явные нули: позиция, у которой последний записанный остаток был >0,
+    # а сегодня её нет в отчёте МойСклада, — распродана. Пишем 0 на сегодня,
+    # иначе фронты (turnover/analytics/forecast/order) вечно тянут последний
+    # положительный остаток («фантомный сток») и dis продолжает тикать.
+    # Правило самоизлечивающееся: после записи нуля последняя строка = 0,
+    # и позиция больше не попадает в gone.
+    gone_rows = []
+    try:
+        cur = lite.execute(
+            "SELECT s.sku_name, s.stock_qty FROM stock_snapshots s "
+            "JOIN (SELECT sku_name, MAX(date) md FROM stock_snapshots "
+            "      WHERE date < ? GROUP BY sku_name) m "
+            "  ON m.sku_name = s.sku_name AND m.md = s.date "
+            "WHERE s.stock_qty > 0", (today,))
+        for n, q in cur.fetchall():
+            if n not in totals:
+                gone_rows.append((today, str(n), 0.0, now))
+    except Exception:
+        gone_rows = []
     lite.executemany(
         "INSERT OR REPLACE INTO stock_snapshots (date, sku_name, stock_qty, uploaded_at) "
         "VALUES (?, ?, ?, ?)",
-        [(today, n, q, now) for n, q in totals.items()]
+        [(today, n, q, now) for n, q in totals.items()] + gone_rows
     )
     lite.executemany(
         "INSERT OR REPLACE INTO stock_bystore (date, store, sku_name, qty) "
@@ -117,7 +136,7 @@ def sync_stock(dry: bool = False):
     )
     lite.commit(); lite.close()
     return {"stock_skus": len(totals), "bystore_rows": len(rows), "date": today,
-            "source": "moysklad-live"}
+            "zeroed_gone": len(gone_rows), "source": "moysklad-live"}
 
 
 # ── продажи/возвраты за последние N дней (из зеркала — документы свежие) ─────
@@ -148,8 +167,14 @@ def sync_sales(dry: bool = False, days_back: int = SALES_DAYS_BACK):
     sales = _fetch_docs(pg, SCHEMA["demand"], days_back)
     try:
         sales += _fetch_docs(pg, SCHEMA["retaildemand"], days_back)
-    except Exception:
+    except Exception as e:
+        # РАНЬШЕ сбой глотался молча: оптовые продажи перезаписывали дни БЕЗ розницы,
+        # и розничные продажи за days_back дней тихо стирались из sales_data.
+        # Теперь синк падает громко (Телеграм «❌ Синк УПАЛ»), старые данные остаются
+        # нетронутыми, следующий успешный запуск (окно 3 дня) сам дозаполнит дни.
         pg.rollback()
+        pg.close()
+        raise RuntimeError(f"зеркало: lenretaildemand недоступен — продажи не перезаписаны: {e}")
     try:
         returns = _fetch_docs(pg, SCHEMA["salesreturn"], days_back)
     except Exception:

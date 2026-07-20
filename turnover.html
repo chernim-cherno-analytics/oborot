@@ -468,8 +468,9 @@ function compute() {
       for(const d of sd){const q=dm[d]!==undefined?dm[d]:p2;if(q>=3)si++;p2=q;}
       sea[s]=si>0?(skSea[s]||0)/si:0;
     }
-    let cs=0;
-    for(let i=allDates.length-1;i>=0;i--){if(dm[allDates[i]]!==undefined){cs=dm[allDates[i]];break;}}
+    // остаток = значение на ПОСЛЕДНЮЮ дату снапшота; отсутствие строки = 0 (распродано).
+    // Раньше брался «последний записанный» — у распроданных вечно висел фантомный положительный остаток.
+    const cs=(allDates.length&&dm[allDates[allDates.length-1]]!==undefined)?dm[allDates[allDates.length-1]]:0;
     const dsq=dis>0?skNq/dis:0;
     const sup=dsq>0?Math.round(cs/dsq):null;
     const zat=sup!==null?Math.round(sup/90*100):null;
@@ -545,8 +546,8 @@ function computeSize(szKey, baseData) {
   const skNq = sk.nq || 0;
   const skAp = sk.ap || 0;
   const skSea = sk.sea || {};
-  let cs=0;
-  for(let i=allDates.length-1;i>=0;i--){if(dm[allDates[i]]!==undefined){cs=dm[allDates[i]];break;}}
+  // остаток = значение на последнюю дату; нет строки = 0 (распродано)
+  const cs=(allDates.length&&dm[allDates[allDates.length-1]]!==undefined)?dm[allDates[allDates.length-1]]:0;
   let dis = (sk.dis != null && sk.dis > 0) ? sk.dis : 0;
   if (!dis) {
     let prev2=0;

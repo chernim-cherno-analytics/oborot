@@ -332,8 +332,9 @@ function compute(){
     let dis=0,prev=0;
     for(const d of allDates){const s=dm[d]!==undefined?dm[d]:prev;if(s>=3)dis++;prev=s;}
     const turn=dis>0?(sk.nr||0)/dis:0;
-    let cs=0;
-    for(let i=allDates.length-1;i>=0;i--){if(dm[allDates[i]]!==undefined){cs=dm[allDates[i]];break;}}
+    // остаток = значение на ПОСЛЕДНЮЮ дату снапшота; отсутствие строки = 0 (распродано).
+    // Раньше брался «последний записанный» — у распроданных вечно висел фантомный положительный остаток.
+    const cs=(allDates.length&&dm[allDates[allDates.length-1]]!==undefined)?dm[allDates[allDates.length-1]]:0;
     const dsq=dis>0?(sk.nq||0)/dis:0;
     const sup=dsq>0?Math.round(cs/dsq):null;
     const zat=sup!==null?Math.round(sup/90*100):null;

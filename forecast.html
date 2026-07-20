@@ -182,31 +182,34 @@ function renderSearch(){
 document.addEventListener("input",(e)=>{ if(e.target&&e.target.id==="search") renderSearch(); });
 
 async function init(){
-  const [aRes,tRes,oRes]=await Promise.all([
+  const [aRes,tRes,oRes,hRes]=await Promise.all([
     fetch("/api/analytics-data"), fetch("/api/turnover-data"),
-    fetch("/api/adjustments?project_id=analytics-ordered")
+    fetch("/api/adjustments?project_id=analytics-ordered"), fetch("/api/hidden")
   ]);
   const a=await aRes.json(), t=await tRes.json();
   const allDates=a.dates||[], stockData=a.stock||{}, SKUS=(t&&t.skus)||{};
-  let INCOMING={};
+  let INCOMING={}, hiddenItems=new Set();
   try{
     const o=await oRes.json();
     for(const [k,v] of Object.entries(o||{})) if(v>0) INCOMING[k]=v;
   }catch(e){}
+  try{ hiddenItems=new Set(await hRes.json()); }catch(e){}
 
   // собираем позиции
   const items=ITEMS;
   for(const base of Object.keys(stockData)){
     const stripped=base.replace(/\s*\([^)]*\)\s*$/,"").trim();
     if(base!==stripped&&(stockData[stripped]||SKUS[stripped])) continue;
+    if(hiddenItems.has(base)) continue;   // архив исключён (как на /analytics и /budget)
     const cat=getCat(base);
     if(!cat) continue;
     const dm=stockData[base]||{};
     const sk=SKUS[base]||{nq:0,nr:0,ap:0};
     let dis=0,prev=0;
     for(const d of allDates){const s=dm[d]!==undefined?dm[d]:prev;if(s>=3)dis++;prev=s;}
-    let cs=0;
-    for(let i=allDates.length-1;i>=0;i--){if(dm[allDates[i]]!==undefined){cs=dm[allDates[i]];break;}}
+    // остаток = значение на ПОСЛЕДНЮЮ дату снапшота; отсутствие строки = 0 (распродано).
+    // Раньше брался «последний записанный» — у распроданных вечно висел фантомный положительный остаток.
+    const cs=(allDates.length&&dm[allDates[allDates.length-1]]!==undefined)?dm[allDates[allDates.length-1]]:0;
     const inc=INCOMING[base]||0;
     const dsq=dis>0?(sk.nq||0)/dis:0;
     const ap=sk.ap||((sk.nq||0)>0?(sk.nr||0)/sk.nq:0);
@@ -242,16 +245,18 @@ async function init(){
     cum+=wr;
     weekly.push(wr); cumul.push(cum);
   }
-  const totalPotential=totV+incV;
-  // когда останется <10% потенциала
+  // порог «хватит до» — от ПРОДАВАЕМОГО потенциала (dsq>0). Раньше в порог входил
+  // и мёртвый сток без продаж: если его >10% стоимости, порог 90% был недостижим
+  // в принципе и карточка всегда показывала «> 6 месяцев».
+  const sellablePotential=items.reduce((s,x)=>s+(x.dsq>0?(x.cs+x.inc)*x.ap:0),0);
   let untilWeek=null;
-  for(let w=0;w<WEEKS;w++){ if(cumul[w]>=totalPotential*0.9){ untilWeek=w+1; break; } }
+  for(let w=0;w<WEEKS;w++){ if(sellablePotential>0&&cumul[w]>=sellablePotential*0.9){ untilWeek=w+1; break; } }
   const untilDate=untilWeek?new Date(Date.now()+untilWeek*7*86400000):null;
   document.getElementById("c-until").textContent=untilDate
     ? "до "+untilDate.toLocaleDateString("ru-RU",{day:"numeric",month:"long"})
     : "> 6 месяцев";
   document.getElementById("c-until-s").textContent=untilWeek
-    ? "90% стока распродастся за "+untilWeek+" нед"
+    ? "90% продаваемого стока распродастся за "+untilWeek+" нед"
     : "теку­щего стока хватает надолго";
 
   drawChart(weekly,cumul);

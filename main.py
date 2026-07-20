@@ -1063,34 +1063,25 @@ TURNOVER_JSON_PATH = "/data/turnover_cache.json"
 def get_turnover_data():
     """Serve pre-computed compact turnover stats from disk."""
     if os.path.exists(TURNOVER_JSON_PATH) and os.path.getsize(TURNOVER_JSON_PATH) > 100:
-        # Validate cache has dis field — if not, invalidate and rebuild
+        # Валидация: кэш обязан содержать И dis, И nq (данные о продажах).
+        # Раньше проверялся только dis, и «деградированный» кэш из build_turnover_data
+        # (без nq/nr — бюджет и заказ видели нули по всем позициям) проходил проверку
+        # и раздавался до следующего синка.
         try:
             import json as _j
             with open(TURNOVER_JSON_PATH, "r", encoding="utf-8") as _f:
                 _sample = _j.load(_f)
             _skus = _sample.get("skus", {})
             _first = next(iter(_skus.values()), {}) if _skus else {}
-            if "dis" not in _first:
+            if _skus and ("dis" not in _first or "nq" not in _first):
                 os.remove(TURNOVER_JSON_PATH)
             else:
                 return FileResponse(TURNOVER_JSON_PATH, media_type="application/json")
         except Exception:
             pass
-    # Turnover cache missing — build from analytics cache if it exists (no SQL/memory)
-    if os.path.exists(ANALYTICS_JSON_PATH):
-        import json
-        with open(ANALYTICS_JSON_PATH, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        tdata = build_turnover_data(data)
-        del data
-        os.makedirs("/data", exist_ok=True)
-        tmp = TURNOVER_JSON_PATH + ".tmp"
-        with open(tmp, "w", encoding="utf-8") as f:
-            json.dump(tdata, f, ensure_ascii=False, separators=(",", ":"))
-        os.replace(tmp, TURNOVER_JSON_PATH)
-        del tdata
-        return FileResponse(TURNOVER_JSON_PATH, media_type="application/json")
-    # Neither cache exists — need fresh rebuild from DB
+    # Кэш отсутствует/деградирован — полная пересборка из БД (пишет оба кэша со всеми
+    # полями, включая nq/nr). Упрощённый фолбэк build_turnover_data больше не используется:
+    # он не содержал продаж и считал dis по другому окну (365 дн вместо всей истории).
     conn = get_db()
     rebuild_analytics_json(conn)
     conn.close()
