@@ -950,7 +950,35 @@ async def save_paris_shipment(data: dict): import json as _j; rows = data.get("r
 def list_paris_shipments(): conn = get_db(); rows = conn.execute("SELECT id, shipment_date, saved_at, total_qty, total_positions FROM paris_shipments ORDER BY id DESC").fetchall(); conn.close(); return [{"id":r[0],"shipment_date":r[1],"saved_at":r[2],"total_qty":r[3],"total_positions":r[4]} for r in rows]
 @app.get("/api/paris/{shipment_id}")
 def get_paris_shipment(shipment_id: int): import json as _j; conn = get_db(); row = conn.execute("SELECT id, shipment_date, saved_at, items, total_qty, total_positions FROM paris_shipments WHERE id=?", (shipment_id,)).fetchone(); conn.close(); assert row, "Not found"; return {"id":row[0],"shipment_date":row[1],"saved_at":row[2],"rows":_j.loads(row[3]),"total_qty":row[4],"total_positions":row[5]}
-    
+
+@app.post("/api/paris/{shipment_id}/restore")
+def restore_paris_shipment(shipment_id: int):
+    """Вернуть сохранённую отгрузку в заказ: количества ПРИБАВЛЯЮТСЯ к текущим
+    инпутам «Привезти в Париж» (project paris-transfer), запись удаляется из истории."""
+    import json as _j
+    conn = get_db()
+    row = conn.execute("SELECT items FROM paris_shipments WHERE id=?", (shipment_id,)).fetchone()
+    if not row:
+        conn.close()
+        raise HTTPException(404, "Shipment not found")
+    cur = {r[0]: int(r[1] or 0) for r in conn.execute(
+        "SELECT sku_base, qty_adj FROM sku_adjustments WHERE project_id=?", ("paris-transfer",)).fetchall()}
+    for r in _j.loads(row[0]):
+        q = int(r.get("qty", 0) or 0)
+        if q <= 0:
+            continue
+        k = str(r.get("en", "")) + "||" + str(r.get("size", ""))
+        cur[k] = cur.get(k, 0) + q
+    now_iso = datetime.now().isoformat()[:19]
+    for k, v in cur.items():
+        if v > 0:
+            conn.execute("INSERT OR REPLACE INTO sku_adjustments (project_id, sku_base, qty_adj, updated_at) VALUES (?,?,?,?)",
+                         ("paris-transfer", k, v, now_iso))
+    conn.execute("DELETE FROM paris_shipments WHERE id=?", (shipment_id,))
+    conn.commit()
+    conn.close()
+    return {"ok": True, "restored": {k: v for k, v in cur.items() if v > 0}}
+
 @app.get("/api/excluded")
 def get_excluded(project_id: str = ""):
     conn = get_db()
@@ -1063,25 +1091,34 @@ TURNOVER_JSON_PATH = "/data/turnover_cache.json"
 def get_turnover_data():
     """Serve pre-computed compact turnover stats from disk."""
     if os.path.exists(TURNOVER_JSON_PATH) and os.path.getsize(TURNOVER_JSON_PATH) > 100:
-        # Валидация: кэш обязан содержать И dis, И nq (данные о продажах).
-        # Раньше проверялся только dis, и «деградированный» кэш из build_turnover_data
-        # (без nq/nr — бюджет и заказ видели нули по всем позициям) проходил проверку
-        # и раздавался до следующего синка.
+        # Validate cache has dis field — if not, invalidate and rebuild
         try:
             import json as _j
             with open(TURNOVER_JSON_PATH, "r", encoding="utf-8") as _f:
                 _sample = _j.load(_f)
             _skus = _sample.get("skus", {})
             _first = next(iter(_skus.values()), {}) if _skus else {}
-            if _skus and ("dis" not in _first or "nq" not in _first):
+            if "dis" not in _first:
                 os.remove(TURNOVER_JSON_PATH)
             else:
                 return FileResponse(TURNOVER_JSON_PATH, media_type="application/json")
         except Exception:
             pass
-    # Кэш отсутствует/деградирован — полная пересборка из БД (пишет оба кэша со всеми
-    # полями, включая nq/nr). Упрощённый фолбэк build_turnover_data больше не используется:
-    # он не содержал продаж и считал dis по другому окну (365 дн вместо всей истории).
+    # Turnover cache missing — build from analytics cache if it exists (no SQL/memory)
+    if os.path.exists(ANALYTICS_JSON_PATH):
+        import json
+        with open(ANALYTICS_JSON_PATH, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        tdata = build_turnover_data(data)
+        del data
+        os.makedirs("/data", exist_ok=True)
+        tmp = TURNOVER_JSON_PATH + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(tdata, f, ensure_ascii=False, separators=(",", ":"))
+        os.replace(tmp, TURNOVER_JSON_PATH)
+        del tdata
+        return FileResponse(TURNOVER_JSON_PATH, media_type="application/json")
+    # Neither cache exists — need fresh rebuild from DB
     conn = get_db()
     rebuild_analytics_json(conn)
     conn.close()
