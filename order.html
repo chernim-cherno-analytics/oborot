@@ -1010,6 +1010,11 @@ function downloadOrderPlain(){
     return {out,tq};
   };
   const L=section("Лаборатория",lab), C=section("Китай",china);
+  // честная подпись метода: если хоть одна позиция правлена вручную — говорим об этом
+  const anyManual=[...lab,...china].some(([b,d])=>{const e=sizesOf(b,qtyOf(b,d));return e&&e.manual;});
+  const szNote=anyManual
+    ?"разбивка по размерам — по продажам за 12 месяцев, часть позиций задана вручную"
+    :"разбивка по размерам — пропорционально продажам за 12 месяцев";
   const html=L.out+C.out+
     '<div class="tot grand">Всего по заказу: <b>'+(L.tq+C.tq).toLocaleString("ru-RU")+' шт</b></div>';
   const doc=`<!DOCTYPE html><html lang="ru"><head><meta charset="UTF-8">
@@ -1029,7 +1034,7 @@ tr:nth-child(even) td{background:#faf7f3}
 @media print{body{margin:12mm} h2{page-break-after:avoid} table{page-break-inside:auto} tr{page-break-inside:avoid}}
 </style></head><body>
 <h1>Заказ «${PNAME}»</h1>
-<div class="meta">версия для производства — без цен · ожидаемый приход: ${arrival} · сформировано: ${today} · разбивка по размерам — пропорционально продажам за 12 месяцев · Chernim Cherno</div>
+<div class="meta">версия для производства — без цен · ожидаемый приход: ${arrival} · сформировано: ${today} · ${szNote} · Chernim Cherno</div>
 ${html}
 </body></html>`;
   savePdf(doc, `Заказ ${PNAME} (производство) — ${new Date().toISOString().slice(0,10)}.pdf`);

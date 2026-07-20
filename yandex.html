@@ -260,7 +260,9 @@ function drawChart(months){
   cv.onmouseleave=()=>{ document.getElementById("ctip").style.display="none"; };
 }
 
-document.querySelectorAll(".preset").forEach(b=>{
+// только кнопки с data-m: у поля поиска тоже класс .preset (для стиля), и раньше клик
+// по нему молча переключал период на «всё время» (dataset.m=undefined → NaN → slice(-NaN))
+document.querySelectorAll(".preset[data-m]").forEach(b=>{
   b.addEventListener("click",()=>{
     document.querySelectorAll(".preset").forEach(x=>x.classList.remove("active"));
     b.classList.add("active");

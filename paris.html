@@ -136,6 +136,18 @@
     .loading { text-align:center; padding:60px; color:rgba(31,31,31,0.45); font-size:13px }
     .errbox { background:#fdeaea; border:1px solid #e7b3b3; color:#7a0002; border-radius:12px;
       padding:14px 18px; font-size:13px; margin-bottom:16px }
+
+    /* новинки РФ, которых ещё нет в Shopify */
+    .runew { background:rgba(255,255,255,0.6); backdrop-filter:blur(6px); border:1px solid rgba(60,99,0,0.3);
+      border-radius:12px; padding:14px 18px; font-size:13px; margin-bottom:16px }
+    .runew b.t { display:block; font-size:14px; margin-bottom:4px }
+    .runew .itm { display:flex; gap:12px; align-items:center; padding:6px 0; flex-wrap:wrap;
+      border-top:1px dashed rgba(31,31,31,0.12) }
+    .runew .itm:first-of-type { border-top:none }
+    .runew .nm { font-weight:600; min-width:240px }
+    .runew .dt { color:rgba(31,31,31,0.5); font-size:12px }
+    .runew .soldout { color:#7a0002; font-size:12px }
+    .runew .hint { color:rgba(31,31,31,0.55); font-size:12px; margin-top:10px }
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
@@ -174,6 +186,7 @@
   <div id="history-panel" style="display:none;background:#fff;border:1px solid #e3e3e3;border-radius:12px;padding:16px;margin-bottom:16px"></div>
   <div id="err"></div>
   <div class="cards" id="cards"></div>
+  <div id="ru-new"></div>
   <div class="cat-bar" id="cat-bar"></div>
 
   <div class="table-outer">
@@ -220,6 +233,8 @@ let RU = {};            // /api/stocks-bystore .skus
 let INET_IDX = -1;      // индекс склада «Интернет-магазин» в списке складов
 let PT = {};            // "en||size" -> qty
 let NEWSET = new Set(); // русские базовые имена-новинки
+let NEWFIRST = {};      // base -> дата первого появления в стоке
+const NON_MERCH = ["сертификат","кошелек","sample","сэмпл","упаковоч","пакет","коробк","вешалк","бирк","кофр","наклейк","кейс для","чехол для","нитк","бумага тишью"];
 let currentCat = "all";
 let Q = "";
 
@@ -271,19 +286,66 @@ async function loadAll(){
       if(dates.length){
         const ref=new Date(dates[dates.length-1]).getTime();
         for(const [base,dm] of Object.entries(stock)){
+          // пропускаем размерные ключи «Имя (S)», если есть базовое имя
+          const stripped=base.replace(/\s*\([^)]*\)\s*$/,"").trim();
+          if(base!==stripped&&stock[stripped]) continue;
           let first=null;
           for(const d of dates){ if((dm[d]||0)>0){ first=d; break; } }
-          if(first && (ref-new Date(first).getTime())/86400000 <= NEW_DAYS) NEWSET.add(base);
+          if(first && (ref-new Date(first).getTime())/86400000 <= NEW_DAYS){
+            NEWSET.add(base); NEWFIRST[base]=first;
+          }
         }
       }
     }catch(e){}
     document.getElementById("fetched").textContent =
       "склад Chernim Cherno France · Shopify на "+(SHOP.fetched||"")+" · Россия — склад Интернет-магазин, живой МойСклад";
-    buildCats(); render(); renderCards();
+    buildCats(); render(); renderCards(); renderRuNew();
   }catch(e){
     document.getElementById("tbody").innerHTML =
       '<tr><td colspan="6" class="loading">Ошибка загрузки: '+e.message+'</td></tr>';
   }
+}
+
+// ── Новинки РФ, которых ещё нет в Shopify ──
+// Механизм: «новинка» = позиция впервые появилась в ИСТОРИИ ОСТАТКОВ РФ за последние
+// NEW_DAYS дней (надёжнее даты создания карточки в МойСклад — карточку заводят заранее,
+// а тут виден момент, когда вещь реально пришла на склад). Если её русского имени нет
+// среди привязок PARIS_MAP (= товара нет в Shopify) — показываем в отдельном блоке,
+// чтобы Влад видел: новинку надо создать в Shopify и запланировать в Париж.
+function renderRuNew(){
+  const box=document.getElementById("ru-new");
+  if(!box) return;
+  const linked=new Set(((SHOP&&SHOP.items)||[]).map(it=>it.ru).filter(Boolean));
+  const rows=[];
+  for(const base of NEWSET){
+    if(linked.has(base)) continue;
+    const nl=base.toLowerCase();
+    if(NON_MERCH.some(k=>nl.includes(k))) continue;
+    const ri=RU[base]||null;
+    let tot=0, chips="";
+    if(ri&&ri.sizes){
+      const szs=[...new Set(Object.keys(ri.sizes).map(normOS))].sort((a,b)=>szIdx(a)-szIdx(b));
+      chips=szs.map(s=>{
+        let q=0;
+        for(const k of Object.keys(ri.sizes)){
+          if(normOS(k)!==normOS(s)) continue;
+          q+=(ri.sizes[k].per||[]).reduce((a,b)=>a+(b||0),0);   // все 3 склада
+        }
+        tot+=q;
+        return szChip(s,q);
+      }).join("");
+    }
+    rows.push({base, first:NEWFIRST[base]||"", tot, chips});
+  }
+  if(!rows.length){ box.innerHTML=""; return; }
+  rows.sort((a,b)=>(b.first||"").localeCompare(a.first||""));
+  box.innerHTML='<div class="runew"><b class="t">🆕 Новинки в РФ — товара ещё нет в Shopify ('+rows.length+')</b>'+
+    rows.map(r=>'<div class="itm"><span class="nm">'+esc(r.base)+'</span>'+
+      '<span class="dt">в стоке с '+(r.first?new Date(r.first).toLocaleDateString("ru-RU",{day:"numeric",month:"long"}):"—")+'</span>'+
+      (r.chips?'<span class="szchips">'+r.chips+'</span><span class="dt">'+r.tot+' шт по всем складам РФ</span>'
+              :'<span class="soldout">в РФ уже распродано</span>')+
+      '</div>').join("")+
+    '<div class="hint">Появились на складах РФ за последние '+NEW_DAYS+' дней, привязки к Shopify нет. Чтобы позиция попала в таблицу отгрузки: создай товар в Shopify (магазин chernim-cherno) и добавь строку «EN название → русское имя» в PARIS_MAP (файл paris.py).</div></div>';
 }
 
 function itemCat(it){ return getCat(it.ru || it.en); }
@@ -434,23 +496,8 @@ function renderCards(){
 }
 
 function toggleHistory(){ const p=document.getElementById("history-panel"); const show=p.style.display==="none"; p.style.display=show?"block":"none"; if(show) loadShipmentHistory(); }
-async function loadShipmentHistory(){ const p=document.getElementById("history-panel"); p.innerHTML='<table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr style="text-align:left;color:#888;font-size:11px;text-transform:uppercase"><th style="padding:6px 10px">Дата</th><th style="padding:6px 10px">Позиций</th><th style="padding:6px 10px">Количество</th><th style="padding:6px 10px"></th></tr></thead><tbody id="history-tbody"><tr><td colspan="4" style="padding:10px;color:#888">Загрузка…</td></tr></tbody></table>'; const tb=document.getElementById("history-tbody"); try{ const list=await (await fetch("/api/paris/list")).json(); if(!list.length){ tb.innerHTML='<tr><td colspan="4" style="padding:10px;color:#888">Пока нет сохранённых отгрузок</td></tr>'; return; } tb.innerHTML=list.map(s=>'<tr><td style="padding:6px 10px">'+s.shipment_date+'</td><td style="padding:6px 10px">'+s.total_positions+'</td><td style="padding:6px 10px">'+s.total_qty+'</td><td style="padding:6px 10px;white-space:nowrap"><button class="btn" style="padding:5px 12px;font-size:11px" onclick="redownloadShipment('+s.id+')">⬇ PDF</button> <button class="btn" style="padding:5px 12px;font-size:11px;background:#efe9e2;color:#1f1f1f" onclick="restoreShipment('+s.id+',\''+s.shipment_date+'\')">↩ Вернуть в заказ</button></td></tr>').join(""); }catch(e){ tb.innerHTML='<tr><td colspan="4" style="padding:10px;color:#c0392b">Ошибка загрузки истории</td></tr>'; } }
+async function loadShipmentHistory(){ const p=document.getElementById("history-panel"); p.innerHTML='<table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr style="text-align:left;color:#888;font-size:11px;text-transform:uppercase"><th style="padding:6px 10px">Дата</th><th style="padding:6px 10px">Позиций</th><th style="padding:6px 10px">Количество</th><th style="padding:6px 10px"></th></tr></thead><tbody id="history-tbody"><tr><td colspan="4" style="padding:10px;color:#888">Загрузка…</td></tr></tbody></table>'; const tb=document.getElementById("history-tbody"); try{ const list=await (await fetch("/api/paris/list")).json(); if(!list.length){ tb.innerHTML='<tr><td colspan="4" style="padding:10px;color:#888">Пока нет сохранённых отгрузок</td></tr>'; return; } tb.innerHTML=list.map(s=>'<tr><td style="padding:6px 10px">'+s.shipment_date+'</td><td style="padding:6px 10px">'+s.total_positions+'</td><td style="padding:6px 10px">'+s.total_qty+'</td><td style="padding:6px 10px"><button class="btn" style="padding:5px 12px;font-size:11px" onclick="redownloadShipment('+s.id+')">⬇ PDF</button></td></tr>').join(""); }catch(e){ tb.innerHTML='<tr><td colspan="4" style="padding:10px;color:#c0392b">Ошибка загрузки истории</td></tr>'; } }
 function buildShipmentHtmlFromRows(rows,ds){ let lastCat="",i=0,total=0; rows.forEach(r=>total+=r.qty); const body=rows.map(r=>{let h="";if(r.cat!==lastCat){h+='<tr class="c"><td colspan="4">'+r.cat+'</td></tr>';lastCat=r.cat;}i++;return h+'<tr><td>'+i+'</td><td>'+esc(r.ru||"—")+'<div class="e">'+esc(r.en)+'</div></td><td>'+esc(r.size)+'</td><td><b>'+r.qty+'</b></td></tr>';}).join(""); return '<!DOCTYPE html><html lang="ru"><head><meta charset="UTF-8"><title>Отгрузка в Париж '+ds+'</title><style>'+'body{font-family:Helvetica,Arial,sans-serif;color:#1f1f1f;padding:32px;max-width:800px;margin:0 auto}'+'h1{font-size:20px;margin-bottom:2px}.sub{color:#888;font-size:12px;margin-bottom:20px}'+'table{width:100%;border-collapse:collapse;font-size:13px}'+'th{background:#1f1f1f;color:#fff;text-align:left;padding:7px 10px;font-size:11px}'+'td{padding:6px 10px;border-bottom:1px solid #e3e3e3;vertical-align:top}'+'tr.c td{background:#efe9e2;font-weight:700;text-transform:uppercase;font-size:11px;letter-spacing:.05em}'+'.e{color:#999;font-size:11px}.tot{margin-top:16px;font-size:15px;font-weight:700}'+'@media print{body{padding:0}}</style></head><body>'+'<h1>Отгрузка в Париж · Chernim Cherno</h1><div class="sub">сформировано '+ds+' · отгрузка со склада Интернет-магазин → Chernim Cherno France</div>'+'<table><thead><tr><th>№</th><th>Позиция</th><th>Размер</th><th>Кол-во</th></tr></thead><tbody>'+body+'</tbody></table>'+'<div class="tot">Итого: '+total+' шт · '+new Set(rows.map(r=>r.en)).size+' позиций</div>'+'</body></html>'; }
-async function restoreShipment(id, ds){
-  if(!confirm("Вернуть отгрузку от "+ds+" в заказ?\nКоличества добавятся в колонку «Привезти в Париж», запись уйдёт из истории.")) return;
-  try{
-    const r=await fetch("/api/paris/"+id+"/restore",{method:"POST"});
-    if(!r.ok) throw new Error("HTTP "+r.status);
-    const d=await r.json();
-    PT={};
-    for(let [k,v] of Object.entries(d.restored||{})){
-      const q=parseInt(v,10)||0; if(q<=0) continue;
-      if(k.endsWith("||")) k+="One Size";           // миграция старых безразмерных ключей
-      PT[k]=(PT[k]||0)+q;
-    }
-    render(); renderCards(); loadShipmentHistory();
-  }catch(e){ alert("Не удалось восстановить: "+e.message); }
-}
 async function redownloadShipment(id){ try{ const s=await (await fetch("/api/paris/"+id)).json(); const ds=new Date(s.shipment_date).toLocaleDateString("ru-RU"); const html=buildShipmentHtmlFromRows(s.rows,ds); savePdf(html,"отгрузка-париж-"+s.shipment_date+".pdf"); }catch(e){ alert("Не удалось скачать: "+e.message); } }
   
 function downloadShipment(){

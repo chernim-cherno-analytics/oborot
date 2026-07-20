@@ -431,7 +431,9 @@ _agent_names = {}
 
 
 def _agent_name(aid):
-    """Имя контрагента из МойСклад API (кэш навсегда)."""
+    """Имя контрагента из МойСклад API. Кэшируем ТОЛЬКО успешный ответ:
+    раньше пустое имя при разовом сбое МС (таймаут/429) кэшировалось навсегда,
+    и /api/yandex-live «не находил» контрагента Яндекса до рестарта сервера."""
     if aid in _agent_names:
         return _agent_names[aid]
     import httpx
@@ -443,7 +445,8 @@ def _agent_name(aid):
             nm = r.json().get("name", "")
     except Exception:
         pass
-    _agent_names[aid] = nm
+    if nm:
+        _agent_names[aid] = nm
     return nm
 
 

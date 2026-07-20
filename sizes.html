@@ -329,7 +329,18 @@ const SEASONS={
 function isSeason(){ return typeof PERIOD==="string" && SEASONS[PERIOD]; }
 function periodMonths(){
   if(isSeason()) return MONTHS.filter(m=>SEASONS[PERIOD].mm.includes(m.slice(5,7)));
-  return PERIOD===0?MONTHS:MONTHS.slice(0,PERIOD);
+  // «N мес» = N ПОЛНЫХ месяцев + текущий (неполный): раньше текущий огрызок месяца
+  // занимал один из N слотов, окно было короче обещанного, а темп занижен.
+  return PERIOD===0?MONTHS:MONTHS.slice(0,PERIOD+1);
+}
+// дробное число месяцев в окне: текущий неполный месяц считается долей прошедших дней
+function effMonths(months){
+  if(!months.length) return 0;
+  const now=new Date();
+  const curKey=now.getFullYear()+"-"+String(now.getMonth()+1).padStart(2,"0");
+  const dim=new Date(now.getFullYear(),now.getMonth()+1,0).getDate();
+  const frac=Math.min(1,now.getDate()/dim);
+  return months.includes(curKey)?(months.length-1)+frac:months.length;
 }
 function periodLabel(){
   if(isSeason()) return SEASONS[PERIOD].name+" · за все годы";
@@ -408,9 +419,11 @@ function calc(){
     withStock=sumNeeds>0?largestRemainder(needs,Q):pure.slice();
   }
 
-  // карточки
+  // карточки: темп = продажи / фактическое число месяцев (неполный текущий — долей),
+  // иначе темп систематически занижался в начале месяца
   const monthsCnt=months.length;
-  const rate=monthsCnt?totSales/monthsCnt:0;
+  const eff=effMonths(months);
+  const rate=eff>0?totSales/eff:0;
   document.getElementById("cards").style.display="";
   document.getElementById("cards").innerHTML=
     '<div class="card"><div class="l">Продано за период</div><div class="v">'+fmt(totSales)+' шт</div><div class="s">'+periodLabel()+(isSeason()?" · "+monthsCnt+" мес":"")+'</div></div>'+
