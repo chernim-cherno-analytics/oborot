@@ -310,7 +310,7 @@ function szParts(s){
   const t=String(s||"").trim().toLowerCase();
   const m=t.match(/^(.*?)\s*,\s*(\d{3}-\d{3})$/);
   let p=m?m[1].trim():t, h=m?m[2]:"";
-  if(p===""||p==="default title"||p==="one size") p="one size";  // безразмерные — один ключ
+  if(p===""||p==="default title"||p==="one size") p="one size";  // безразмерные (пустой/Default Title/One size) — один ключ
   return [p,h];
 }
 function szCmp(a,b){
