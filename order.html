@@ -309,7 +309,9 @@ const PRIM_ORDER = ["xxs","xs","xs-s","s","s-m","m","m-l","l","l-xl","xl","xxl",
 function szParts(s){
   const t=String(s||"").trim().toLowerCase();
   const m=t.match(/^(.*?)\s*,\s*(\d{3}-\d{3})$/);
-  return m?[m[1].trim(),m[2]]:[t,""];
+  let p=m?m[1].trim():t, h=m?m[2]:"";
+  if(p===""||p==="default title"||p==="one size") p="one size";  // безразмерные — один ключ
+  return [p,h];
 }
 function szCmp(a,b){
   const [pa,ha]=szParts(a),[pb,hb]=szParts(b);
@@ -446,15 +448,23 @@ function qtyOf(base,d){ return ORDERQ[base]!==undefined?ORDERQ[base]:necOf(base,
 function revOf(base,d){ return qtyOf(base,d)*costOf(base).price; }
 // профит с заказанных штук — по нему сортируется таблица
 function profOf(base,d){ const c=costOf(base); return qtyOf(base,d)*Math.max(0,c.price-c.total); }
-// актуальная размерная сетка: из МойСклад; если позиции нет в стоке — из размеров продаж
+// актуальная размерная сетка: остатки МойСклад ∪ размеры из продаж за 12 мес.
+// ВАЖНО: в /api/stocks-bystore нет размеров с нулевым остатком, поэтому распроданный
+// в ноль размер (например M) не должен выпадать из сетки — добавляем его из продаж.
+// Размер из продаж добавляется только если в стоке нет ростовок того же базового
+// размера (продажи «S» при сетке «S, 168-178 / S, 178-188» по-прежнему распределяются).
 function sizeGrid(base){
-  if(GRID[base]&&GRID[base].length) return [...GRID[base]].sort(szCmp);
-  if(SBS[base]) return Object.keys(SBS[base]).sort(szCmp);
-  return null;
+  const g=GRID[base]?[...GRID[base]]:[];
+  const prims=new Set(g.map(s=>szParts(s)[0]));
+  for(const s of Object.keys(SBS[base]||{})){
+    const p=szParts(s)[0];
+    if(!prims.has(p)){ g.push(s); prims.add(p); }
+  }
+  return g.length?g.sort(szCmp):null;
 }
 // рекомендация по размерам: продажи за 12 мес, разложенные на актуальную сетку.
 // Продажи без ростовки (например «S» при сетке «S, 168-178 / S, 178-188»)
-// распределяются между ростовками того же размера; снятые размеры не учитываются.
+// распределяются между ростовками того же размера.
 function sizeSplit(base,total){
   const grid=sizeGrid(base);
   if(!grid||total<=0) return null;
