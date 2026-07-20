@@ -310,8 +310,13 @@ async function loadAll(){
 // Механизм: «новинка» = позиция впервые появилась в ИСТОРИИ ОСТАТКОВ РФ за последние
 // NEW_DAYS дней (надёжнее даты создания карточки в МойСклад — карточку заводят заранее,
 // а тут виден момент, когда вещь реально пришла на склад). Если её русского имени нет
-// среди привязок PARIS_MAP (= товара нет в Shopify) — показываем в отдельном блоке,
-// чтобы Влад видел: новинку надо создать в Shopify и запланировать в Париж.
+// среди привязок PARIS_MAP (= товара нет в Shopify) — показываем в отдельном блоке.
+// Остатки — ТОЛЬКО склад Интернет-магазин (с него идёт отгрузка, просьба Влада).
+// Новинку можно сразу ДОБАВИТЬ В ЗАКАЗ отгрузки: инпуты по размерам, хранение в том же
+// paris-transfer под ключом `RU::<русское имя>||<размер>` — префикс RU:: отличает
+// позиции без Shopify-товара; сервер restore строит ключ из en, поэтому en в отгрузке
+// сохраняется как "RU::имя" и «Вернуть в заказ» работает для новинок без правок бэка.
+const RU_PFX="RU::";
 function renderRuNew(){
   const box=document.getElementById("ru-new");
   if(!box) return;
@@ -322,30 +327,55 @@ function renderRuNew(){
     const nl=base.toLowerCase();
     if(NON_MERCH.some(k=>nl.includes(k))) continue;
     const ri=RU[base]||null;
-    let tot=0, chips="";
+    let tot=0, chips="", szs=[];
     if(ri&&ri.sizes){
-      const szs=[...new Set(Object.keys(ri.sizes).map(normOS))].sort((a,b)=>szIdx(a)-szIdx(b));
+      szs=[...new Set(Object.keys(ri.sizes).map(normOS))].sort((a,b)=>szIdx(a)-szIdx(b));
       chips=szs.map(s=>{
-        let q=0;
-        for(const k of Object.keys(ri.sizes)){
-          if(normOS(k)!==normOS(s)) continue;
-          q+=(ri.sizes[k].per||[]).reduce((a,b)=>a+(b||0),0);   // все 3 склада
-        }
+        const q=ruSizeQty(ri,s);        // только Интернет-магазин — с него отгрузка
         tot+=q;
         return szChip(s,q);
       }).join("");
     }
-    rows.push({base, first:NEWFIRST[base]||"", tot, chips});
+    if(!szs.length) szs=["One Size"];
+    rows.push({base, first:NEWFIRST[base]||"", tot, chips, szs});
+  }
+  // + позиции с введёнными количествами RU::, выпавшие из 30-дневного окна новинок
+  // (например, восстановленная старая отгрузка) — иначе их числа «висят» невидимо
+  const shown=new Set(rows.map(r=>r.base));
+  for(const k of Object.keys(PT)){
+    if(!k.startsWith(RU_PFX)) continue;
+    const sep=k.lastIndexOf("||"); if(sep<0) continue;
+    const base=k.slice(RU_PFX.length,sep);
+    if(shown.has(base)||linked.has(base)) continue;
+    shown.add(base);
+    const ri=RU[base]||null;
+    let tot=0, chips="", szs=[];
+    if(ri&&ri.sizes){
+      szs=[...new Set(Object.keys(ri.sizes).map(normOS))].sort((a,b)=>szIdx(a)-szIdx(b));
+      chips=szs.map(s=>{ const q=ruSizeQty(ri,s); tot+=q; return szChip(s,q); }).join("");
+    }
+    const inSizes=new Set(szs);
+    for(const kk of Object.keys(PT)){ if(kk.startsWith(RU_PFX+base+"||")) inSizes.add(kk.slice(kk.lastIndexOf("||")+2)||"One Size"); }
+    szs=[...inSizes]; if(!szs.length) szs=["One Size"];
+    rows.push({base, first:NEWFIRST[base]||"", tot, chips, szs});
   }
   if(!rows.length){ box.innerHTML=""; return; }
   rows.sort((a,b)=>(b.first||"").localeCompare(a.first||""));
   box.innerHTML='<div class="runew"><b class="t">🆕 Новинки в РФ — товара ещё нет в Shopify ('+rows.length+')</b>'+
-    rows.map(r=>'<div class="itm"><span class="nm">'+esc(r.base)+'</span>'+
-      '<span class="dt">в стоке с '+(r.first?new Date(r.first).toLocaleDateString("ru-RU",{day:"numeric",month:"long"}):"—")+'</span>'+
-      (r.chips?'<span class="szchips">'+r.chips+'</span><span class="dt">'+r.tot+' шт по всем складам РФ</span>'
-              :'<span class="soldout">в РФ уже распродано</span>')+
-      '</div>').join("")+
-    '<div class="hint">Появились на складах РФ за последние '+NEW_DAYS+' дней, привязки к Shopify нет. Чтобы позиция попала в таблицу отгрузки: создай товар в Shopify (магазин chernim-cherno) и добавь строку «EN название → русское имя» в PARIS_MAP (файл paris.py).</div></div>';
+    rows.map(r=>{
+      const inputs=r.szs.map(s=>{
+        const k=ptKey(RU_PFX+r.base,s), v=PT[k]||0;
+        return '<span class="tincell"><span class="tinlbl">'+esc(s)+'</span><input class="tin'+(v>0?' has':'')+
+          '" type="number" min="0" step="1" value="'+v+'" onchange="saveTr(this,\''+jse(RU_PFX+r.base)+'\',\''+jse(s)+'\')"></span>';
+      }).join("");
+      return '<div class="itm"><span class="nm">'+esc(r.base)+'</span>'+
+        '<span class="dt">в стоке с '+(r.first?new Date(r.first).toLocaleDateString("ru-RU",{day:"numeric",month:"long"}):"—")+'</span>'+
+        (r.chips?'<span class="szchips">'+r.chips+'</span><span class="dt">'+r.tot+' шт на Интернет-магазине</span>'
+                :'<span class="soldout">на Интернет-магазине нет</span>')+
+        '<span class="dt" style="margin-left:auto">привезти:</span>'+inputs+
+        '</div>';
+    }).join("")+
+    '<div class="hint">Появились на складах РФ за последние '+NEW_DAYS+' дней, привязки к Shopify нет. Количества «привезти» попадают в общий заказ отгрузки (карточка «К отправке» и PDF — отдельным блоком «Новинки — создать в Shopify»). Не забудь при отгрузке создать товар в Shopify (магазин chernim-cherno) и добавить строку «EN название → русское имя» в PARIS_MAP (файл paris.py) — тогда позиция переедет в основную таблицу.</div></div>';
 }
 
 function itemCat(it){ return getCat(it.ru || it.en); }
@@ -527,6 +557,15 @@ function downloadShipment(){
       }
     }
   }
+  // новинки без Shopify-товара (ключи RU::имя||размер) — отдельным блоком в конце;
+  // en = "RU::имя", чтобы «Вернуть в заказ» восстанавливал те же ключи
+  for(const [k,v] of Object.entries(PT)){
+    if(!k.startsWith(RU_PFX)||!(v>0)) continue;
+    const sep=k.lastIndexOf("||");
+    if(sep<0) continue;
+    const ru=k.slice(RU_PFX.length,sep), size=k.slice(sep+2)||"One Size";
+    rows.push({cat:"🆕 Новинки — создать в Shopify", ru, en:RU_PFX+ru, size, qty:v});
+  }
   if(!rows.length){ alert("Список пуст — введите количества в колонке «Привезти в Париж»."); return; }
   const d=new Date(), ds=d.toLocaleDateString("ru-RU");
   let total=0; rows.forEach(r=>total+=r.qty);
@@ -534,7 +573,8 @@ function downloadShipment(){
   for(const r of rows){
     if(r.cat!==lastCat){ body+='<tr class="c"><td colspan="4">'+r.cat+'</td></tr>'; lastCat=r.cat; }
     i++;
-    body+='<tr><td>'+i+'</td><td>'+esc(r.ru||"—")+'<div class="e">'+esc(r.en)+'</div></td><td>'+esc(r.size)+'</td><td><b>'+r.qty+'</b></td></tr>';
+    const enTxt=r.en&&r.en.startsWith(RU_PFX)?"⚠ товара ещё нет в Shopify — создать при отгрузке":r.en;
+    body+='<tr><td>'+i+'</td><td>'+esc(r.ru||"—")+'<div class="e">'+esc(enTxt)+'</div></td><td>'+esc(r.size)+'</td><td><b>'+r.qty+'</b></td></tr>';
   }
   const html='<!DOCTYPE html><html lang="ru"><head><meta charset="UTF-8"><title>Отгрузка в Париж '+ds+'</title><style>'+
     'body{font-family:Helvetica,Arial,sans-serif;color:#1f1f1f;padding:32px;max-width:800px;margin:0 auto}'+
