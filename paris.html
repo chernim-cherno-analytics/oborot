@@ -383,13 +383,18 @@ function isNew(it){ return !!(it.ru && NEWSET.has(it.ru)); }
 function itemGroup(it){ return isNew(it)?"Новинки":itemCat(it); }
 function itemVisible(it){
   if(Q && !mw((it.ru||"")+" "+it.en, Q)) return false;
-  if(currentCat!=="all" && itemGroup(it)!==currentCat) return false;
+  // новинка видна и в своей РОДНОЙ категории тоже (раньше только в «★ Новинки»,
+  // и вещь «пропадала» из своей категории — Влад не находил боксеры в «Нижнем белье»)
+  if(currentCat!=="all" && itemGroup(it)!==currentCat && itemCat(it)!==currentCat) return false;
   return true;
 }
 
 function buildCats(){
   const cnt={};
-  for(const it of SHOP.items){ const c=itemGroup(it); cnt[c]=(cnt[c]||0)+1; }
+  for(const it of SHOP.items){
+    const c=itemGroup(it); cnt[c]=(cnt[c]||0)+1;
+    if(c==="Новинки"){ const rc=itemCat(it); cnt[rc]=(cnt[rc]||0)+1; }   // новинка числится и в родной категории
+  }
   let html='<button class="cat-btn '+(currentCat==="all"?"active":"")+'" onclick="selCat(\'all\')">Все</button>';
   html+=GROUP_ORDER.filter(c=>cnt[c]>0).map(c=>
     '<button class="cat-btn '+(c==="Новинки"?"newcat ":"")+(c===currentCat?"active":"")+'" onclick="selCat(\''+c+'\')">'+
