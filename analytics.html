@@ -276,8 +276,22 @@ function shortStore(s){
 }
 
 async function loadAll(){
-  // взаимозачёт: свежие приёмки из МойСклада вычитаются из «Заказано» до загрузки
-  try{ await fetch("/api/settle-incoming",{method:"POST"}); }catch(e){}
+  // взаимозачёт: свежие приёмки из МойСклада вычитаются из «Заказано».
+  // НЕ ждём его до загрузки таблицы: раньше страница висела на «Загружаю
+  // данные...», пока сервер минутами пагинировал документы МойСклада.
+  // Когда settle завершится — обновляем колонку «Заказано» поверх.
+  fetch("/api/settle-incoming",{method:"POST"}).then(async r=>{
+    if(!r||!r.ok) return;
+    try{
+      const o=await (await fetch("/api/adjustments?project_id="+ORD_PID)).json();
+      const upd={};
+      for(const [k,v] of Object.entries(o||{})) if(v>0) upd[k]=v;
+      if(JSON.stringify(upd)!==JSON.stringify(ORDERED)){
+        ORDERED=upd;
+        if(typeof render==="function" && allDates.length){ compute(); renderSummary(); renderSummaryCat(); render(); }
+      }
+    }catch(e){}
+  }).catch(()=>{});
   try{
     const [aRes,tRes,hRes,bRes,oRes]=await Promise.all([
       fetch("/api/analytics-data"), fetch("/api/turnover-data"),

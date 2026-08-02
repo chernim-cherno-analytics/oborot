@@ -175,11 +175,17 @@ def sync_sales(dry: bool = False, days_back: int = SALES_DAYS_BACK):
         pg.rollback()
         pg.close()
         raise RuntimeError(f"зеркало: lenretaildemand недоступен — продажи не перезаписаны: {e}")
+    returns_error = None
     try:
         returns = _fetch_docs(pg, SCHEMA["salesreturn"], days_back)
-    except Exception:
+    except Exception as e:
+        # Не глотаем молча: раньше сбой возвратов давал «✅ Синк ОК», при этом
+        # возвраты неделями не обновлялись и нетто-выручка тихо завышалась.
+        # Возвраты за окно в этом случае НЕ трогаем (см. guard ниже).
         pg.rollback()
         returns = []
+        returns_error = str(e)
+        print(f"sync_sales: возвраты НЕ синхронизированы: {e}")
     pg.close()
 
     agg = {}
@@ -200,24 +206,33 @@ def sync_sales(dry: bool = False, days_back: int = SALES_DAYS_BACK):
             "dry": True,
         }
 
+    # Чистим по всему окну синка, а не только по датам из свежей выборки:
+    # раньше день, в котором ВСЕ документы удалили/распровели в МойСкладе,
+    # не попадал в выборку, DELETE для него не выполнялся — и стёртые продажи
+    # оставались в sales_data навсегда (фантомная выручка в отчётах).
+    win_cutoff = (date.today() - timedelta(days=days_back)).isoformat()
     lite = get_sqlite()
-    for d in dates_sales:
-        lite.execute("DELETE FROM sales_data WHERE date=? AND doc_type='sale'", (d,))
+    lite.execute("DELETE FROM sales_data WHERE date >= ? AND doc_type='sale'", (win_cutoff,))
     lite.executemany(
         "INSERT OR REPLACE INTO sales_data (date, sku_name, qty, revenue, doc_type) "
         "VALUES (?, ?, ?, ?, 'sale')",
         [(d, sku, q, r) for (d, sku), (q, r) in agg.items()]
     )
-    for d in dates_ret:
-        lite.execute("DELETE FROM sales_data WHERE date=? AND doc_type='return'", (d,))
-    lite.executemany(
-        "INSERT OR REPLACE INTO sales_data (date, sku_name, qty, revenue, doc_type) "
-        "VALUES (?, ?, ?, ?, 'return')",
-        [(d, sku, q, r) for d, sku, q, r in returns]
-    )
+    if returns_error is None:
+        # Возвраты трогаем только при успешной выборке — иначе окно очистилось
+        # бы впустую и возвраты за 3 дня исчезли бы из отчётов.
+        lite.execute("DELETE FROM sales_data WHERE date >= ? AND doc_type='return'", (win_cutoff,))
+        lite.executemany(
+            "INSERT OR REPLACE INTO sales_data (date, sku_name, qty, revenue, doc_type) "
+            "VALUES (?, ?, ?, ?, 'return')",
+            [(d, sku, q, r) for d, sku, q, r in returns]
+        )
     lite.commit(); lite.close()
-    return {"sales_days": dates_sales, "sales_rows": len(agg),
-            "returns_days": dates_ret, "returns_rows": len(returns)}
+    out = {"sales_days": dates_sales, "sales_rows": len(agg),
+           "returns_days": dates_ret, "returns_rows": len(returns)}
+    if returns_error:
+        out["returns_error"] = returns_error
+    return out
 
 
 # ── сверка имён SKU ───────────────────────────────────────────────────────────
@@ -259,9 +274,13 @@ def sync_all(dry: bool = False):
             conn.close()
             result["caches"] = "rebuilt"
         result["ok"] = True
+        _ret_warn = ""
+        if result.get("sales", {}).get("returns_error"):
+            _ret_warn = f"\n⚠️ Возвраты НЕ синхронизированы: {result['sales']['returns_error']}"
         _notify(f"✅ Синк ОК {started}\n"
                 f"Остатки (МойСклад напрямую): {result['stock'].get('stock_skus')} SKU\n"
-                f"Продажи: {result['sales'].get('sales_rows')} строк за {len(result['sales'].get('sales_days', []))} дн.",
+                f"Продажи: {result['sales'].get('sales_rows')} строк за {len(result['sales'].get('sales_days', []))} дн."
+                + _ret_warn,
                 dry)
     except Exception as e:
         result["ok"] = False

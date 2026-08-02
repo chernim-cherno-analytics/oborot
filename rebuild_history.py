@@ -601,12 +601,17 @@ def settle_incoming(force: int = 0):
     if not force and time.time() - _settle_cache["t"] < 600:
         return {"ok": True, "cached": True}
     _settle_cache["t"] = time.time()
+    # Соединение не держим на время HTTP-походов в МойСклад: раньше исключение
+    # в цикле запросов (например 401/429) оставляло sqlite-соединение открытым.
     conn = site.get_db()
-    done = {r["sku_base"] for r in conn.execute(
-        "SELECT sku_base FROM order_added WHERE project_id='settled-docs'").fetchall()}
-    ordered = {r["sku_base"]: r["qty_adj"] for r in conn.execute(
-        "SELECT sku_base, qty_adj FROM sku_adjustments "
-        "WHERE project_id='analytics-ordered' AND qty_adj>0").fetchall()}
+    try:
+        done = {r["sku_base"] for r in conn.execute(
+            "SELECT sku_base FROM order_added WHERE project_id='settled-docs'").fetchall()}
+        ordered = {r["sku_base"]: r["qty_adj"] for r in conn.execute(
+            "SELECT sku_base, qty_adj FROM sku_adjustments "
+            "WHERE project_id='analytics-ordered' AND qty_adj>0").fetchall()}
+    finally:
+        conn.close()
     from datetime import date as _d, timedelta as _td
     cutoff = (_d.today() - _td(days=60)).isoformat()
     new_docs = []
@@ -633,7 +638,15 @@ def settle_incoming(force: int = 0):
                 did = ent + ":" + str(doc.get("id", ""))
                 if not doc.get("id") or did in done:
                     continue
-                pos = (doc.get("positions") or {}).get("rows") or []
+                _posmeta = doc.get("positions") or {}
+                pos = _posmeta.get("rows") or []
+                _total_pos = int((_posmeta.get("meta") or {}).get("size") or len(pos))
+                if _total_pos > len(pos):
+                    # МойСклад в expand отдаёт не более ~100 позиций документа.
+                    # Раньше хвост длинных приёмок (>100 строк) молча терялся,
+                    # а документ всё равно помечался учтённым — «Заказано»
+                    # оставалось завышенным навсегда. Дочитываем пагинацией.
+                    pos = _fetch_all_positions(ent, doc["id"], _total_pos)
                 for p in pos:
                     nm = ((p.get("assortment") or {}).get("name")) or ""
                     if not nm:
@@ -646,21 +659,51 @@ def settle_incoming(force: int = 0):
             offset += 50
     applied = {}
     now = datetime.now().isoformat()
-    for base, q in deltas.items():
-        cur = ordered.get(base, 0)
-        if cur <= 0:
-            continue
-        newv = max(0, int(round(cur - q)))
-        conn.execute("INSERT OR REPLACE INTO sku_adjustments "
-                     "(project_id, sku_base, qty_adj, updated_at) "
-                     "VALUES ('analytics-ordered', ?, ?, ?)", (base, newv, now))
-        applied[base] = {"was": cur, "received": round(q, 1), "now": newv}
-    for did in new_docs:
-        conn.execute("INSERT OR IGNORE INTO order_added (project_id, sku_base, added_at) "
-                     "VALUES ('settled-docs', ?, ?)", (did, now))
-    conn.commit()
-    conn.close()
+    conn = site.get_db()
+    try:
+        for base, q in deltas.items():
+            cur = ordered.get(base, 0)
+            if cur <= 0:
+                continue
+            newv = max(0, int(round(cur - q)))
+            conn.execute("INSERT OR REPLACE INTO sku_adjustments "
+                         "(project_id, sku_base, qty_adj, updated_at) "
+                         "VALUES ('analytics-ordered', ?, ?, ?)", (base, newv, now))
+            applied[base] = {"was": cur, "received": round(q, 1), "now": newv}
+        for did in new_docs:
+            conn.execute("INSERT OR IGNORE INTO order_added (project_id, sku_base, added_at) "
+                         "VALUES ('settled-docs', ?, ?)", (did, now))
+        conn.commit()
+    finally:
+        conn.close()
     return {"ok": True, "new_docs": len(new_docs), "applied": applied}
+
+
+def _fetch_all_positions(ent, doc_id, total):
+    """Все позиции документа supply/enter постранично (expand в списке
+    документов обрезается на ~100 строках)."""
+    import httpx
+    out = []
+    offset = 0
+    while offset < total:
+        r = None
+        for _attempt in range(6):
+            r = httpx.get(f"{MS_API_BASE}/entity/{ent}/{doc_id}/positions",
+                          params={"expand": "assortment", "limit": 100, "offset": offset},
+                          headers=_ms_headers(), timeout=60)
+            if r.status_code == 429:
+                time.sleep(3.5)
+                continue
+            r.raise_for_status()
+            break
+        else:
+            raise RuntimeError("МойСклад: слишком много 429 (positions)")
+        rows = r.json().get("rows", [])
+        if not rows:
+            break
+        out.extend(rows)
+        offset += len(rows)
+    return out
 
 
 def attach(app):

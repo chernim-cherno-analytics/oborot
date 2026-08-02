@@ -183,7 +183,20 @@ def build_turnover_data(analytics_data):
         skus[base] = {"dis": dis, "cs": int(dm.get(latest, 0)), "sea_days": sea}
     return {"dates": dates, "skus": skus}
 
+# Блокировка пересборки кэшей: rebuild вызывается из 5 мест (оба sync-эндпоинта,
+# /api/upload, ручной rebuild, ночной синк APScheduler), которые могут работать
+# параллельно. Без блокировки два потока писали в ОДИН .tmp-файл — записи
+# перемешивались, os.replace публиковал битый JSON, и таблица «Остатки» падала
+# у всех пользователей до следующей пересборки.
+import threading as _threading
+_rebuild_lock = _threading.Lock()
+
 def rebuild_analytics_json(conn):
+    """Build analytics + turnover caches (потокобезопасно, см. _rebuild_lock)."""
+    with _rebuild_lock:
+        return _rebuild_analytics_json_inner(conn)
+
+def _rebuild_analytics_json_inner(conn):
     """Build analytics + turnover caches writing JSON to disk row-by-row (low memory)."""
     import json
     from datetime import date as _dt, timedelta
@@ -790,6 +803,15 @@ async def upload_sales(file: UploadFile = File(...)):
     date_from = str(df["Дата"].min())
     date_to = str(df["Дата"].max())
     conn.close()
+    # Инвалидируем кэши: раньше загруженные продажи не попадали в
+    # /api/turnover-data (и в Заказ/Бюджет) до ночного синка — следующий
+    # запрос теперь пересоберёт кэш из свежих данных.
+    global _analytics_cache, _analytics_cache_key
+    _analytics_cache = None; _analytics_cache_key = None
+    for _p in (ANALYTICS_JSON_PATH, TURNOVER_JSON_PATH):
+        try:
+            if os.path.exists(_p): os.remove(_p)
+        except OSError: pass
     return {"inserted": inserted, "doc_type": doc_type, "date_from": date_from, "date_to": date_to}
 
 @app.post("/api/check-bestsellers")
@@ -868,7 +890,17 @@ def serve_turnover():
 def get_analytics_data():
     """Serve pre-built analytics JSON from disk. If missing or empty, build it first."""
     if os.path.exists(ANALYTICS_JSON_PATH) and os.path.getsize(ANALYTICS_JSON_PATH) > 100:
-        return FileResponse(ANALYTICS_JSON_PATH, media_type="application/json")
+        # Дешёвая проверка целостности: корректный кэш всегда заканчивается на "}}".
+        # Битый (оборванный/перемешанный) файл раньше проходил проверку по размеру
+        # и раздавался клиентам с HTTP 200 до следующей пересборки.
+        try:
+            with open(ANALYTICS_JSON_PATH, "rb") as _f:
+                _f.seek(-2, os.SEEK_END)
+                _tail_ok = _f.read(2) == b"}}"
+        except OSError:
+            _tail_ok = False
+        if _tail_ok:
+            return FileResponse(ANALYTICS_JSON_PATH, media_type="application/json")
     # File missing or empty — delete and rebuild
     if os.path.exists(ANALYTICS_JSON_PATH):
         os.remove(ANALYTICS_JSON_PATH)
@@ -943,13 +975,18 @@ async def set_adjustment(data: dict):
     conn.commit(); conn.close()
     return {"ok": True}
 
+def _raise_http(code: int, msg: str):
+    # Замена assert в однострочных эндпоинтах: assert давал 500 вместо 400/404
+    # и полностью отключался при запуске python -O.
+    raise HTTPException(status_code=code, detail=msg)
+
 @app.post("/api/paris/save")
-async def save_paris_shipment(data: dict): import json as _j; rows = data.get("rows", []); assert rows, "rows required"; total_qty = int(data.get("total", sum(int(r.get("qty",0)) for r in rows))); total_positions = len(set(r.get("en","") for r in rows)); conn = get_db(); cur = conn.execute("INSERT INTO paris_shipments (shipment_date, saved_at, items, total_qty, total_positions) VALUES (?,?,?,?,?)", (datetime.now().strftime("%Y-%m-%d"), datetime.now().isoformat()[:19], _j.dumps(rows, ensure_ascii=False), total_qty, total_positions)); conn.execute("DELETE FROM sku_adjustments WHERE project_id=?", ("paris-transfer",)); conn.commit(); new_id = cur.lastrowid; conn.close(); return {"ok": True, "id": new_id}
+async def save_paris_shipment(data: dict): import json as _j; rows = data.get("rows", []); _ = rows or _raise_http(400, "rows required"); total_qty = int(data.get("total", sum(int(r.get("qty",0)) for r in rows))); total_positions = len(set(r.get("en","") for r in rows)); conn = get_db(); cur = conn.execute("INSERT INTO paris_shipments (shipment_date, saved_at, items, total_qty, total_positions) VALUES (?,?,?,?,?)", (datetime.now().strftime("%Y-%m-%d"), datetime.now().isoformat()[:19], _j.dumps(rows, ensure_ascii=False), total_qty, total_positions)); conn.execute("DELETE FROM sku_adjustments WHERE project_id=?", ("paris-transfer",)); conn.commit(); new_id = cur.lastrowid; conn.close(); return {"ok": True, "id": new_id}
 # ──── Order excluded ───────────────────────────────────────────────────────────
 @app.get("/api/paris/list")
 def list_paris_shipments(): conn = get_db(); rows = conn.execute("SELECT id, shipment_date, saved_at, total_qty, total_positions FROM paris_shipments ORDER BY id DESC").fetchall(); conn.close(); return [{"id":r[0],"shipment_date":r[1],"saved_at":r[2],"total_qty":r[3],"total_positions":r[4]} for r in rows]
 @app.get("/api/paris/{shipment_id}")
-def get_paris_shipment(shipment_id: int): import json as _j; conn = get_db(); row = conn.execute("SELECT id, shipment_date, saved_at, items, total_qty, total_positions FROM paris_shipments WHERE id=?", (shipment_id,)).fetchone(); conn.close(); assert row, "Not found"; return {"id":row[0],"shipment_date":row[1],"saved_at":row[2],"rows":_j.loads(row[3]),"total_qty":row[4],"total_positions":row[5]}
+def get_paris_shipment(shipment_id: int): import json as _j; conn = get_db(); row = conn.execute("SELECT id, shipment_date, saved_at, items, total_qty, total_positions FROM paris_shipments WHERE id=?", (shipment_id,)).fetchone(); conn.close(); _ = row or _raise_http(404, "Отгрузка не найдена"); return {"id":row[0],"shipment_date":row[1],"saved_at":row[2],"rows":_j.loads(row[3]),"total_qty":row[4],"total_positions":row[5]}
 
 @app.post("/api/paris/{shipment_id}/restore")
 def restore_paris_shipment(shipment_id: int):
@@ -1088,24 +1125,34 @@ def delete_project(project_id: str):
 # ─── Turnover data: pre-computed per-SKU stats (fast) ────────────────────────
 TURNOVER_JSON_PATH = "/data/turnover_cache.json"
 
+# Результат валидации turnover-кэша, привязанный к mtime файла.
+# Раньше на КАЖДЫЙ запрос выполнялся json.load всего файла (десятки МБ
+# разворачивались в память при каждой загрузке любой из 4 страниц) —
+# параллельные запросы давали пики RSS на инстансе, уже падавшем по OOM.
+_turnover_valid = {"mtime": None, "ok": False}
+
 @app.get("/api/turnover-data")
 def get_turnover_data():
     """Serve pre-computed compact turnover stats from disk."""
     if os.path.exists(TURNOVER_JSON_PATH) and os.path.getsize(TURNOVER_JSON_PATH) > 100:
         # Валидация: кэш обязан содержать И dis, И nq (данные о продажах).
-        # Раньше проверялся только dis, и «деградированный» кэш из build_turnover_data
-        # (без nq/nr — бюджет и заказ видели нули по всем позициям) проходил проверку
-        # и раздавался до следующего синка.
+        # Полная проверка json.load'ом выполняется один раз на версию файла
+        # (по mtime); повторные запросы отдают файл без парсинга.
         try:
-            import json as _j
-            with open(TURNOVER_JSON_PATH, "r", encoding="utf-8") as _f:
-                _sample = _j.load(_f)
-            _skus = _sample.get("skus", {})
-            _first = next(iter(_skus.values()), {}) if _skus else {}
-            if _skus and ("dis" not in _first or "nq" not in _first):
-                os.remove(TURNOVER_JSON_PATH)
-            else:
+            _mtime = os.path.getmtime(TURNOVER_JSON_PATH)
+            if _turnover_valid["mtime"] != _mtime:
+                import json as _j
+                with open(TURNOVER_JSON_PATH, "r", encoding="utf-8") as _f:
+                    _sample = _j.load(_f)
+                _skus = _sample.get("skus", {})
+                _first = next(iter(_skus.values()), {}) if _skus else {}
+                _turnover_valid["ok"] = not (_skus and ("dis" not in _first or "nq" not in _first))
+                _turnover_valid["mtime"] = _mtime
+                del _sample, _skus, _first
+            if _turnover_valid["ok"]:
                 return FileResponse(TURNOVER_JSON_PATH, media_type="application/json")
+            os.remove(TURNOVER_JSON_PATH)
+            _turnover_valid["mtime"] = None
         except Exception:
             pass
     # Кэш отсутствует/деградирован — полная пересборка из БД (пишет оба кэша со всеми
@@ -1261,10 +1308,65 @@ def get_revenue_data():
             }
     return skus
 
+def _parse_stock_xlsx(path):
+    """Аналог xlrd-ветки для .xlsx через openpyxl: (report_date, rows, warehouse)."""
+    import openpyxl, re as _rx
+    from datetime import date as _date, datetime as _dtm
+    wb = openpyxl.load_workbook(path, data_only=True, read_only=True)
+    ws = wb[wb.sheetnames[0]]
+    grid = [[c for c in row] for row in ws.iter_rows(values_only=True)]
+    wb.close()
+    warehouse = None
+    d_na_moment = d_otchet = d_any = None
+    header_row = name_col = stock_col = None
+    for i, row in enumerate(grid[:25]):
+        strs = [("" if v is None else str(v)).strip() for v in row]
+        for j, s in enumerate(strs):
+            if s == "склад:" and j + 1 < len(strs) and not warehouse:
+                warehouse = strs[j + 1]
+            sl = s.lower()
+            if "на момент" in sl or "отчет создан" in sl or "отчёт создан" in sl:
+                for cand_idx in (j, j + 1, j + 2):
+                    if cand_idx >= len(row): break
+                    cv = row[cand_idx]
+                    d = None
+                    if isinstance(cv, (_dtm, _date)):
+                        d = cv.strftime("%Y-%m-%d")
+                    elif cv is not None:
+                        d = _try_parse_date_str(str(cv).strip(), _rx)
+                    if d:
+                        if "на момент" in sl and d_na_moment is None: d_na_moment = d
+                        elif d_otchet is None: d_otchet = d
+                        break
+            elif isinstance(row[j], (_dtm, _date)) and d_any is None:
+                d_any = row[j].strftime("%Y-%m-%d")
+        if header_row is None and any("аименование" in v for v in strs):
+            header_row = i
+            for j, v in enumerate(strs):
+                if "аименование" in v: name_col = j
+                if "статок" in v and "умм" not in v.lower(): stock_col = j
+    report_date = d_na_moment or d_otchet or d_any or _date.today().strftime("%Y-%m-%d")
+    if header_row is None or name_col is None or stock_col is None:
+        raise ValueError("Не найдена таблица с остатками (нет колонки Наименование/Остаток)")
+    rows = []
+    for row in grid[header_row + 1:]:
+        if name_col >= len(row): continue
+        name = ("" if row[name_col] is None else str(row[name_col])).strip()
+        if not name or name in ("nan", "Наименование", "None"): continue
+        try: qty = float(row[stock_col]) if stock_col < len(row) and row[stock_col] is not None else 0.0
+        except Exception: qty = 0.0
+        if qty <= 0: continue
+        rows.append({"sku_name": name, "stock_qty": qty})
+    if not rows:
+        raise ValueError("Таблица пустая")
+    return report_date, rows, warehouse
+
 @app.post("/api/parse-stock")
-async def parse_stock_file(file: UploadFile = File(...)):
+def parse_stock_file(file: UploadFile = File(...)):
+    # def (не async): синхронный xlrd/csv-парсинг уходит в threadpool,
+    # не блокируя event loop единственного воркера.
     import csv, io, tempfile as _tmp
-    raw = await file.read()
+    raw = file.file.read()
     ext = (file.filename or "").rsplit(".", 1)[-1].lower()
     warehouse = None
     report_date = None
@@ -1273,19 +1375,26 @@ async def parse_stock_file(file: UploadFile = File(...)):
         with _tmp.NamedTemporaryFile(suffix="." + ext, delete=False) as tf:
             tf.write(raw); tmp_path = tf.name
         try:
-            import xlrd
-            book = xlrd.open_workbook(tmp_path)
-            sheet = book.sheet_by_index(0)
-            # Extract warehouse name
-            for i in range(min(20, sheet.nrows)):
-                for j in range(sheet.ncols):
-                    if str(sheet.cell_value(i, j)).strip() == "склад:" and j+1 < sheet.ncols:
-                        warehouse = str(sheet.cell_value(i, j+1)).strip()
-            # Use robust parse_xls for date + rows
-            report_date, rows = parse_xls(tmp_path)
+            if ext == "xlsx":
+                # xlrd >= 2.0 не читает .xlsx (в requirements версия не запинена),
+                # поэтому .xlsx стабильно падал с «Ошибка чтения XLS». Читаем openpyxl.
+                report_date, rows, warehouse = _parse_stock_xlsx(tmp_path)
+            else:
+                import xlrd
+                book = xlrd.open_workbook(tmp_path)
+                sheet = book.sheet_by_index(0)
+                # Extract warehouse name
+                for i in range(min(20, sheet.nrows)):
+                    for j in range(sheet.ncols):
+                        if str(sheet.cell_value(i, j)).strip() == "склад:" and j+1 < sheet.ncols:
+                            warehouse = str(sheet.cell_value(i, j+1)).strip()
+                # Use robust parse_xls for date + rows
+                report_date, rows = parse_xls(tmp_path)
             for r in rows:
                 if r["stock_qty"] > 0:
                     items[r["sku_name"]] = items.get(r["sku_name"], 0) + int(r["stock_qty"])
+        except HTTPException:
+            raise
         except Exception as e:
             raise HTTPException(status_code=400, detail=f"Ошибка чтения XLS: {e}")
         finally:
@@ -1379,14 +1488,21 @@ def delete_stocks_for_date(date_str: str):
     return {"ok": True, "deleted": count, "date": date_str}
 
 @app.post("/api/admin/clear-sales")
-def clear_sales_data():
-    """Delete all sales_data rows so CSVs can be re-uploaded cleanly."""
+def clear_sales_data(request: _Req):
+    """Delete all sales_data rows so CSVs can be re-uploaded cleanly.
+    Защищён тем же ключом, что /api/db/* (X-DB-Key): эндпоинт стирает ВСЮ
+    историю продаж и не должен быть доступен любому, кто знает URL."""
+    _check_db_key(request)
     conn = get_db()
-    old = conn.execute("SELECT COUNT(*) as c FROM sales_data WHERE row_id = ''").fetchone()["c"]
-    all_ = conn.execute("SELECT COUNT(*) as c FROM sales_data").fetchone()["c"]
-    conn.execute("DELETE FROM sales_data")
-    conn.commit(); conn.close()
-    return {"deleted": all_, "old_schema_rows": old, "message": "Залейте CSV заново."}
+    try:
+        # Раньше здесь был SELECT по несуществующей колонке row_id —
+        # эндпоинт всегда падал с 500, а соединение не закрывалось.
+        all_ = conn.execute("SELECT COUNT(*) as c FROM sales_data").fetchone()["c"]
+        conn.execute("DELETE FROM sales_data")
+        conn.commit()
+    finally:
+        conn.close()
+    return {"deleted": all_, "message": "Залейте CSV заново."}
 
 # ===================== ЯНДЕКС МАРКЕТ =====================
 # Данные из финансового отчёта «По заказам» (united_orders_*.xlsx)
@@ -1494,16 +1610,29 @@ def _ym_find_header(ws, first_col_value, max_scan=20):
     return None, None
 
 @app.post("/api/yandex/upload")
-async def yandex_upload(file: UploadFile = File(...)):
-    import openpyxl, warnings as _w
-    _w.filterwarnings("ignore")
-    raw = await file.read()
+def yandex_upload(file: UploadFile = File(...)):
+    """def (не async): тяжёлый разбор openpyxl уходит в threadpool и не блокирует
+    event loop единственного воркера — раньше на время парсинга большого отчёта
+    (десятки секунд) весь сайт переставал отвечать."""
+    raw = file.file.read()
     tmp = tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False)
     tmp.write(raw); tmp.close()
     try:
+        return _yandex_upload_parse(tmp.name)
+    finally:
+        # Гарантированная уборка: раньше неожиданное исключение при разборе
+        # (например, переименованная колонка) оставляло копию отчёта в /tmp.
+        try: os.unlink(tmp.name)
+        except OSError: pass
+
+def _yandex_upload_parse(_tmp_path):
+    import openpyxl, warnings as _w
+    from types import SimpleNamespace
+    _w.filterwarnings("ignore")
+    tmp = SimpleNamespace(name=_tmp_path)  # тело ниже ссылается на tmp.name
+    try:
         wb = openpyxl.load_workbook(tmp.name, data_only=True)
     except Exception as e:
-        os.unlink(tmp.name)
         return {"error": f"Не удалось открыть файл: {e}"}
     need = ["Услуги и маржа по заказам", "Транзакции по заказам и товарам"]
     if any(s not in wb.sheetnames for s in need):
@@ -1524,6 +1653,13 @@ async def yandex_upload(file: UploadFile = File(...)):
     c_order = col("Номер заказа"); c_status = col("Статус заказа")
     c_date = col("Дата оформления"); c_total = col("Все услуги Маркета")
     c_price = col("Цена продажи")
+    _miss = [n for n, i in (("Номер заказа", c_order), ("Статус заказа", c_status),
+                            ("Дата оформления", c_date), ("Все услуги Маркета", c_total),
+                            ("Цена продажи", c_price)) if i is None]
+    if _miss:
+        # Раньше отсутствующая колонка давала TypeError → HTTP 500 без объяснения
+        return {"error": "Лист «Услуги и маржа по заказам»: не найдены колонки: "
+                + ", ".join(_miss) + ". Похоже, Маркет изменил формат отчёта."}
     svc_cols = {}
     for s in YM_SERVICES:
         i = col(s)
@@ -1563,6 +1699,13 @@ async def yandex_upload(file: UploadFile = File(...)):
     t_order = col2("Номер заказа"); t_date = col2("Дата оформления")
     t_sku = col2("Ваш SKU"); t_name = col2("Название товара")
     t_price = col2("Цена продажи"); t_status = col2("Статус товара")
+    _miss2 = [n for n, i in (("Номер заказа", t_order), ("Дата оформления", t_date),
+                             ("Ваш SKU", t_sku), ("Название товара", t_name),
+                             ("Цена продажи", t_price), ("Статус товара", t_status)) if i is None]
+    if _miss2 or hrow2 < 2:
+        return {"error": "Лист «Транзакции по заказам и товарам»: неожиданный формат"
+                + (": нет колонок " + ", ".join(_miss2) if _miss2 else "")
+                + ". Похоже, Маркет изменил формат отчёта."}
 
     # Группы платёжных колонок: (колонка суммы, колонка даты п/п, колонка даты реестра, тип)
     pay_groups = []
@@ -2082,8 +2225,12 @@ def _pg_ro_conn():
     return conn
 
 def _check_db_key(request: _Req):
+    # Fail-closed: раньше при НЕзаданном DB_QUERY_KEY проверка молча отключалась,
+    # и /api/db/query становился публичным доступом ко всему PG-зеркалу.
     key = _os.environ.get("DB_QUERY_KEY")
-    if key and request.headers.get("X-DB-Key") != key:
+    if not key:
+        raise HTTPException(status_code=503, detail="DB_QUERY_KEY is not configured")
+    if request.headers.get("X-DB-Key") != key:
         raise HTTPException(status_code=401, detail="bad or missing X-DB-Key")
 
 @app.get("/api/db/tables")
@@ -2133,6 +2280,9 @@ async def db_query(payload: dict, request: _Req):
     conn = _pg_ro_conn()
     try:
         with conn.cursor() as cur:
+            # Ограничение стоимости запроса: без таймаута один pg_sleep/cross join
+            # держал поток единственного воркера и соединение PG до 10 минут.
+            cur.execute("SET statement_timeout = '15s'")
             cur.execute(wrapped)
             cols = [d[0] for d in cur.description]
             data = [dict(zip(cols, row)) for row in cur.fetchall()]

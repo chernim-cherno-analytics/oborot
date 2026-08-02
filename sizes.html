@@ -246,7 +246,10 @@ async function loadAll(){
       if(!isMerch(base)) continue;
       const sm={};
       for(const [sz,srec] of Object.entries(rec.sizes||{})){
-        sm[normSize(sz)]=(srec.per||[]).reduce((a,b)=>a+(b||0),0);
+        // += вместо =: два ключа, схлопывающихся после normSize (напр. "" и
+        // "One Size"), раньше перетирали друг друга — остаток занижался.
+        const k=normSize(sz);
+        sm[k]=(sm[k]||0)+(srec.per||[]).reduce((a,b)=>a+(b||0),0);
       }
       STOCK[base]=sm;
     }
@@ -259,7 +262,11 @@ async function loadAll(){
       base:b, sold:Math.round(sold[b]||0),
       inStock:Object.values(STOCK[b]||{}).reduce((a,v)=>a+v,0)
     })).sort((a,b)=>b.sold-a.sold);
-    hint.textContent="продажи с "+MONTHS[MONTHS.length-1]+" · "+PRODUCTS.length+" позиций";
+    // Раньше упавшие помесячные запросы молча превращались в null, и все доли
+    // размеров считались по неполной истории без какого-либо предупреждения.
+    const failedMonths=monthData.filter(d=>!d).length;
+    hint.textContent="продажи с "+MONTHS[MONTHS.length-1]+" · "+PRODUCTS.length+" позиций"
+      +(failedMonths?" · ⚠ не загрузилось месяцев: "+failedMonths+" — данные неполные, обновите страницу":"");
   }catch(e){
     hint.textContent="ошибка загрузки: "+e.message;
   }

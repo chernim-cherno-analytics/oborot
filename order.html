@@ -461,6 +461,16 @@ function sizeGrid(base){
     const p=szParts(s)[0];
     if(!prims.has(p)){ g.push(s); prims.add(p); }
   }
+  // Размеры из ручной разбивки (SIZEQ) не должны выпадать из сетки: раньше при
+  // сбое /api/stocks-bystore (GRID пуст) размер без продаж за 12 мес молча
+  // исчезал из разбивки, из суммы заказа и из PDF производства.
+  for(const key of Object.keys(SIZEQ)){
+    if(!key.startsWith(base+"||")) continue;
+    const s=key.slice(base.length+2);
+    if(!s) continue;
+    const p=szParts(s)[0];
+    if(!prims.has(p)){ g.push(s); prims.add(p); }
+  }
   return g.length?g.sort(szCmp):null;
 }
 // рекомендация по размерам: продажи за 12 мес, разложенные на актуальную сетку.
@@ -539,10 +549,25 @@ async function deleteProject(id,name){
 async function loadSnapshot(id){
   STOCK_SNAP={}; INC_SNAP={};
   let snap={};
+  let snapLoaded=false;
   try{
-    const d=await (await fetch("/api/projects/"+id+"__snap/data")).json();
+    const r=await fetch("/api/projects/"+id+"__snap/data");
+    if(!r.ok) throw new Error("HTTP "+r.status);
+    const d=await r.json();
     snap=d.adjustments||{};
+    snapLoaded=true;
   }catch(e){}
+  if(!snapLoaded){
+    // Снапшот НЕ удалось загрузить (сбой сети/рестарт сервера) — раньше в этом
+    // случае код считал, что снапшота нет, и POST'ом ниже перезаписывал
+    // зафиксированный на день заказа снапшот текущими остатками (безвозвратно).
+    // Теперь заполняем только локально, на сервер ничего не пишем.
+    for(const [base,d] of Object.entries(computed)){
+      STOCK_SNAP[base]=d.cs;
+      if(d.incoming>0) INC_SNAP[base]=d.incoming;
+    }
+    return;
+  }
   for(const [k,v] of Object.entries(snap)){
     if(k.startsWith("inc::")) INC_SNAP[k.slice(5)]=v;
     else STOCK_SNAP[k]=v;
@@ -569,6 +594,7 @@ async function loadSnapshot(id){
 }
 
 async function openProject(id){
+  clearTimeout(saveTimer);  // отменяем отложенное сохранение предыдущего заказа
   PID=id;
   const p=PROJECTS.find(x=>x.id===id)||{};
   PNAME=p.name||""; PDATE=p.date||"";
@@ -578,21 +604,37 @@ async function openProject(id){
   document.getElementById("scr-order").style.display="";
   document.getElementById("tb").innerHTML='<tr><td colspan="13" class="loading">Загружаю проект...</td></tr>';
   try{
-    const d=await (await fetch("/api/projects/"+id+"/data")).json();
+    const r=await fetch("/api/projects/"+id+"/data");
+    if(!r.ok) throw new Error("HTTP "+r.status);
+    const d=await r.json();
     ORDERQ={}; SIZEQ={};
     for(const [k,v] of Object.entries(d.adjustments||{})){
       if(k.startsWith("sz::")) SIZEQ[k.slice(4)]=Math.max(0,v);
       else ORDERQ[k]=Math.max(0,v);
     }
     EXCLUDED=new Set(d.excluded||[]);
-  }catch(e){ ORDERQ={}; SIZEQ={}; EXCLUDED=new Set(); }
+  }catch(e){
+    // Раньше сбой загрузки молча открывал заказ «пустым» (ORDERQ={}), и первое
+    // же автосохранение затирало на сервере все ручные правки заказа.
+    ORDERQ={}; SIZEQ={}; EXCLUDED=new Set();
+    PID=null;  // блокирует saveProject/scheduleSave до повторного открытия
+    document.getElementById("tb").innerHTML='<tr><td colspan="13" class="loading">Не удалось загрузить заказ ('+((e&&e.message)||e)+'). Вернитесь к списку и откройте заказ ещё раз.</td></tr>';
+    return;
+  }
   await loadChina();   // Китай — глобальная классификация товара, общая для всех заказов
-  if(!dataReady) await loadData();
+  try{
+    if(!dataReady) await loadData();
+  }catch(e){
+    PID=null;
+    document.getElementById("tb").innerHTML='<tr><td colspan="13" class="loading">Ошибка загрузки данных: '+((e&&e.message)||e)+'. Обновите страницу.</td></tr>';
+    return;
+  }
   await loadSnapshot(id);
   currentTab="lab";
   renderAll();
 }
 function backToProjects(){
+  clearTimeout(saveTimer);
   PID=null;
   document.getElementById("scr-order").style.display="none";
   document.getElementById("scr-projects").style.display="";
@@ -604,16 +646,30 @@ let saveTimer=null;
 function scheduleSave(){
   document.getElementById("savestate").textContent="сохраняю…";
   clearTimeout(saveTimer);
-  saveTimer=setTimeout(saveProject,600);
+  // Фиксируем PID на момент правки: раньше при быстром переключении заказов
+  // (правка в A → открыть B за <600 мс) отложенное сохранение записывало
+  // данные заказа A под id заказа B — полной заменой.
+  const pidAtEdit=PID;
+  saveTimer=setTimeout(()=>{ if(PID===pidAtEdit) saveProject(); },600);
 }
 // глобальный список «Китай» — общий для всех заказов
+let CHINA_LOADED=false;
 async function loadChina(){
   try{
-    const d=await (await fetch("/api/projects/china-global/data")).json();
+    const r=await fetch("/api/projects/china-global/data");
+    if(!r.ok) throw new Error("HTTP "+r.status);
+    const d=await r.json();
     CHINA=new Set(d.added||[]);
-  }catch(e){ CHINA=new Set(); }
+    CHINA_LOADED=true;
+  }catch(e){ CHINA=new Set(); CHINA_LOADED=false; }
 }
 async function saveChina(){
+  // Защита: если глобальный список не загрузился (сбой сети), сохранение
+  // полной заменой затёрло бы классификацию всех позиций одним элементом.
+  if(!CHINA_LOADED){
+    alert("Список «Китай» не загрузился с сервера — перемещение не сохранено. Обновите страницу.");
+    return;
+  }
   try{
     await fetch("/api/projects/china-global/data",{method:"POST",headers:{"Content-Type":"application/json"},
       body:JSON.stringify({adjustments:{},excluded:[],added:[...CHINA]})});
@@ -1110,7 +1166,9 @@ document.addEventListener("input",(e)=>{
 // ══════ Старт ══════
 (async function(){
   loadProjects();
-  loadData();
+  // catch: сбой предзагрузки не должен давать unhandled rejection —
+  // openProject повторит loadData() сам и покажет ошибку в таблице.
+  loadData().catch(e=>console.warn("Предзагрузка данных не удалась:", e));
 })();
 </script>
 </body>
