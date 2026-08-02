@@ -420,8 +420,17 @@ def stock_on_date(date: str = ""):
                 break
             offset += 1000
     data = {"date": date, "stores": [s for _, s in stores], "skus": skus}
-    if len(_sod_cache) > 120:
-        _sod_cache.clear()
+    # Чистка кэша: раньше он копил до 120 дат (полные остатки по всем SKU на
+    # каждую дату — это сотни МБ), из-за чего память инстанса на Render
+    # медленно ползла вверх до лимита и сервис падал с OOM-рестартом.
+    # Теперь: выкидываем протухшие записи и держим не больше 14 последних дат.
+    _now = time.time()
+    for _k in [k for k, (t, _) in _sod_cache.items() if _now - t > 86400]:
+        _sod_cache.pop(_k, None)
+    _MAX_SOD_DATES = 14
+    if len(_sod_cache) >= _MAX_SOD_DATES:
+        for _k, _ in sorted(_sod_cache.items(), key=lambda kv: kv[1][0])[:len(_sod_cache) - _MAX_SOD_DATES + 1]:
+            _sod_cache.pop(_k, None)
     _sod_cache[date] = (time.time(), data)
     return data
 
