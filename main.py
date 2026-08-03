@@ -2066,6 +2066,20 @@ def sync_inspect(samples: int = 0):
             smp["retail_join_id_freshest"] = str(cur.fetchone()[0])
             cur.execute("SELECT COUNT(*) FROM lenretaildemand WHERE moment >= '2026-01-01'")
             smp["retail_docs_2026"] = cur.fetchone()[0]
+            # Формат связки: сэмплы значений + пробные JOIN с обрезкой до uuid
+            cur.execute("SELECT id, position_id, assortment_id, quantity FROM lenretaildemand_position LIMIT 3")
+            smp["retail_pos_sample"] = [list(map(str, r)) for r in cur.fetchall()]
+            cur.execute("SELECT id FROM lenretaildemand ORDER BY moment DESC LIMIT 3")
+            smp["retail_doc_id_sample"] = [str(r[0]) for r in cur.fetchall()]
+            cur.execute("""SELECT COUNT(*) FROM lenretaildemand_position p
+                           JOIN lenretaildemand h ON h.id = RIGHT(p.id, 36)""")
+            smp["retail_join_right_id"] = cur.fetchone()[0]
+            cur.execute("""SELECT COUNT(*) FROM lenretaildemand_position p
+                           JOIN lenretaildemand h ON h.id = RIGHT(p.position_id, 36)""")
+            smp["retail_join_right_positionid"] = cur.fetchone()[0]
+            cur.execute("""SELECT COUNT(*) FROM lenretaildemand_position p
+                           JOIN lenretaildemand h ON RIGHT(h.id, 36) = RIGHT(p.id, 36)""")
+            smp["retail_join_right_both"] = cur.fetchone()[0]
             pg.close()
             out["samples"] = smp
         return out
