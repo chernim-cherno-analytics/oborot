@@ -2095,9 +2095,10 @@ def sync_verify():
         return {"error": str(e)}
 
 @app.post("/api/sync-now")
-def sync_now(dry: int = 0):
+def sync_now(dry: int = 0, days: int = 0):
+    """Ручной запуск синка. days — ширина окна продаж (для разового бэкфилла), максимум 60."""
     import sync
-    return sync.sync_all(dry=bool(dry))
+    return sync.sync_all(dry=bool(dry), days_back=min(max(int(days), 0), 60))
 
 @app.get("/api/stocks-bystore-debug")
 def stocks_bystore_debug():

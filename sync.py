@@ -162,31 +162,88 @@ def _fetch_docs(pg, head_table: str, days_back: int):
     return [(r[0].isoformat(), str(r[1]), float(r[2] or 0), float(r[3] or 0)) for r in rows if r[1]]
 
 
+def _ms_fetch_sales_docs(entity: str, days_back: int):
+    """Документы продаж/возвратов НАПРЯМУЮ из МойСклад API (не из зеркала).
+
+    Причина перехода 03.08.2026: у зеркала LensSklad позиции розничных чеков
+    (lenretaildemand_position) не содержат ссылки на чек — JOIN отдавал 0 строк,
+    и розница двух магазинов молча выпадала из аналитики с момента включения
+    автосинка (15.07). Прямой запрос в МС убирает эту зависимость целиком.
+
+    Возвращает [(date, sku_name, qty, revenue_rub)], только проведённые документы.
+    """
+    import httpx
+    import rebuild_history as rh
+    cutoff = (date.today() - timedelta(days=days_back)).isoformat()
+    out = []
+    offset = 0
+    while True:
+        r = None
+        for _attempt in range(6):
+            r = httpx.get(f"{rh.MS_API_BASE}/entity/{entity}",
+                          params={"filter": f"moment>={cutoff} 00:00:00",
+                                  "expand": "positions.assortment",
+                                  "limit": 50, "offset": offset},
+                          headers=rh._ms_headers(), timeout=90)
+            if r.status_code == 429:
+                import time as _t
+                _t.sleep(3.5)
+                continue
+            r.raise_for_status()
+            break
+        else:
+            raise RuntimeError(f"МойСклад: слишком много 429 ({entity})")
+        docs = r.json().get("rows", [])
+        for doc in docs:
+            if doc.get("applicable") is False:
+                continue  # черновики/распроведённые не считаем
+            d = (doc.get("moment") or "")[:10]
+            if not d:
+                continue
+            posmeta = doc.get("positions") or {}
+            pos = posmeta.get("rows") or []
+            total = int((posmeta.get("meta") or {}).get("size") or len(pos))
+            if total > len(pos):
+                # expand отдаёт не более ~100 позиций — дочитываем пагинацией
+                pos = rh._fetch_all_positions(entity, doc["id"], total)
+            for p in pos:
+                nm = ((p.get("assortment") or {}).get("name")) or ""
+                if not nm:
+                    continue
+                qty = float(p.get("quantity") or 0)
+                price = float(p.get("price") or 0)          # копейки
+                disc = float(p.get("discount") or 0)         # проценты
+                out.append((d, nm, qty, price * qty * (1 - disc / 100.0) / 100.0))
+        if len(docs) < 50:
+            break
+        offset += 50
+    return out
+
+
 def sync_sales(dry: bool = False, days_back: int = SALES_DAYS_BACK):
-    pg = get_pg()
-    sales = _fetch_docs(pg, SCHEMA["demand"], days_back)
-    try:
-        sales += _fetch_docs(pg, SCHEMA["retaildemand"], days_back)
-    except Exception as e:
-        # РАНЬШЕ сбой глотался молча: оптовые продажи перезаписывали дни БЕЗ розницы,
-        # и розничные продажи за days_back дней тихо стирались из sales_data.
-        # Теперь синк падает громко (Телеграм «❌ Синк УПАЛ»), старые данные остаются
-        # нетронутыми, следующий успешный запуск (окно 3 дня) сам дозаполнит дни.
-        pg.rollback()
-        pg.close()
-        raise RuntimeError(f"зеркало: lenretaildemand недоступен — продажи не перезаписаны: {e}")
+    # Продажи: отгрузки (в т.ч. интернет-магазин/маркетплейсы) + розничные чеки.
+    sales = _ms_fetch_sales_docs("demand", days_back)
+    retail = _ms_fetch_sales_docs("retaildemand", days_back)
+    retail_rows = len(retail)
+    sales += retail
+    # Защита от пустого окна: если МС не вернул НИ ОДНОЙ продажи за days_back
+    # дней — это почти наверняка сбой (токен/сеть), а не реальность. Не
+    # перезаписываем окно нулями.
+    if not sales:
+        raise RuntimeError(f"МойСклад: за {days_back} дн. не получено ни одной продажи — окно не перезаписано")
     returns_error = None
+    returns = []
     try:
-        returns = _fetch_docs(pg, SCHEMA["salesreturn"], days_back)
+        returns = _ms_fetch_sales_docs("salesreturn", days_back)
+        # Розничные возвраты раньше не учитывались вовсе (в зеркале их позиции
+        # были пусты) — теперь берём напрямую.
+        returns += _ms_fetch_sales_docs("retailsalesreturn", days_back)
     except Exception as e:
-        # Не глотаем молча: раньше сбой возвратов давал «✅ Синк ОК», при этом
-        # возвраты неделями не обновлялись и нетто-выручка тихо завышалась.
-        # Возвраты за окно в этом случае НЕ трогаем (см. guard ниже).
-        pg.rollback()
+        # Не глотаем молча: сбой возвратов помечается в результате и в Телеграме,
+        # возвраты за окно в этом случае НЕ трогаем (см. guard ниже).
         returns = []
         returns_error = str(e)
         print(f"sync_sales: возвраты НЕ синхронизированы: {e}")
-    pg.close()
 
     agg = {}
     for d, sku, qty, rev in sales:
@@ -229,9 +286,14 @@ def sync_sales(dry: bool = False, days_back: int = SALES_DAYS_BACK):
         )
     lite.commit(); lite.close()
     out = {"sales_days": dates_sales, "sales_rows": len(agg),
-           "returns_days": dates_ret, "returns_rows": len(returns)}
+           "returns_days": dates_ret, "returns_rows": len(returns),
+           "retail_rows": retail_rows, "source": "moysklad-direct"}
     if returns_error:
         out["returns_error"] = returns_error
+    if retail_rows == 0:
+        # Сторожок: чеки розницы отсутствуют во всём окне. Магазины обычно
+        # торгуют ежедневно — молчать про это нельзя (см. историю с зеркалом).
+        out["retail_warning"] = f"за {days_back} дн. нет ни одного розничного чека"
     return out
 
 
@@ -255,12 +317,12 @@ def verify_names(limit: int = 50):
 
 # ── общий запуск ─────────────────────────────────────────────────────────────
 
-def sync_all(dry: bool = False):
+def sync_all(dry: bool = False, days_back: int = 0):
     started = datetime.now().isoformat(timespec="seconds")
     result = {"started": started}
     try:
         result["stock"] = sync_stock(dry=dry)
-        result["sales"] = sync_sales(dry=dry)
+        result["sales"] = sync_sales(dry=dry, days_back=(days_back or SALES_DAYS_BACK))
         if not dry:
             try:
                 import rebuild_history as rh
@@ -276,10 +338,13 @@ def sync_all(dry: bool = False):
         result["ok"] = True
         _ret_warn = ""
         if result.get("sales", {}).get("returns_error"):
-            _ret_warn = f"\n⚠️ Возвраты НЕ синхронизированы: {result['sales']['returns_error']}"
+            _ret_warn += f"\n⚠️ Возвраты НЕ синхронизированы: {result['sales']['returns_error']}"
+        if result.get("sales", {}).get("retail_warning"):
+            _ret_warn += f"\n⚠️ Розница: {result['sales']['retail_warning']}"
         _notify(f"✅ Синк ОК {started}\n"
                 f"Остатки (МойСклад напрямую): {result['stock'].get('stock_skus')} SKU\n"
-                f"Продажи: {result['sales'].get('sales_rows')} строк за {len(result['sales'].get('sales_days', []))} дн."
+                f"Продажи (МойСклад напрямую): {result['sales'].get('sales_rows')} строк за {len(result['sales'].get('sales_days', []))} дн., "
+                f"из них розничных позиций: {result['sales'].get('retail_rows')}"
                 + _ret_warn,
                 dry)
     except Exception as e:
