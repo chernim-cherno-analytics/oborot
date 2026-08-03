@@ -2051,6 +2051,21 @@ def sync_inspect(samples: int = 0):
             smp["lendemand_max_moment"] = str(cur.fetchone()[0])
             cur.execute("SELECT MAX(moment) FROM lenretaildemand")
             smp["lenretaildemand_max_moment"] = str(cur.fetchone()[0])
+            # Диагностика розницы: чеки в зеркале свежие, но попадают ли их
+            # ПОЗИЦИИ в выборку синка? Проверяем обе возможные связки.
+            cur.execute("""SELECT COUNT(*) FROM lenretaildemand_position p
+                           JOIN lenretaildemand h ON h.id = p.id""")
+            smp["retail_join_id_matches"] = cur.fetchone()[0]
+            cur.execute("""SELECT COUNT(*) FROM lenretaildemand_position p
+                           JOIN lenretaildemand h ON h.id = p.position_id""")
+            smp["retail_join_positionid_matches"] = cur.fetchone()[0]
+            cur.execute("SELECT COUNT(*) FROM lenretaildemand_position")
+            smp["retail_positions_total"] = cur.fetchone()[0]
+            cur.execute("""SELECT MAX(h.moment) FROM lenretaildemand_position p
+                           JOIN lenretaildemand h ON h.id = p.id""")
+            smp["retail_join_id_freshest"] = str(cur.fetchone()[0])
+            cur.execute("SELECT COUNT(*) FROM lenretaildemand WHERE moment >= '2026-01-01'")
+            smp["retail_docs_2026"] = cur.fetchone()[0]
             pg.close()
             out["samples"] = smp
         return out
