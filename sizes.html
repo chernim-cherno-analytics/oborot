@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-  <title>Chernim Cherno · Размеры</title>
+  <title>Chernim Cherno · Заказ отдельной позиции</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0 }
     body { font-family: Helvetica, 'Helvetica Neue', Arial, sans-serif; min-height: 100vh; background: #f3e9e0; color:#1f1f1f; }
@@ -118,7 +118,7 @@
     <a href="/analytics">Остатки</a>
     <a href="/turnover">Оборачиваемость</a>
     <a href="/order">Заказ</a>
-    <a href="/sizes" class="active">Размеры</a>
+    <a href="/sizes" class="active">Заказ позиции</a>
     <a href="/budget">Бюджет</a>
     <a href="/forecast">Прогноз</a>
     <a href="/revenue">Оборот</a>
@@ -139,6 +139,8 @@
       </div>
       <span class="lbl">Заказ, шт</span>
       <input class="qinp" id="qty" type="number" min="1" value="30">
+      <span class="lbl">Дата прихода</span>
+      <input class="qinp" id="arrival" type="date" style="width:150px;font-size:13px;font-weight:600" title="Остатки будут спрогнозированы на эту дату по темпу продаж">
     </div>
     <div class="row">
       <span class="lbl">Продажи за</span>
@@ -158,6 +160,7 @@
       </div>
       <span class="hint" id="statusHint">загружаю историю продаж…</span>
       <button class="dl-btn" id="dlBtn" style="display:none" onclick="downloadOrder()">⬇ Скачать</button>
+      <button class="dl-btn" id="sendBtn" style="display:none;background:#2c7a1f" onclick="sendOrder()">✓ Заказ отправлен</button>
     </div>
   </div>
 
@@ -172,10 +175,13 @@
   </div>
 
   <div class="hint" style="margin-top:12px;line-height:1.6">
-    <b>Как считается.</b> «С учётом остатков»: доля размера в продажах применяется к сумме
-    (текущий остаток + заказ), из результата вычитается то, что уже лежит на складах, — заказ закрывает
-    дыры по размерам, а не дублирует сток. «Чистая пропорция»: количество делится ровно по долям
-    продаж размеров. Продажи — нетто (минус возвраты), по трём торговым складам.
+    <b>Как считается.</b> Скорость каждого размера — как оборачиваемость: продажи размера делятся
+    на дни, когда он реально был в наличии (размер, кончившийся в середине окна, не выглядит
+    «менее ходовым»). Остатки прогнозируются на дату прихода по этим темпам. «С учётом остатков»:
+    доля темпа размера применяется к сумме (остаток к приходу + заказ), из результата вычитается
+    прогнозный остаток — заказ закрывает дыры по размерам, а не дублирует сток. «Чистая пропорция»:
+    количество делится ровно по долям темпов. Продажи — нетто (минус возвраты), по трём торговым
+    складам. Кнопка «Заказ отправлен» добавляет сумму заказа в графу «Заказано» на странице Остатков.
   </div>
 </div>
 
@@ -206,6 +212,7 @@ let MONTHS=[];            // ["2026-07",...] от новых к старым
 let MONTHLY={};           // month -> {base -> {size -> netQty}}
 let STOCK={};             // base -> {size -> qty}
 let PRODUCTS=[];          // [{base, sold, inStock}]
+let HIST=null;            // история остатков {dates:[...], stock:{fullName:{date:qty}}}
 let SEL=null, PERIOD=12, MODE="stock";
 
 async function loadAll(){
@@ -241,6 +248,12 @@ async function loadAll(){
       }
       MONTHLY[MONTHS[i]]=map;
     });
+    // история остатков по датам — для расчёта дней НАЛИЧИЯ каждого размера
+    // (скорость продаж считается как оборачиваемость: только за дни присутствия)
+    fetch("/api/analytics-data").then(r=>r.json()).then(h=>{
+      HIST=h&&h.dates?h:null;
+      if(SEL) calc();
+    }).catch(()=>{ HIST=null; });
     const bys=await (await fetch("/api/stocks-bystore")).json();
     for(const [base,rec] of Object.entries(bys.skus||{})){
       if(!isMerch(base)) continue;
@@ -324,6 +337,32 @@ document.getElementById("modeSeg").addEventListener("click",e=>{
   calc();
 });
 document.getElementById("qty").addEventListener("input",()=>calc());
+document.getElementById("arrival").addEventListener("change",()=>calc());
+// дефолт даты прихода: +30 дней (начало работы со страницей — с этой даты)
+(function(){
+  const d=new Date(); d.setDate(d.getDate()+30);
+  document.getElementById("arrival").value=d.toISOString().slice(0,10);
+})();
+
+// ── «Заказ отправлен»: перенос количества в графу «Заказано» на Остатках ──
+async function sendOrder(){
+  if(!LAST||!SEL) return;
+  const q=(MODE==="stock"?LAST.withStock:LAST.pure).reduce((a,b)=>a+b,0);
+  if(q<=0){ alert("Заказ пустой — нечего отправлять."); return; }
+  if(!confirm("Добавить "+q+" шт «"+SEL+"» в графу «Заказано» на странице Остатков?")) return;
+  try{
+    const cur=await (await fetch("/api/adjustments?project_id=analytics-ordered")).json();
+    const prev=Math.max(0, parseInt(cur[SEL],10)||0);
+    const res=await fetch("/api/adjustments",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({project_id:"analytics-ordered", sku_base:SEL, qty_adj:prev+q})});
+    if(!res.ok) throw new Error("HTTP "+res.status);
+    const btn=document.getElementById("sendBtn");
+    btn.textContent="✓ Отправлено: "+(prev+q)+" шт в «Заказано»";
+    setTimeout(()=>{ btn.textContent="✓ Заказ отправлен"; },4000);
+  }catch(e){
+    alert("Не удалось сохранить: "+e.message+". Заказ НЕ записан, попробуй ещё раз.");
+  }
+}
 
 // ── расчёт ──
 // сезоны: месяцы календарного сезона за все годы истории
@@ -368,6 +407,44 @@ function largestRemainder(weights,total){
 
 let LAST=null; // для скачивания
 
+// Дни наличия размера в окне месяцев (методика оборачиваемости: считаем только
+// даты, когда размер реально лежал на складе). История снапшотов разреженная —
+// значение переносится вперёд до следующей записи (carry-forward).
+function presenceDays(base, sizesList, monthsSet){
+  if(!HIST) return null;
+  const keysFor=sz=>{
+    const k=[base+" ("+sz+")"];
+    if(sz==="One Size"){ k.push(base, base+" (One Size)", base+" (ONE SIZE)"); }
+    return k;
+  };
+  const out={}; const prev={};
+  for(const sz of sizesList){ out[sz]=0; prev[sz]=0; }
+  let anyDays=0;
+  for(const d of HIST.dates){
+    let anyQ=0;
+    for(const sz of sizesList){
+      let q; let found=false;
+      for(const key of keysFor(sz)){
+        const dm=HIST.stock[key];
+        if(dm && dm[d]!==undefined){ q=dm[d]; found=true; break; }
+      }
+      if(!found) q=prev[sz];
+      prev[sz]=q;
+      if(monthsSet.has(d.slice(0,7)) && q>0) out[sz]++;
+      if(q>0) anyQ+=q;
+    }
+    if(monthsSet.has(d.slice(0,7)) && anyQ>0) anyDays++;
+  }
+  return {perSize:out, anyDays};
+}
+
+function daysToArrival(){
+  const v=document.getElementById("arrival").value;
+  if(!v) return 0;
+  const diff=Math.round((new Date(v)-new Date())/86400000);
+  return Math.max(0,diff);
+}
+
 function calc(){
   if(!SEL) return;
   const Q=Math.max(0,parseInt(document.getElementById("qty").value,10)||0);
@@ -400,13 +477,39 @@ function calc(){
   }
   const totSales=sizes.reduce((a,s)=>a+(sales[s]||0),0);
   const totStock=sizes.reduce((a,s)=>a+(stock[s]||0),0);
+
+  // ── Скорость по дням НАЛИЧИЯ (методика оборачиваемости) ──
+  // Доля размера считается не от голых продаж, а от темпа «шт/день наличия»:
+  // размер, который кончился в середине окна, продавался быстрее, чем выглядит
+  // по сумме продаж, — иначе ходовой размер недооценивается (пример: из прихода
+  // 40 шт к началу окна остались 15 S и 6 M — по голым продажам S выглядит
+  // «ходовее», хотя M просто раньше кончился).
+  const monthsSet=new Set(months);
+  const pres=HIST?presenceDays(SEL,sizes,monthsSet):null;
+  const windowDays=HIST?HIST.dates.filter(d=>monthsSet.has(d.slice(0,7))).length:Math.round(effMonths(months)*30.4);
+  const presDays=sizes.map(sz=>pres?(pres.perSize[sz]||0):windowDays);
+  // темп шт/день: продажи размера / дни его наличия; если размера в окне не было,
+  // но продажи есть (например пришёл и мгновенно продан между снапшотами) —
+  // делим на всё окно, чтобы не делить на ноль
+  const rates=sizes.map((sz,i)=>{
+    const s=sales[sz]||0;
+    if(s<=0) return 0;
+    return s/Math.max(1, presDays[i]>0?presDays[i]:windowDays);
+  });
+  const totRate=rates.reduce((a,b)=>a+b,0);
+
+  // ── Прогноз остатков на дату прихода ──
+  const dta=daysToArrival();
+  const stockAt=sizes.map((sz,i)=>Math.max(0,(stock[sz]||0)-rates[i]*dta));
+  const totStockAt=stockAt.reduce((a,b)=>a+b,0);
+
   let shares, pure, withStock;
   let usedFallback=false;
-  if(totSales>0){
-    shares=sizes.map(s=>(sales[s]||0)/totSales);
+  if(totRate>0){
+    shares=rates.map(r=>r/totRate);
     pure=largestRemainder(shares,Q);
-    const targets=shares.map(sh=>sh*(Q+totStock));
-    const needs=targets.map((t,i)=>Math.max(0,t-(stock[sizes[i]]||0)));
+    const targets=shares.map(sh=>sh*(Q+totStockAt));
+    const needs=targets.map((t,i)=>Math.max(0,t-stockAt[i]));
     const sumNeeds=needs.reduce((a,b)=>a+b,0);
     withStock=sumNeeds>0?largestRemainder(needs,Q):pure.slice();
   }else if(isSeason()){
@@ -420,27 +523,29 @@ function calc(){
     usedFallback=true;
     warnBox.innerHTML='<div class="warn">За выбранный период продаж не было — делю поровну по размерам. Попробуй период «всё время».</div>';
     pure=largestRemainder(shares,Q);
-    const targets=shares.map(sh=>sh*(Q+totStock));
-    const needs=targets.map((t,i)=>Math.max(0,t-(stock[sizes[i]]||0)));
+    const targets=shares.map(sh=>sh*(Q+totStockAt));
+    const needs=targets.map((t,i)=>Math.max(0,t-stockAt[i]));
     const sumNeeds=needs.reduce((a,b)=>a+b,0);
     withStock=sumNeeds>0?largestRemainder(needs,Q):pure.slice();
   }
+  if(!HIST && totSales>0){
+    warnBox.innerHTML+='<div class="warn">История остатков ещё грузится — доли пока считаются по всему окну без учёта дней наличия. Пересчитается автоматически.</div>';
+  }
 
-  // карточки: темп = продажи / фактическое число месяцев (неполный текущий — долей),
-  // иначе темп систематически занижался в начале месяца
+  // карточки: темп позиции = продажи / дни наличия ЛЮБОГО размера (шт/день)
   const monthsCnt=months.length;
-  const eff=effMonths(months);
-  const rate=eff>0?totSales/eff:0;
+  const posDays=pres?Math.max(1,pres.anyDays):Math.max(1,windowDays);
+  const dayRate=totSales>0?totSales/posDays:0;
   document.getElementById("cards").style.display="";
   document.getElementById("cards").innerHTML=
     '<div class="card"><div class="l">Продано за период</div><div class="v">'+fmt(totSales)+' шт</div><div class="s">'+periodLabel()+(isSeason()?" · "+monthsCnt+" мес":"")+'</div></div>'+
-    '<div class="card"><div class="l">Темп</div><div class="v">'+(Math.round(rate*10)/10).toLocaleString("ru-RU")+'</div><div class="s">шт / месяц</div></div>'+
-    '<div class="card"><div class="l">Остаток сейчас</div><div class="v">'+fmt(totStock)+' шт</div><div class="s">3 торговых склада</div></div>'+
+    '<div class="card"><div class="l">Темп</div><div class="v">'+(Math.round(dayRate*100)/100).toLocaleString("ru-RU")+'</div><div class="s">шт / день наличия · был в наличии '+fmt(posDays)+' дн.</div></div>'+
+    '<div class="card"><div class="l">Остаток сейчас</div><div class="v">'+fmt(totStock)+' шт</div><div class="s">'+(dta>0?'к приходу ≈ '+fmt(Math.round(totStockAt))+' шт (через '+dta+' дн.)':'3 торговых склада')+'</div></div>'+
     '<div class="card" style="background:rgba(76,187,23,0.2)"><div class="l">Заказ</div><div class="v">'+fmt(Q)+' шт</div><div class="s">'+sizes.length+' размер(а/ов)</div></div>';
 
   // таблица
   const stockCol=MODE==="stock";
-  document.getElementById("thead").innerHTML='<tr><th>Размер</th><th>Продажи за период</th><th>Доля продаж</th><th>Остаток сейчас</th>'+
+  document.getElementById("thead").innerHTML='<tr><th>Размер</th><th>Продажи за период</th><th>Дней в наличии</th><th>Темп шт/день</th><th>Доля темпа</th><th>Остаток сейчас</th><th>Остаток к приходу</th>'+
     '<th'+(stockCol?' class="modecol"':'')+'>Заказать · с учётом остатков</th>'+
     '<th'+(!stockCol?' class="modecol"':'')+'>Заказать · чистая пропорция</th></tr>';
   const maxShare=Math.max(...shares,0.0001);
@@ -449,17 +554,21 @@ function calc(){
     const pct=Math.round(shares[i]*100);
     rows+='<tr><td>'+sz+'</td>'+
       '<td><span class="qty '+((sales[sz]||0)?'':'zero')+'">'+fmt(sales[sz]||0)+'</span></td>'+
+      '<td><span class="qty '+(presDays[i]?'':'zero')+'" title="дней, когда размер был на складе, в выбранном окне">'+(pres?fmt(presDays[i]):'—')+'</span></td>'+
+      '<td>'+(rates[i]>0?(Math.round(rates[i]*100)/100).toLocaleString("ru-RU"):'<span class="qty zero">0</span>')+'</td>'+
       '<td><span class="sharebar"><i style="width:'+Math.round(shares[i]/maxShare*100)+'%"></i></span>'+pct+'%</td>'+
       '<td><span class="qty '+((stock[sz]||0)?'':'zero')+'">'+fmt(stock[sz]||0)+'</span></td>'+
+      '<td><span class="qty '+(Math.round(stockAt[i])?'':'zero')+'">'+(dta>0?fmt(Math.round(stockAt[i])):'—')+'</span></td>'+
       '<td'+(stockCol?' class="modecol"':'')+'><span class="rec'+(stockCol?'':' dim')+'">'+withStock[i]+'</span></td>'+
       '<td'+(!stockCol?' class="modecol"':'')+'><span class="rec'+(!stockCol?'':' dim')+'">'+pure[i]+'</span></td></tr>';
   });
-  rows+='<tr class="total"><td>Итого</td><td>'+fmt(totSales)+'</td><td>100%</td><td>'+fmt(totStock)+'</td>'+
+  rows+='<tr class="total"><td>Итого</td><td>'+fmt(totSales)+'</td><td></td><td></td><td>100%</td><td>'+fmt(totStock)+'</td><td>'+(dta>0?fmt(Math.round(totStockAt)):'—')+'</td>'+
     '<td'+(stockCol?' class="modecol"':'')+'>'+withStock.reduce((a,b)=>a+b,0)+'</td>'+
     '<td'+(!stockCol?' class="modecol"':'')+'>'+pure.reduce((a,b)=>a+b,0)+'</td></tr>';
   document.getElementById("tb").innerHTML=rows;
   document.getElementById("dlBtn").style.display="";
-  LAST={base:SEL,Q,sizes,sales,stock,shares,pure,withStock,totSales,totStock,monthsCnt,usedFallback};
+  document.getElementById("sendBtn").style.display="";
+  LAST={base:SEL,Q,sizes,sales,stock,shares,pure,withStock,totSales,totStock,monthsCnt,usedFallback,presDays,rates,stockAt,dta};
 }
 
 // ── скачивание печатной версии ──

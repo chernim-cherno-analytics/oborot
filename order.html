@@ -200,7 +200,7 @@
     <a href="/analytics">Остатки</a>
     <a href="/turnover">Оборачиваемость</a>
     <a href="/order" class="active">Заказ</a>
-    <a href="/sizes">Размеры</a>
+    <a href="/sizes">Заказ позиции</a>
     <a href="/budget">Бюджет</a>
     <a href="/forecast">Прогноз</a>
     <a href="/revenue">Оборот</a>
@@ -1054,7 +1054,7 @@ function downloadOrderPlain(){
       if(!rr.length) continue;
       any=true;
       let cq=0;
-      out+='<h3>'+cat+'</h3><table><thead><tr><th>№</th><th class="l">Название</th><th class="l">Размеры</th><th>Кол-во, шт</th></tr></thead><tbody>';
+      out+='<h3>'+cat+'</h3><table><thead><tr><th>№</th><th class="l">Название</th><th class="l">Заказ позиции</th><th>Кол-во, шт</th></tr></thead><tbody>';
       for(const [base,d] of rr){
         const q=qtyOf(base,d); tq+=q; cq+=q;
         out+='<tr><td>'+(n++)+'</td><td class="l">'+base+'</td><td class="l">'+szText(base,q)+'</td><td><b>'+q+'</b></td></tr>';
