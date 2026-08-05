@@ -514,7 +514,8 @@ function clearSizes(base){
 
 // ══════ Проекты ══════
 async function loadProjects(){
-  try{ PROJECTS=(await (await fetch("/api/projects")).json()).filter(p=>!/__snap$/.test(p.id)); }catch(e){ PROJECTS=[]; }
+  // sz- — проекты страницы «Заказ позиции», им тут не место
+  try{ PROJECTS=(await (await fetch("/api/projects")).json()).filter(p=>!/__snap$/.test(p.id)&&!/^sz-/.test(p.id)); }catch(e){ PROJECTS=[]; }
   const g=document.getElementById("proj-grid");
   let html=PROJECTS.map(p=>{
     const dt=p.date?new Date(p.date).toLocaleDateString("ru-RU",{day:"numeric",month:"long",year:"numeric"}):"";
