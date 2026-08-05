@@ -186,8 +186,11 @@
     <div class="newform" id="newform">
       <label>Ожидаемая дата прихода</label>
       <input id="np-date" type="date">
-      <label>Название (необязательно — подставится позиция)</label>
-      <input id="np-name" placeholder="Например: дозаказ боксеров">
+      <label>Название заказа</label>
+      <input id="np-name" placeholder="Например: Иван · трикотаж или Швейцех №2">
+      <div class="hint" style="margin-top:5px">Назовите заказ именем производства или человека,
+        которому отдаёте заказ, — или придумайте оригинальное название.
+        Можно оставить пустым: после «Заказан» подставится позиция.</div>
       <div style="display:flex;gap:10px;margin-top:16px">
         <button class="btn" onclick="createProject()">Начать заказ</button>
         <button class="btn ghost" onclick="document.getElementById('newform').classList.remove('open')">Отмена</button>
@@ -710,14 +713,20 @@ function daysToArrival(){
 function calc(){
   if(!SEL) return;
   const Q=Math.max(0,parseInt(document.getElementById("qty").value,10)||0);
-  const months=periodMonths();
-  const sales={};
-  for(const m of months){
-    const sm=(MONTHLY[m]||{})[SEL];
-    if(!sm) continue;
-    for(const [sz,v] of Object.entries(sm)) sales[sz]=(sales[sz]||0)+v;
-  }
-  for(const k of Object.keys(sales)) sales[k]=Math.max(0,Math.round(sales[k]*10)/10);
+  let months=periodMonths();
+  let winLabel=periodLabel();
+  let usedAllHistory=false;
+  const salesFor=monthsArr=>{
+    const s={};
+    for(const m of monthsArr){
+      const sm=(MONTHLY[m]||{})[SEL];
+      if(!sm) continue;
+      for(const [sz,v] of Object.entries(sm)) s[sz]=(s[sz]||0)+v;
+    }
+    for(const k of Object.keys(s)) s[k]=Math.max(0,Math.round(s[k]*10)/10);
+    return s;
+  };
+  let sales=salesFor(months);
   const stock=STOCK[SEL]||{};
   // размерная сетка — из ВСЕЙ истории продаж + текущего стока + сохранённых
   // количеств, чтобы при пустом сезоне показывать нули по существующим размерам
@@ -737,28 +746,41 @@ function calc(){
     document.getElementById("dlBtn").style.display="none";
     return;
   }
-  const totSales=sizes.reduce((a,s)=>a+(sales[s]||0),0);
-  const totStock=sizes.reduce((a,s)=>a+(stock[s]||0),0);
-
   // ── Скорость по дням НАЛИЧИЯ (методика оборачиваемости) ──
   // Доля размера считается не от голых продаж, а от темпа «шт/день наличия»:
   // размер, который кончился в середине окна, продавался быстрее, чем выглядит
   // по сумме продаж, — иначе ходовой размер недооценивается (пример: из прихода
   // 40 шт к началу окна остались 15 S и 6 M — по голым продажам S выглядит
   // «ходовее», хотя M просто раньше кончился).
-  const monthsSet=new Set(months);
-  const pres=HIST?presenceDays(SEL,sizes,monthsSet):null;
-  const windowDays=HIST?HIST.dates.filter(d=>monthsSet.has(d.slice(0,7))).length:Math.round(effMonths(months)*30.4);
-  const presDays=sizes.map(sz=>pres?(pres.perSize[sz]||0):windowDays);
-  // темп шт/день: продажи размера / дни его наличия; если размера в окне не было,
-  // но продажи есть (например пришёл и мгновенно продан между снапшотами) —
-  // делим на всё окно, чтобы не делить на ноль
-  const rates=sizes.map((sz,i)=>{
-    const s=sales[sz]||0;
-    if(s<=0) return 0;
-    return s/Math.max(1, presDays[i]>0?presDays[i]:windowDays);
-  });
-  const totRate=rates.reduce((a,b)=>a+b,0);
+  const statsFor=(monthsArr,salesMap)=>{
+    const monthsSet=new Set(monthsArr);
+    const pres=HIST?presenceDays(SEL,sizes,monthsSet):null;
+    const windowDays=HIST?HIST.dates.filter(d=>monthsSet.has(d.slice(0,7))).length:Math.round(effMonths(monthsArr)*30.4);
+    const presDays=sizes.map(sz=>pres?(pres.perSize[sz]||0):windowDays);
+    // темп шт/день: продажи размера / дни его наличия; если размера в окне не было,
+    // но продажи есть (например пришёл и мгновенно продан между снапшотами) —
+    // делим на всё окно, чтобы не делить на ноль
+    const rates=sizes.map((sz,i)=>{
+      const s=salesMap[sz]||0;
+      if(s<=0) return 0;
+      return s/Math.max(1, presDays[i]>0?presDays[i]:windowDays);
+    });
+    return {pres,windowDays,presDays,rates,totRate:rates.reduce((a,b)=>a+b,0)};
+  };
+  let st=statsFor(months,sales);
+  // сезон пустой (позиция новая или несезонная) — НЕ показываем мёртвые нули,
+  // а считаем по всей истории продаж той же методикой
+  if(st.totRate<=0){
+    const allMap=salesFor(MONTHS);
+    const st2=statsFor(MONTHS,allMap);
+    if(st2.totRate>0){
+      sales=allMap; st=st2; months=MONTHS;
+      usedAllHistory=true; winLabel="вся история";
+    }
+  }
+  const {pres,windowDays,presDays,rates,totRate}=st;
+  const totSales=sizes.reduce((a,s)=>a+(sales[s]||0),0);
+  const totStock=sizes.reduce((a,s)=>a+(stock[s]||0),0);
 
   // ── Прогноз остатков на дату прихода проекта ──
   const dta=daysToArrival();
@@ -775,11 +797,14 @@ function calc(){
     const sumNeeds=needs.reduce((a,b)=>a+b,0);
     withStock=sumNeeds>0?largestRemainder(needs,Q):pure.slice();
   }else{
-    // нет статистики за сезон — нули + ручной ввод (колонка «Заказ» открыта)
+    // продаж не было вообще (за всю историю) — нули + ручной ввод
     shares=sizes.map(()=>0);
     pure=sizes.map(()=>0);
     withStock=sizes.map(()=>0);
-    warnBox.innerHTML='<div class="warn">За сезон «'+(SEASONS[PERIOD]||{}).name+'» статистики продаж по этой позиции нет — раскидай количество руками в колонке «Заказ» или выбери другой сезон.</div>';
+    warnBox.innerHTML='<div class="warn">Продаж по этой позиции ещё не было — статистики нет ни за один сезон. Раскидай количество руками в колонке «Заказ».</div>';
+  }
+  if(usedAllHistory){
+    warnBox.innerHTML+='<div class="warn">За сезон «'+(SEASONS[PERIOD]||{}).name+'» продаж по этой позиции не было (позиция новая?) — считаю по всей истории продаж, методика та же: продажи ÷ дни наличия.</div>';
   }
   if(!HIST && totSales>0){
     warnBox.innerHTML+='<div class="warn">История остатков ещё грузится — доли пока считаются по всему окну без учёта дней наличия. Пересчитается автоматически.</div>';
@@ -795,14 +820,14 @@ function calc(){
   const dayRate=totSales>0?totSales/posDays:0;
   document.getElementById("cards").style.display="";
   document.getElementById("cards").innerHTML=
-    '<div class="card"><div class="l">Продано за сезон</div><div class="v">'+fmt(totSales)+' шт</div><div class="s">'+periodLabel()+' · '+monthsCnt+' мес</div></div>'+
+    '<div class="card"><div class="l">Продано</div><div class="v">'+fmt(totSales)+' шт</div><div class="s">'+winLabel+' · '+monthsCnt+' мес</div></div>'+
     '<div class="card"><div class="l">Темп</div><div class="v">'+(Math.round(dayRate*100)/100).toLocaleString("ru-RU")+'</div><div class="s">шт / день наличия · был в наличии '+fmt(posDays)+' дн.</div></div>'+
     '<div class="card"><div class="l">Остаток сейчас</div><div class="v">'+fmt(totStock)+' шт</div><div class="s">'+(dta>0?'к приходу ≈ '+fmt(Math.round(totStockAt))+' шт (через '+dta+' дн.)':'3 торговых склада')+'</div></div>'+
     '<div class="card" style="background:rgba(76,187,23,0.2)"><div class="l">Заказ</div><div class="v" id="cardOrderTotal">'+fmt(ordVals.reduce((a,b)=>a+b,0))+' шт</div><div class="s">'+sizes.length+' размер(а/ов) · правится руками</div></div>';
 
   // таблица
   const stockCol=MODE==="stock";
-  document.getElementById("thead").innerHTML='<tr><th>Размер</th><th>Продажи за сезон</th><th>Дней в наличии</th><th>Темп шт/день</th><th>Доля темпа</th><th>Остаток сейчас</th><th>Остаток к приходу</th>'+
+  document.getElementById("thead").innerHTML='<tr><th>Размер</th><th>Продажи · '+winLabel+'</th><th>Дней в наличии</th><th>Темп шт/день</th><th>Доля темпа</th><th>Остаток сейчас</th><th>Остаток к приходу</th>'+
     '<th'+(stockCol?' class="modecol"':'')+'>Расчёт · с учётом остатков</th>'+
     '<th'+(!stockCol?' class="modecol"':'')+'>Расчёт · чистая пропорция</th>'+
     '<th class="modecol">Заказ (правь руками)</th></tr>';
@@ -839,7 +864,7 @@ function calc(){
   });
   document.getElementById("dlBtn").style.display="";
   document.getElementById("sendBtn").style.display="";
-  LAST={base:SEL,Q,sizes,sales,stock,shares,pure,withStock,totSales,totStock,monthsCnt,usedFallback,presDays,rates,stockAt,dta};
+  LAST={base:SEL,Q,sizes,sales,stock,shares,pure,withStock,totSales,totStock,monthsCnt,usedFallback,presDays,rates,stockAt,dta,winLabel};
 }
 
 // ── скачивание печатной версии ──
@@ -865,7 +890,7 @@ function downloadOrder(){
     'tr:nth-child(even) td{background:#faf7f3}'+
     '@media print{body{padding:0}}</style></head><body>'+
     '<h1>'+L.base+' — заказ '+tot+' шт по размерам</h1>'+
-    '<div class="sub">сформировано '+ds+' · ожидаемый приход: '+arrival+' · продажи: '+periodLabel()+
+    '<div class="sub">сформировано '+ds+' · ожидаемый приход: '+arrival+' · продажи: '+(L.winLabel||periodLabel())+
     ' ('+L.monthsCnt+' мес)</div>'+body+'</body></html>';
   savePdf(doc,"заказ-позиции-"+L.base.replace(/[^\wа-яА-ЯёЁ-]+/g,"_")+".pdf");
 }
