@@ -101,9 +101,14 @@
   </div>
 
   <div class="panel">
-    <div class="ptitle">Прогноз выручки со стока · 26 недель вперёд</div>
-    <div class="psub">каждая позиция продаётся своим темпом, пока не закончится; вещи в пути учтены в остатке</div>
+    <div class="ptitle">Сток и продажи · 6 месяцев вперёд</div>
+    <div class="psub">светлый столбик — сток на начало месяца (в деньгах); зелёный — продажи месяца.
+      Без перезаказа продажи падают сами: бестселлеры кончаются первыми</div>
     <canvas id="fchart"></canvas>
+    <div style="display:flex;gap:18px;margin-top:10px;font-size:11.5px;color:rgba(31,31,31,0.6)">
+      <span><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:rgba(31,31,31,0.28);vertical-align:-2px;margin-right:6px"></span>Сток на начало месяца, ₽</span>
+      <span><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:rgba(76,187,23,0.75);vertical-align:-2px;margin-right:6px"></span>Продажи месяца, ₽</span>
+    </div>
   </div>
 
   <div class="panel">
@@ -230,6 +235,7 @@ async function init(){
   document.getElementById("c-pace-s").textContent="≈ "+fmtM(pace*30)+" в месяц при текущем темпе";
 
   // симуляция по неделям: у каждой позиции остаток тает своим темпом
+  // (недельный ряд нужен карточке «стока хватит до»)
   const WEEKS=26;
   const rem=items.map(x=>({q:x.cs+x.inc, dsq:x.dsq, ap:x.ap, cat:x.cat}));
   const weekly=[], cumul=[];
@@ -245,6 +251,31 @@ async function init(){
     cum+=wr;
     weekly.push(wr); cumul.push(cum);
   }
+
+  // помесячная симуляция для графика «сток vs продажи»: на каждый месяц —
+  // стоимость стока на его начало и выручка месяца. Продажи затухают сами:
+  // бестселлеры распродаются первыми, без перезаказа каждый месяц хуже.
+  const FMONTHS=6;
+  const remM=items.map(x=>({q:x.cs+x.inc, dsq:x.dsq, ap:x.ap}));
+  const monthsFc=[];
+  {
+    const now=new Date();
+    let my=now.getFullYear(), mm=now.getMonth();
+    for(let m=0;m<FMONTHS;m++){
+      let stockStart=0;
+      for(const it of remM) if(it.q>0) stockStart+=it.q*it.ap;
+      let salesVal=0;
+      for(const it of remM){
+        if(it.q<=0||it.dsq<=0) continue;
+        const sold=Math.min(it.q,it.dsq*30.44);
+        it.q-=sold;
+        salesVal+=sold*it.ap;
+      }
+      monthsFc.push({label:new Date(my,mm,1).toLocaleDateString("ru-RU",{month:"short"})+" "+String(my).slice(2),
+        stock:stockStart, sales:salesVal});
+      mm++; if(mm===12){ my++; mm=0; }
+    }
+  }
   // порог «хватит до» — от ПРОДАВАЕМОГО потенциала (dsq>0). Раньше в порог входил
   // и мёртвый сток без продаж: если его >10% стоимости, порог 90% был недостижим
   // в принципе и карточка всегда показывала «> 6 месяцев».
@@ -259,7 +290,7 @@ async function init(){
     ? "90% продаваемого стока распродастся за "+untilWeek+" нед"
     : "теку­щего стока хватает надолго";
 
-  drawChart(weekly,cumul);
+  drawChart(monthsFc);
 
   // таблица категорий
   const cats={};
@@ -284,7 +315,9 @@ async function init(){
   }).join("");
 }
 
-function drawChart(weekly,cumul){
+function drawChart(months){
+  // два столбика на месяц: сток на начало (светлый) и продажи месяца (зелёный).
+  // Видно цену бездействия: без перезаказа зелёные столбики тают месяц к месяцу.
   const cv=document.getElementById("fchart");
   const W=cv.offsetWidth||1100, H=300;
   cv.width=W*devicePixelRatio; cv.height=H*devicePixelRatio;
@@ -292,47 +325,39 @@ function drawChart(weekly,cumul){
   const ctx=cv.getContext("2d");
   ctx.scale(devicePixelRatio,devicePixelRatio);
   const padL=8,padR=76,padT=14,padB=28;
-  const n=weekly.length;
-  const maxW=Math.max(...weekly,1)*1.1;
-  const maxC=Math.max(...cumul,1)*1.05;
-  const bw=(W-padL-padR)/n;
-  const yW=v=>H-padB-(v/maxW)*(H-padT-padB);
-  const yC=v=>H-padB-(v/maxC)*(H-padT-padB);
+  const n=months.length||1;
+  const maxV=Math.max(...months.map(m=>Math.max(m.stock,m.sales)),1)*1.08;
+  const gw=(W-padL-padR)/n;
+  const y=v=>H-padB-(v/maxV)*(H-padT-padB);
   ctx.font="10px Helvetica,Arial"; ctx.fillStyle="rgba(31,31,31,0.45)";
   for(let k=0;k<=4;k++){
-    const v=maxC*k/4, yy=yC(v);
+    const v=maxV*k/4, yy=y(v);
     ctx.strokeStyle="rgba(31,31,31,0.06)"; ctx.beginPath(); ctx.moveTo(padL,yy); ctx.lineTo(W-padR,yy); ctx.stroke();
     ctx.fillText(fmtM(v),W-padR+6,yy+4);
   }
-  // бары недельной выручки
-  for(let i=0;i<n;i++){
-    const x=padL+i*bw+bw*0.15, w=bw*0.7;
-    ctx.fillStyle="rgba(76,187,23,0.55)";
-    ctx.fillRect(x,yW(weekly[i]),w,H-padB-yW(weekly[i]));
+  for(let i=0;i<months.length;i++){
+    const x0=padL+i*gw;
+    const bw=gw*0.3, gap=gw*0.06;
+    const xs=x0+gw/2-bw-gap/2, xv=x0+gw/2+gap/2;
+    ctx.fillStyle="rgba(31,31,31,0.28)";
+    ctx.fillRect(xs,y(months[i].stock),bw,H-padB-y(months[i].stock));
+    ctx.fillStyle="rgba(76,187,23,0.75)";
+    ctx.fillRect(xv,y(months[i].sales),bw,H-padB-y(months[i].sales));
+    ctx.fillStyle="rgba(31,31,31,0.55)"; ctx.textAlign="center"; ctx.font="10px Helvetica,Arial";
+    ctx.fillText(months[i].label,x0+gw/2,H-8);
+    ctx.textAlign="left";
   }
-  // накопительная линия
-  ctx.beginPath(); ctx.strokeStyle="#1f1f1f"; ctx.lineWidth=2; ctx.lineJoin="round";
-  for(let i=0;i<n;i++){
-    const x=padL+i*bw+bw/2;
-    if(i===0) ctx.moveTo(x,yC(cumul[i])); else ctx.lineTo(x,yC(cumul[i]));
-  }
-  ctx.stroke();
-  // подписи недель (каждая 4-я)
-  ctx.fillStyle="rgba(31,31,31,0.5)"; ctx.font="9px Helvetica,Arial"; ctx.textAlign="center";
-  for(let i=0;i<n;i+=4){
-    const d=new Date(Date.now()+(i+1)*7*86400000);
-    ctx.fillText(d.toLocaleDateString("ru-RU",{day:"numeric",month:"short"}),padL+i*bw+bw/2,H-8);
-  }
-  ctx.textAlign="left";
-  // ховер
   cv.onmousemove=(ev)=>{
     const r=cv.getBoundingClientRect();
-    const i=Math.floor((ev.clientX-r.left-padL)/bw);
+    const i=Math.floor((ev.clientX-r.left-padL)/gw);
     const tip=document.getElementById("ctip");
-    if(i<0||i>=n){ tip.style.display="none"; return; }
-    const d=new Date(Date.now()+(i+1)*7*86400000);
-    tip.textContent="неделя до "+d.toLocaleDateString("ru-RU",{day:"numeric",month:"short"})+
-      "\nвыручка: "+fmtM(weekly[i])+"\nнакопительно: "+fmtM(cumul[i]);
+    if(i<0||i>=months.length){ tip.style.display="none"; return; }
+    const m=months[i];
+    const share=m.stock>0?Math.round(m.sales/m.stock*100):0;
+    tip.textContent=m.label+
+      "\nсток на начало: "+fmtM(m.stock)+
+      "\nпродажи месяца: "+fmtM(m.sales)+
+      "\nпродастся "+share+"% стока";
     tip.style.display="block";
     tip.style.left=(ev.clientX+14)+"px"; tip.style.top=(ev.clientY+10)+"px";
   };
