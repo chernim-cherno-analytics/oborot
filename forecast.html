@@ -102,12 +102,15 @@
 
   <div class="panel">
     <div class="ptitle">Сток и продажи · 6 месяцев вперёд</div>
-    <div class="psub">светлый столбик — сток на начало месяца (в деньгах); зелёный — продажи месяца.
-      Без перезаказа продажи падают сами: бестселлеры кончаются первыми</div>
+    <div class="psub">полупрозрачный столбик — сток на начало месяца; яркий — продажи месяца.
+      Шкала логарифмическая, чтобы продажи не терялись на фоне стока. Цвет — градиент:
+      зелёный от медианы за 6 месяцев, ниже — оранжевый, у нуля — красный: столбик без зелёной
+      макушки — уже сигнал. Без перезаказа продажи падают сами: бестселлеры кончаются первыми</div>
     <canvas id="fchart"></canvas>
-    <div style="display:flex;gap:18px;margin-top:10px;font-size:11.5px;color:rgba(31,31,31,0.6)">
-      <span><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:rgba(31,31,31,0.28);vertical-align:-2px;margin-right:6px"></span>Сток на начало месяца, ₽</span>
-      <span><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:rgba(76,187,23,0.75);vertical-align:-2px;margin-right:6px"></span>Продажи месяца, ₽</span>
+    <div style="display:flex;gap:18px;margin-top:10px;font-size:11.5px;color:rgba(31,31,31,0.6);flex-wrap:wrap">
+      <span><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:linear-gradient(to top,#dd0004,#f6a21a,#4cbb17);opacity:.5;vertical-align:-2px;margin-right:6px"></span>Сток на начало месяца, ₽</span>
+      <span><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:linear-gradient(to top,#dd0004,#f6a21a,#4cbb17);vertical-align:-2px;margin-right:6px"></span>Продажи месяца, ₽</span>
+      <span>— — медианы за 6 месяцев: выше зелёной черты = здоровый месяц</span>
     </div>
   </div>
 
@@ -185,6 +188,24 @@ function renderSearch(){
   }).join("")||'<tr><td colspan="6" class="loading">Не найдено</td></tr>';
 }
 document.addEventListener("input",(e)=>{ if(e.target&&e.target.id==="search") renderSearch(); });
+
+// медиана помесячного оборота за последние 6 ПОЛНЫХ месяцев — «зелёный верх»
+// градиента продаж: месяц, продающий на медиану и выше, — зелёный.
+async function medianSales6m(){
+  try{
+    const sbm=await (await fetch("/api/sales-by-month")).json();
+    const tot={};
+    for(const rec of Object.values(sbm||{}))
+      for(const [m,v] of Object.entries(rec||{}))
+        tot[m]=(tot[m]||0)+(v[1]||0);
+    const cur=new Date().toISOString().slice(0,7);
+    const months=Object.keys(tot).filter(m=>m<cur).sort().slice(-6);
+    const vals=months.map(m=>tot[m]).sort((a,b)=>a-b);
+    if(!vals.length) return null;
+    const mid=Math.floor(vals.length/2);
+    return vals.length%2?vals[mid]:(vals[mid-1]+vals[mid])/2;
+  }catch(e){ return null; }
+}
 
 async function init(){
   const [aRes,tRes,oRes,hRes]=await Promise.all([
@@ -290,7 +311,32 @@ async function init(){
     ? "90% продаваемого стока распродастся за "+untilWeek+" нед"
     : "теку­щего стока хватает надолго";
 
-  drawChart(monthsFc);
+  // референсы для градиента: медиана оборота за 6 полных месяцев и медиана
+  // стоимости стока на начало последних 6 месяцев (по истории снапшотов)
+  const refSales=await medianSales6m();
+  let refStock=null;
+  try{
+    const starts={};
+    for(const d of allDates){ const m=d.slice(0,7); if(!(m in starts)||d<starts[m]) starts[m]=d; }
+    const mkeys=Object.keys(starts).sort().slice(-6);
+    const vals=[];
+    for(const m of mkeys){
+      const d=starts[m];
+      let v=0;
+      for(const [base,dm] of Object.entries(stockData)){
+        const q=dm[d];
+        if(!q) continue;
+        const sk=SKUS[base]; if(!sk) continue;
+        const ap=sk.ap||((sk.nq||0)>0?(sk.nr||0)/sk.nq:0);
+        v+=q*ap;
+      }
+      if(v>0) vals.push(v);
+    }
+    vals.sort((a,b)=>a-b);
+    if(vals.length){ const mid=Math.floor(vals.length/2);
+      refStock=vals.length%2?vals[mid]:(vals[mid-1]+vals[mid])/2; }
+  }catch(e){}
+  drawChart(monthsFc, refSales, refStock);
 
   // таблица категорий
   const cats={};
@@ -315,33 +361,79 @@ async function init(){
   }).join("");
 }
 
-function drawChart(months){
-  // два столбика на месяц: сток на начало (светлый) и продажи месяца (зелёный).
-  // Видно цену бездействия: без перезаказа зелёные столбики тают месяц к месяцу.
+function drawChart(months, refSales, refStock){
+  // Два столбика на месяц: сток на начало и продажи месяца.
+  // Шкала ЛОГАРИФМИЧЕСКАЯ — иначе сток в 40 млн делает продажи «малюсенькими»
+  // и соотношение не читается. Заливка столбиков — градиент по высоте:
+  // красный внизу → оранжевый → зелёный от уровня медианы за 6 месяцев
+  // (для продаж — медианный месячный оборот, для стока — медианный сток).
+  // Столбик, не дотянувшийся до медианы, зелёного не получает — сразу видно,
+  // когда станет критично и плохо.
   const cv=document.getElementById("fchart");
   const W=cv.offsetWidth||1100, H=300;
   cv.width=W*devicePixelRatio; cv.height=H*devicePixelRatio;
   cv.style.height=H+"px";
   const ctx=cv.getContext("2d");
   ctx.scale(devicePixelRatio,devicePixelRatio);
-  const padL=8,padR=76,padT=14,padB=28;
+  const padL=8,padR=84,padT=14,padB=28;
   const n=months.length||1;
-  const maxV=Math.max(...months.map(m=>Math.max(m.stock,m.sales)),1)*1.08;
+  const maxRaw=Math.max(...months.map(m=>Math.max(m.stock,m.sales)),refSales||0,refStock||0,1);
+  const maxV=maxRaw*1.15;
+  const LOG=v=>Math.log10(1+Math.max(0,v));
+  const y=v=>H-padB-(LOG(v)/LOG(maxV))*(H-padT-padB);
   const gw=(W-padL-padR)/n;
-  const y=v=>H-padB-(v/maxV)*(H-padT-padB);
+
+  // сетка: равные шаги в лог-пространстве
   ctx.font="10px Helvetica,Arial"; ctx.fillStyle="rgba(31,31,31,0.45)";
-  for(let k=0;k<=4;k++){
-    const v=maxV*k/4, yy=y(v);
+  for(let k=1;k<=4;k++){
+    const v=Math.pow(10,LOG(maxV)*k/4)-1, yy=y(v);
     ctx.strokeStyle="rgba(31,31,31,0.06)"; ctx.beginPath(); ctx.moveTo(padL,yy); ctx.lineTo(W-padR,yy); ctx.stroke();
     ctx.fillText(fmtM(v),W-padR+6,yy+4);
   }
+
+  // градиент серии: red(0) → orange(60% медианы) → green(медиана и выше)
+  function seriesGradient(ref){
+    const y0=H-padB;
+    const g=ctx.createLinearGradient(0,y0,0,padT);
+    if(!ref||ref<=0){ g.addColorStop(0,"#dd4a04"); g.addColorStop(1,"#4cbb17"); return g; }
+    const off=v=>Math.min(1,Math.max(0,(y0-y(v))/(y0-padT)));
+    g.addColorStop(0,"#dd0004");
+    g.addColorStop(off(ref*0.6),"#f6a21a");
+    g.addColorStop(Math.min(1,off(ref)),"#4cbb17");
+    g.addColorStop(1,"#2f8c0d");
+    return g;
+  }
+  const gStock=seriesGradient(refStock);
+  const gSales=seriesGradient(refSales);
+
+  // пунктир медиан
+  function refLine(ref,color,label){
+    if(!ref||ref<=0) return;
+    const yy=y(ref);
+    ctx.save();
+    ctx.strokeStyle=color; ctx.setLineDash([5,4]); ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(padL,yy); ctx.lineTo(W-padR,yy); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle=color; ctx.font="9px Helvetica,Arial";
+    ctx.fillText(label,padL+4,yy-4);
+    ctx.restore();
+  }
+  refLine(refStock,"rgba(31,31,31,0.5)","медиана стока · 6 мес");
+  refLine(refSales,"rgba(44,122,31,0.8)","медиана оборота · 6 мес");
+
   for(let i=0;i<months.length;i++){
     const x0=padL+i*gw;
     const bw=gw*0.3, gap=gw*0.06;
     const xs=x0+gw/2-bw-gap/2, xv=x0+gw/2+gap/2;
-    ctx.fillStyle="rgba(31,31,31,0.28)";
+    // сток: градиент + лёгкая прозрачность, чтобы отличался от продаж
+    ctx.globalAlpha=0.45;
+    ctx.fillStyle=gStock;
     ctx.fillRect(xs,y(months[i].stock),bw,H-padB-y(months[i].stock));
-    ctx.fillStyle="rgba(76,187,23,0.75)";
+    ctx.globalAlpha=1;
+    ctx.strokeStyle="rgba(31,31,31,0.35)"; ctx.lineWidth=1;
+    ctx.strokeRect(xs,y(months[i].stock),bw,H-padB-y(months[i].stock));
+    // продажи: градиент в полную силу
+    ctx.fillStyle=gSales;
     ctx.fillRect(xv,y(months[i].sales),bw,H-padB-y(months[i].sales));
     ctx.fillStyle="rgba(31,31,31,0.55)"; ctx.textAlign="center"; ctx.font="10px Helvetica,Arial";
     ctx.fillText(months[i].label,x0+gw/2,H-8);
@@ -354,9 +446,10 @@ function drawChart(months){
     if(i<0||i>=months.length){ tip.style.display="none"; return; }
     const m=months[i];
     const share=m.stock>0?Math.round(m.sales/m.stock*100):0;
+    const vsMed=refSales?Math.round(m.sales/refSales*100)+"% медианного оборота":"";
     tip.textContent=m.label+
       "\nсток на начало: "+fmtM(m.stock)+
-      "\nпродажи месяца: "+fmtM(m.sales)+
+      "\nпродажи месяца: "+fmtM(m.sales)+(vsMed?" ("+vsMed+")":"")+
       "\nпродастся "+share+"% стока";
     tip.style.display="block";
     tip.style.left=(ev.clientX+14)+"px"; tip.style.top=(ev.clientY+10)+"px";
