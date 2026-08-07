@@ -132,8 +132,8 @@
       Бирюзовая дуга — продажи текущего месяца, достроенные до полного по прошедшим дням
       (продано ÷ прошло дней × дней в месяце); терракотовая — стоимость склада сейчас
       (остаток × средняя цена продажи). Дуга не дотянула до круга — вы ниже своего обычного
-      уровня; переполнила — выше. Ряд маленьких кругов ниже — как продажи будут затухать
-      без перезаказа: каждый будущий месяц как доля того же среднего</div>
+      уровня; переполнила — выше. Два ряда маленьких кругов ниже — прогноз без перезаказа:
+      как затухают продажи и как тает склад, каждый будущий месяц как доля того же среднего</div>
     <div class="pulse-grid" id="pulse"><div class="loading">Загружаю...</div></div>
     <div class="pmini-row" id="pmini" style="display:none"></div>
   </div>
@@ -291,19 +291,32 @@ function renderPulse(ss, stockAvg, stockNow, monthsFc){
   });
   box.innerHTML=salesCell+stockCell;
 
-  // мини-круги: затухание продаж без перезаказа, доля того же среднего
-  if(ss&&ss.avg>0&&monthsFc&&monthsFc.length>1){
+  // мини-круги: затухание без перезаказа, доля того же среднего за 6 мес —
+  // ряд продаж (бирюзовый) и ряд склада (терракотовый, сток на начало месяца)
+  if(monthsFc&&monthsFc.length>1){
     const mini=document.getElementById("pmini");
-    mini.style.display="";
-    mini.innerHTML='<div style="flex-basis:100%;font-size:10px;font-weight:600;letter-spacing:.06em;'+
-      'text-transform:uppercase;color:rgba(31,31,31,0.5)">Без перезаказа дальше (при текущем темпе)</div>'+
-      monthsFc.slice(1).map(m=>{
-        const p=m.sales/ss.avg;
-        const tip=m.label+": продажи "+fmtM(m.sales)+" ("+Math.round(p*100)+"% среднего)"+
-          ", сток на начало "+fmtM(m.stock);
-        return '<div class="pmini" title="'+tip+'">'+ringHtml(p,"#7fc4b3","#00846b","mini")+
-          '<div class="lbl">'+m.label+'</div><div class="val">'+Math.round(p*100)+'%</div></div>';
-      }).join("");
+    const rowLbl=t=>'<div style="flex-basis:100%;font-size:10px;font-weight:600;letter-spacing:.06em;'+
+      'text-transform:uppercase;color:rgba(31,31,31,0.5)">'+t+'</div>';
+    let html="";
+    if(ss&&ss.avg>0){
+      html+=rowLbl("Продажи дальше без перезаказа (при текущем темпе)")+
+        monthsFc.slice(1).map(m=>{
+          const p=m.sales/ss.avg;
+          const tip=m.label+": продажи "+fmtM(m.sales)+" ("+Math.round(p*100)+"% среднего)";
+          return '<div class="pmini" title="'+tip+'">'+ringHtml(p,"#7fc4b3","#00846b","mini")+
+            '<div class="lbl">'+m.label+'</div><div class="val">'+Math.round(p*100)+'%</div></div>';
+        }).join("");
+    }
+    if(stockAvg&&stockAvg.avg>0){
+      html+=rowLbl("Склад дальше: сток на начало месяца, доля среднего склада")+
+        monthsFc.slice(1).map(m=>{
+          const p=m.stock/stockAvg.avg;
+          const tip=m.label+": сток на начало "+fmtM(m.stock)+" ("+Math.round(p*100)+"% среднего склада)";
+          return '<div class="pmini" title="'+tip+'">'+ringHtml(p,"#e0a97e","#b05212","mini")+
+            '<div class="lbl">'+m.label+'</div><div class="val">'+Math.round(p*100)+'%</div></div>';
+        }).join("");
+    }
+    if(html){ mini.style.display=""; mini.innerHTML=html; }
   }
 }
 
