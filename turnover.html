@@ -5,8 +5,30 @@
   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
   <title>Chernim Cherno · Оборачиваемость</title>
   <style>
+    /* ── Golden Canon Grid ────────────────────────────────────────────────
+       Канон 2:1 растянут на ширину окна (высота канона = 50vw) и тайлится
+       вниз. Базовый модуль u = 1/32 ширины (внутренняя рамка канона).
+       Якоря по вертикали: шапка = линия 1/16 квадрата (3.125vw), зона
+       категорий/поиска — до линии 1/5 (10vw), таблица начинается ровно на
+       10vw и при окне 2:1 заканчивается на линии 15/16 (46.875vw).
+       Колонки таблицы и отступы кратны u (или u/2, u/4, u/8). */
+    :root {
+      --u: 3.125vw;               /* модуль: 1/32 ширины канона */
+      --fs: max(10px, 0.78vw);    /* базовый кегль, пропорционален окну */
+      --fs-s: max(9px, 0.65vw);   /* мелкий */
+      --fs-b: max(11px, 0.85vw);  /* крупные числа */
+    }
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0 }
     body { font-family: Helvetica, 'Helvetica Neue', Arial, sans-serif; min-height: 100vh; background: #f3e9e0; color:#1f1f1f; }
+    .canon-overlay { position: fixed; inset: 0; z-index: 400; pointer-events: none; display: none; }
+    .canon-overlay.on { display: block; }
+    .canon-overlay svg { display: block; width: 100vw; height: 50vw; }
+    .canon-toggle { position: fixed; right: var(--u); bottom: calc(var(--u)/2); z-index: 500;
+      font-size: var(--fs-s); font-weight: 700; letter-spacing: .06em;
+      padding: calc(var(--u)/8) calc(var(--u)/4); border-radius: calc(var(--u)/8);
+      border: 1px solid rgba(150,126,31,.8); background: rgba(243,233,224,.9);
+      color: #8a7420; cursor: pointer; }
+    .canon-toggle.on { background: #8a7420; color: #f3e9e0; }
 
     /* ── Animated mesh blobs ── */
     .gradient-bg { position: fixed; inset: 0; z-index: 0; overflow: hidden; background: #f3e9e0; }
@@ -43,39 +65,54 @@
     @keyframes blob4 { 0%{transform:translate(0,0) scale(0.9)} 50%{transform:translate(10vw,12vh) scale(1.1)} 100%{transform:translate(-6vw,6vh) scale(1)} }
     @keyframes blob5 { 0%{transform:translate(0,0) scale(1.1)} 50%{transform:translate(14vw,-8vh) scale(0.9)} 100%{transform:translate(-10vw,-12vh) scale(1.05)} }
 
+    /* Шапка: ровно до первой линии канона (1/16 квадрата = u),
+       контент между внутренними рамками (отступы u слева/справа). */
     .header {
       position: sticky; top: 0; z-index: 200;
-      padding: 0 28px; height: 56px;
+      padding: 0 var(--u); height: var(--u);
       display: flex; align-items: center; justify-content: space-between;
     }
     .logo { text-decoration: none; display:flex; align-items:center;
       font-family: Helvetica, 'Helvetica Neue', Arial, sans-serif;
-      font-size: 15px; font-weight: 400; letter-spacing: 0.12em; color: #1f1f1f; }
-    .nav { display: flex; gap: 20px }
+      font-size: max(11px, 0.94vw); font-weight: 400; letter-spacing: 0.12em; color: #1f1f1f; }
+    .nav { display: flex; gap: calc(var(--u)/3) }
     .nav a {
-      font-size: 13px; font-weight: 400; letter-spacing: 0.05em;
+      font-size: max(10px, 0.81vw); font-weight: 400; letter-spacing: 0.05em;
       color: rgba(31,31,31,0.45);
       text-decoration: none; transition: color .2s;
     }
     .nav a:hover { color: #434446 }
     .nav a.active { color: #1f1f1f; font-weight: 500; }
-    .cat-bar {
+    /* Зона фильтров: от линии u до линии 1/5 канона (10vw).
+       Внутри два ряда высотой u/2, распределены равномерно. */
+    .zone-b {
       position: relative; z-index: 10;
-      padding: 14px 28px; display: flex; gap: 8px; flex-wrap: wrap;
+      min-height: calc(10vw - var(--u));
+      display: flex; flex-direction: column; justify-content: space-evenly;
+      padding: 0 var(--u);
       border-bottom: 1px solid rgba(31,31,31,0.09);
       background: rgba(255,255,255,0.55); backdrop-filter: blur(10px);
     }
+    .cat-bar {
+      display: flex; gap: calc(var(--u)/4); flex-wrap: wrap; align-items: center;
+    }
     .cat-btn {
-      font-size: 12px; font-weight: 500; padding: 5px 14px; border-radius: 20px;
+      font-size: var(--fs); font-weight: 500;
+      height: calc(var(--u)/2); padding: 0 calc(var(--u)/3);
+      display: inline-flex; align-items: center;
+      border-radius: calc(var(--u)/4);
       border: 1px solid rgba(31,31,31,0.09); background: rgba(255,255,255,0.55);
       color: #434446; cursor: pointer; transition: all .15s; white-space: nowrap;
     }
     .cat-btn:hover { background: rgba(31,31,31,0.09); color:#1f1f1f }
     .cat-btn.active { background: rgba(31,31,31,0.16); color:#1f1f1f; border-color: rgba(31,31,31,0.45) }
-    .cat-btn .cnt { font-size: 10px; opacity: 0.6; margin-left: 3px }
-    .main { padding: 20px 28px; max-width: 1800px; margin: 0 auto; position: relative; z-index: 3; }
+    .cat-btn .cnt { font-size: var(--fs-s); opacity: 0.6; margin-left: 3px }
+    .tool-bar { display: flex; align-items: center; gap: calc(var(--u)/4); }
+    /* Контент: между внутренними рамками канона (u … 31u), без max-width —
+       сетка тянется вместе с окном. */
+    .main { padding: 0 var(--u); margin: 0; max-width: none; position: relative; z-index: 3; }
     .upload-bar {
-      display: flex; align-items: center; gap: 12px; padding: 10px 16px; margin-bottom: 16px;
+      display: flex; align-items: center; gap: calc(var(--u)/4); padding: calc(var(--u)/8) calc(var(--u)/4); margin-bottom: calc(var(--u)/4);
       background: rgba(255,255,255,0.55); backdrop-filter: blur(12px);
       border: 1px solid rgba(31,31,31,0.09); border-radius: 10px;
       font-size: 12px; color: rgba(31,31,31,0.62);
@@ -88,31 +125,34 @@
       transition: background .2s;
     }
     .upload-btn:hover { background: rgba(31,31,31,0.45) }
+    /* Таблица: верх ровно на линии 1/5 (10vw); при окне 2:1 низ приходится
+       на линию 15/16 канона (46.875vw): 100vh − 10vw − u = 36.875vw. */
     .table-outer {
       background: rgba(255,255,255,0.55); backdrop-filter: blur(16px);
-      border: 1px solid rgba(31,31,31,0.09); border-radius: 12px;
-      overflow: auto; max-height: calc(100vh - 175px);
+      border: 1px solid rgba(31,31,31,0.09); border-radius: calc(var(--u)/4);
+      overflow: auto; max-height: max(300px, calc(100vh - 13.125vw));
     }
-    table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 1100px; table-layout: fixed }
+    table { width: 100%; border-collapse: collapse; font-size: var(--fs); table-layout: fixed }
     thead th {
       background: rgba(255,255,255,0.85);
       backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
-      padding: 10px 10px; text-align: center;
-      font-size: 10px; font-weight: 500; color: rgba(31,31,31,0.62);
+      height: var(--u); padding: 0 calc(var(--u)/8); text-align: center;
+      font-size: var(--fs-s); font-weight: 500; color: rgba(31,31,31,0.62);
       letter-spacing: 0.07em; text-transform: uppercase;
       white-space: nowrap; position: sticky; top: 0; z-index: 10;
       border-bottom: 1px solid rgba(31,31,31,0.09);
     }
-    thead th:first-child { text-align: left; padding-left: 14px; min-width: 220px }
-    thead th .sub { display:block; font-size:9px; font-weight:400; letter-spacing:0; text-transform:none; opacity:0.45; margin-top:2px; }
+    thead th:first-child { text-align: left; padding-left: calc(var(--u)/4) }
+    thead th .sub { display:block; font-size:var(--fs-s); font-weight:400; letter-spacing:0; text-transform:none; opacity:0.45; margin-top:2px; }
     tbody tr.pr td {
-      padding: 8px 10px; border-bottom: 1px solid rgba(31,31,31,0.07);
+      height: calc(var(--u)*0.75); padding: 0 calc(var(--u)/8);
+      border-bottom: 1px solid rgba(31,31,31,0.07);
       text-align: center; vertical-align: middle; color: #1f1f1f;
     }
-    tbody tr.pr td:first-child { text-align: left; padding-left: 14px; cursor: pointer; min-width: 220px }
+    tbody tr.pr td:first-child { text-align: left; padding-left: calc(var(--u)/4); cursor: pointer }
     tbody tr.pr:hover td { background: rgba(255,255,255,0.55) }
-    tbody tr.sr td { padding: 5px 10px; border-bottom: 1px solid rgba(31,31,31,0.07); font-size:11px; text-align:center; color: #434446 }
-    tbody tr.sr td:first-child { padding-left: 32px; color: rgba(31,31,31,0.45); text-align:left; font-style:italic }
+    tbody tr.sr td { height: calc(var(--u)*0.5); padding: 0 calc(var(--u)/8); border-bottom: 1px solid rgba(31,31,31,0.07); font-size:var(--fs-s); text-align:center; color: #434446 }
+    tbody tr.sr td:first-child { padding-left: calc(var(--u)*0.75); color: rgba(31,31,31,0.45); text-align:left; font-style:italic }
     tbody tr.sr:hover td { background: rgba(255,255,255,0.55) }
     .rg2 td { background: rgba(143,233,0,0.35) }
     .rg1 td { background: rgba(76,187,23,0.3) }
@@ -123,16 +163,16 @@
     .rg1:hover td { background: rgba(76,187,23,0.42) !important }
     .ro:hover  td { background: rgba(255,204,0,0.44) !important }
     .rr:hover  td { background: rgba(221,0,4,0.18) !important }
-    .pname { font-weight: 500; font-size: 12px; color: #1f1f1f }
+    .pname { font-weight: 500; font-size: var(--fs); color: #1f1f1f; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
     .ei { font-size: 9px; margin-right: 5px; color: rgba(31,31,31,0.45); display:inline-block; transition: transform .15s }
     .ei.open { transform: rotate(90deg) }
     .nb { font-variant-numeric: tabular-nums }
-    .nbig { font-weight: 700; font-size: 13px }
-    .retail { font-size: 9px; opacity: .55; margin-top: 2px }
-    .zbar { position:relative; width:72px; height:20px; border-radius:4px; overflow:hidden; background:rgba(255,255,255,0.55); margin:0 auto }
+    .nbig { font-weight: 700; font-size: var(--fs-b) }
+    .retail { font-size: var(--fs-s); opacity: .55; margin-top: 1px }
+    .zbar { position:relative; width:calc(var(--u)*1.25); height:calc(var(--u)*0.4); border-radius:calc(var(--u)/8); overflow:hidden; background:rgba(255,255,255,0.55); margin:0 auto }
     .zfill { position:absolute; left:0; top:0; height:100%; border-radius:4px }
-    .ztxt { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:700 }
-    .oc { font-size:11px; font-weight:600; padding:2px 8px; border-radius:4px; background:rgba(31,31,31,0.09); color:#434446; display:inline-block; min-width:28px }
+    .ztxt { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:var(--fs-s); font-weight:700 }
+    .oc { font-size:var(--fs-s); font-weight:600; padding:2px calc(var(--u)/6); border-radius:calc(var(--u)/8); background:rgba(31,31,31,0.09); color:#434446; display:inline-block; min-width:28px }
     .dr td { padding:0 !important; border-bottom:1px solid rgba(31,31,31,0.09) }
     .dp {
       display:none; padding:18px 20px;
@@ -161,16 +201,16 @@
     .sz-btn.active .sz-dot { opacity:1 }
     .oiv { font-size:15px; font-weight:700; color:#1f1f1f }
     .loading { text-align:center; padding:60px; color:rgba(31,31,31,0.45); font-size:13px }
-    .disc-in { width: 52px; text-align: center; font-size: 13px; font-weight: 700;
+    .disc-in { width: calc(var(--u)*1); text-align: center; font-size: var(--fs); font-weight: 700;
       border: 1px solid rgba(31,31,31,0.25); border-radius: 6px; padding: 4px 4px;
       background: #fff; color: #1f1f1f; outline: none; }
     .disc-in::placeholder { color: rgba(0,0,0,0.35); }
     .disc-in:focus { border-color: rgba(31,31,31,0.6); background: #fff; }
-    .def-disc-btn { border: 1px solid rgba(31,31,31,0.45); border-radius: 8px; padding: 7px 14px;
-      background: #1f1f1f; color: #f3e9e0; font-size: 12px; font-weight: 700; cursor: pointer; }
+    .def-disc-btn { border: 1px solid rgba(31,31,31,0.45); border-radius: calc(var(--u)/8); height: calc(var(--u)/2); padding: 0 calc(var(--u)/3);
+      background: #1f1f1f; color: #f3e9e0; font-size: var(--fs); font-weight: 700; cursor: pointer; }
     .def-disc-btn:hover { background: #434446; }
     .def-disc-btn:disabled { opacity: 0.6; cursor: default; }
-    .search { flex:0 0 300px; padding:7px 14px; border-radius:10px; font-size:13px;
+    .search { flex:0 0 calc(var(--u)*6); height: calc(var(--u)/2); padding:0 calc(var(--u)/4); border-radius:calc(var(--u)/4); font-size:var(--fs);
       border:1px solid rgba(31,31,31,0.16); background:rgba(255,255,255,0.7); outline:none }
     .search:focus { border-color: rgba(31,31,31,0.45) }
     .arch-btn { font-size:10px; font-weight:600; padding:3px 9px; border-radius:9px;
@@ -181,8 +221,8 @@
       border:1px solid rgba(31,31,31,0.22); background:rgba(255,255,255,0.6);
       color:#434446; cursor:pointer; white-space:nowrap; transition:all .15s }
     .unarch-btn:hover { background:rgba(76,187,23,0.25); border-color:rgba(76,187,23,0.6); color:#2a5c10 }
-    .arch-title { font-size:12px; font-weight:600; letter-spacing:.08em; text-transform:uppercase;
-      color:rgba(31,31,31,0.5); margin:26px 0 8px }
+    .arch-title { font-size:var(--fs); font-weight:600; letter-spacing:.08em; text-transform:uppercase;
+      color:rgba(31,31,31,0.5); margin:calc(var(--u)/2) 0 calc(var(--u)/4); height:calc(var(--u)/2); display:flex; align-items:center; gap:4px }
   </style>
 </head>
 <body>
@@ -204,11 +244,13 @@
     <a href="/yandex">Яндекс</a>
   </nav>
 </div>
-<div class="cat-bar" id="cat-bar"><span style="font-size:12px;color:rgba(31,31,31,0.4)">Загрузка...</span></div>
-<div style="position:relative;z-index:10;padding:10px 28px;display:flex;align-items:center;gap:12px;">
-  <button class="def-disc-btn" id="defDiscBtn" onclick="applyDefaultDiscounts()">Дефолтные скидки</button>
-  <span style="font-size:11px;color:rgba(31,31,31,0.62)">сбросит ручные скидки и расставит по правилам от текущей оборачиваемости</span>
-  <input class="search" id="search" placeholder="Поиск по всем категориям..." style="margin-left:auto">
+<div class="zone-b">
+  <div class="cat-bar" id="cat-bar"><span style="font-size:var(--fs);color:rgba(31,31,31,0.4)">Загрузка...</span></div>
+  <div class="tool-bar">
+    <button class="def-disc-btn" id="defDiscBtn" onclick="applyDefaultDiscounts()">Дефолтные скидки</button>
+    <span style="font-size:var(--fs-s);color:rgba(31,31,31,0.62)">сбросит ручные скидки и расставит по правилам от текущей оборачиваемости</span>
+    <input class="search" id="search" placeholder="Поиск по всем категориям..." style="margin-left:auto">
+  </div>
 </div>
 <div class="main">
   <div class="upload-bar" style="display:none">
@@ -218,12 +260,12 @@
   </div>
   <div class="table-outer">
     <table id="mt">
-      <colgroup>
-        <col style="width:210px"><col style="width:55px"><col style="width:80px">
-        <col style="width:65px"><col style="width:70px"><col style="width:70px">
-        <col style="width:70px"><col style="width:70px"><col style="width:55px">
-        <col style="width:74px"><col style="width:72px"><col style="width:60px">
-        <col style="width:58px"><col style="width:62px"><col style="width:72px">
+      <colgroup><!-- 30 модулей u: имя 7 (правый край на линии 1/4 канона) + 1.5+2+2 + сезоны 1.5×4 + 1.5+2+1.5+2+2+1.25+1.25 -->
+        <col style="width:calc(var(--u)*7)"><col style="width:calc(var(--u)*1.5)"><col style="width:calc(var(--u)*2)">
+        <col style="width:calc(var(--u)*2)"><col style="width:calc(var(--u)*1.5)"><col style="width:calc(var(--u)*1.5)">
+        <col style="width:calc(var(--u)*1.5)"><col style="width:calc(var(--u)*1.5)"><col style="width:calc(var(--u)*1.5)">
+        <col style="width:calc(var(--u)*2)"><col style="width:calc(var(--u)*1.5)"><col style="width:calc(var(--u)*2)">
+        <col style="width:calc(var(--u)*2)"><col style="width:calc(var(--u)*1.25)"><col style="width:calc(var(--u)*1.25)">
       </colgroup>
       <thead>
         <tr>
@@ -252,12 +294,12 @@
   <div id="archwrap" style="display:none">
   <div class="table-outer" style="max-height:50vh">
     <table id="at">
-      <colgroup>
-        <col style="width:210px"><col style="width:55px"><col style="width:80px">
-        <col style="width:65px"><col style="width:70px"><col style="width:70px">
-        <col style="width:70px"><col style="width:70px"><col style="width:55px">
-        <col style="width:74px"><col style="width:72px"><col style="width:60px">
-        <col style="width:58px"><col style="width:62px"><col style="width:72px">
+      <colgroup><!-- 30 модулей u: имя 7 (правый край на линии 1/4 канона) + 1.5+2+2 + сезоны 1.5×4 + 1.5+2+1.5+2+2+1.25+1.25 -->
+        <col style="width:calc(var(--u)*7)"><col style="width:calc(var(--u)*1.5)"><col style="width:calc(var(--u)*2)">
+        <col style="width:calc(var(--u)*2)"><col style="width:calc(var(--u)*1.5)"><col style="width:calc(var(--u)*1.5)">
+        <col style="width:calc(var(--u)*1.5)"><col style="width:calc(var(--u)*1.5)"><col style="width:calc(var(--u)*1.5)">
+        <col style="width:calc(var(--u)*2)"><col style="width:calc(var(--u)*1.5)"><col style="width:calc(var(--u)*2)">
+        <col style="width:calc(var(--u)*2)"><col style="width:calc(var(--u)*1.25)"><col style="width:calc(var(--u)*1.25)">
       </colgroup>
       <thead>
         <tr>
@@ -878,6 +920,39 @@ async function init(){
   renderArchive();
 }
 init();
+</script>
+
+<div class="canon-overlay" id="canonOverlay"></div>
+<button class="canon-toggle" id="canonToggle" title="Показать/скрыть Golden Canon Grid (клавиша G)">⊞ сетка</button>
+<script>
+// Golden Canon Grid: линии в долях канона 2:1 (извлечены из эталона).
+(function(){
+  var VX=[0,.03125,.125,.25,.375,.4,.5,.6,.625,.75,.875,.96875,1];
+  var HY=[0,.0625,.2,1/3,.5,2/3,.8,.9375,1];
+  var DIAG=[[0,0,.25,1],[0,0,.5,1],[0,0,1,.5],[0,0,1,1],[0,.5,1,0],[0,.5,1,1],
+            [0,1,.25,0],[0,1,.5,0],[0,1,1,0],[0,1,1,.5],[.25,0,.5,1],[.25,1,.5,0],
+            [.5,0,.75,1],[.5,0,1,1],[.5,1,.75,0],[.5,1,1,0],[.75,0,1,1],[.75,1,1,0]];
+  var W=3200,H=1600, s='';
+  VX.forEach(function(x){ s+='<line x1="'+x*W+'" y1="0" x2="'+x*W+'" y2="'+H+'"/>'; });
+  HY.forEach(function(y){ s+='<line x1="0" y1="'+y*H+'" x2="'+W+'" y2="'+y*H+'"/>'; });
+  DIAG.forEach(function(d){ s+='<line x1="'+d[0]*W+'" y1="'+d[1]*H+'" x2="'+d[2]*W+'" y2="'+d[3]*H+'"/>'; });
+  var svg='<svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none">'+
+    '<g stroke="rgba(150,126,31,0.55)" stroke-width="1.6" vector-effect="non-scaling-stroke">'+s+'</g></svg>';
+  var ov=document.getElementById('canonOverlay');
+  ov.innerHTML=svg+svg+svg; // тайлим вниз на 150vw высоты
+  var btn=document.getElementById('canonToggle');
+  function setOn(on){
+    ov.classList.toggle('on',on); btn.classList.toggle('on',on);
+    try{ localStorage.setItem('canonGrid', on?'1':'0'); }catch(e){}
+  }
+  var saved; try{ saved=localStorage.getItem('canonGrid'); }catch(e){}
+  setOn(saved===null?true:saved==='1');  // на этапе пропорций сетка включена
+  btn.addEventListener('click',function(){ setOn(!ov.classList.contains('on')); });
+  document.addEventListener('keydown',function(e){
+    if((e.key==='g'||e.key==='G'||e.key==='п'||e.key==='П')&&!/INPUT|TEXTAREA/.test(document.activeElement.tagName))
+      setOn(!ov.classList.contains('on'));
+  });
+})();
 </script>
 </body>
 </html>
