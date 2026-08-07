@@ -265,20 +265,29 @@ function pulseCell(o){
       delta+'<div class="pmonths">'+monthsHtml+'</div></div></div>';
 }
 
-function renderPulse(ss, stockAvg, stockNow, monthsFc){
+function renderPulse(ss, stockAvg, stockNow, monthsFc, lastDate){
   const box=document.getElementById("pulse");
   const now=new Date();
   const dim=new Date(now.getFullYear(),now.getMonth()+1,0).getDate();
-  const dp=now.getDate();
+  // дни для экстраполяции — по ДАННЫМ, а не по календарю: если синк отстал,
+  // делить продажи на календарные дни значит занижать прогноз
+  let dp=now.getDate();
+  if(lastDate&&lastDate.slice(0,7)===now.toISOString().slice(0,7))
+    dp=Math.min(dp,Number(lastDate.slice(8,10)));
+  const staleDays=lastDate?Math.floor((Date.now()-new Date(lastDate+"T00:00:00").getTime())/86400000):null;
   const proj=ss&&dp>0?ss.mtd/dp*dim:0;
   const curM=monRu(now.toISOString().slice(0,7));
+  const freshLine=lastDate
+    ? [["Данные по",lastDate.slice(8,10)+"."+lastDate.slice(5,7)+
+        (staleDays>=2?" <span style='color:#a00003;font-weight:700'>— отстают на "+staleDays+" дн!</span>":"")]]
+    : [];
   const salesCell=ss?pulseCell({
     pct:ss.avg>0?proj/ss.avg:null, c1:"#7fc4b3", c2:"#00846b",
     title:"Продажи · "+curM+" (прогноз)",
     tip:"Прогноз месяца против среднего за 6 полных месяцев",
-    lines:[["Уже продано ("+dp+" дн)",fmtM(ss.mtd)],
+    lines:freshLine.concat([["Уже продано ("+dp+" дн)",fmtM(ss.mtd)],
            ["Прогноз на весь месяц",fmtM(proj)],
-           ["Средний месяц (6 мес)",fmtM(ss.avg)]],
+           ["Средний месяц (6 мес)",fmtM(ss.avg)]]),
     months:ss.months, curLabel:curM+" · прогноз", curValue:proj,
   }):'<div class="loading">Нет данных о продажах</div>';
   const stockCell=pulseCell({
@@ -446,7 +455,8 @@ async function init(){
     if(months.length)
       stockStats={months,avg:months.reduce((s,x)=>s+x.v,0)/months.length};
   }catch(e){}
-  renderPulse(await salesStats(), stockStats, totV, monthsFc);
+  renderPulse(await salesStats(), stockStats, totV, monthsFc,
+    allDates.length?allDates[allDates.length-1]:null);
 
   // таблица категорий
   const cats={};
