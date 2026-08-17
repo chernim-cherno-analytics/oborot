@@ -69,13 +69,13 @@
        контент между внутренними рамками (отступы u слева/справа). */
     .header {
       position: sticky; top: 0; z-index: 200;
-      padding: 0 var(--u); height: var(--u);
-      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 var(--u); min-height: var(--u);
+      display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;
     }
     .logo { text-decoration: none; display:flex; align-items:center;
       font-family: Helvetica, 'Helvetica Neue', Arial, sans-serif;
       font-size: max(11px, 0.94vw); font-weight: 400; letter-spacing: 0.12em; color: #1f1f1f; }
-    .nav { display: flex; gap: calc(var(--u)/3) }
+    .nav { display: flex; gap: calc(var(--u)/3); flex-wrap: wrap; justify-content: flex-end }
     .nav a {
       font-size: max(10px, 0.81vw); font-weight: 400; letter-spacing: 0.05em;
       color: rgba(31,31,31,0.45);
@@ -107,7 +107,7 @@
     .cat-btn:hover { background: rgba(31,31,31,0.09); color:#1f1f1f }
     .cat-btn.active { background: rgba(31,31,31,0.16); color:#1f1f1f; border-color: rgba(31,31,31,0.45) }
     .cat-btn .cnt { font-size: var(--fs-s); opacity: 0.6; margin-left: 3px }
-    .tool-bar { display: flex; align-items: center; gap: calc(var(--u)/4); }
+    .tool-bar { display: flex; align-items: center; gap: calc(var(--u)/4); flex-wrap: wrap; }
     /* Контент: между внутренними рамками канона (u … 31u), без max-width —
        сетка тянется вместе с окном. */
     .main { padding: 0 var(--u); margin: 0; max-width: none; position: relative; z-index: 3; }
@@ -138,8 +138,8 @@
       backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
       height: var(--u); padding: 0 calc(var(--u)/8); text-align: center;
       font-size: var(--fs-s); font-weight: 500; color: rgba(31,31,31,0.62);
-      letter-spacing: 0.07em; text-transform: uppercase;
-      white-space: nowrap; position: sticky; top: 0; z-index: 10;
+      letter-spacing: 0.05em; text-transform: uppercase;
+      white-space: normal; overflow: hidden; position: sticky; top: 0; z-index: 10;
       border-bottom: 1px solid rgba(31,31,31,0.09);
     }
     thead th:first-child { text-align: left; padding-left: calc(var(--u)/4) }
@@ -163,13 +163,13 @@
     .rg1:hover td { background: rgba(76,187,23,0.42) !important }
     .ro:hover  td { background: rgba(255,204,0,0.44) !important }
     .rr:hover  td { background: rgba(221,0,4,0.18) !important }
-    .pname { font-weight: 500; font-size: var(--fs); color: #1f1f1f; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+    .pname { font-weight: 500; font-size: var(--fs); color: #1f1f1f; display: inline-block; max-width: calc(100% - 1.4em); vertical-align: middle; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
     .ei { font-size: 9px; margin-right: 5px; color: rgba(31,31,31,0.45); display:inline-block; transition: transform .15s }
     .ei.open { transform: rotate(90deg) }
     .nb { font-variant-numeric: tabular-nums }
     .nbig { font-weight: 700; font-size: var(--fs-b) }
     .retail { font-size: var(--fs-s); opacity: .55; margin-top: 1px }
-    .zbar { position:relative; width:calc(var(--u)*1.25); height:calc(var(--u)*0.4); border-radius:calc(var(--u)/8); overflow:hidden; background:rgba(255,255,255,0.55); margin:0 auto }
+    .zbar { position:relative; width:calc(var(--u)*1.25); max-width:100%; height:max(15px,calc(var(--u)*0.4)); border-radius:calc(var(--u)/8); overflow:hidden; background:rgba(255,255,255,0.55); margin:0 auto }
     .zfill { position:absolute; left:0; top:0; height:100%; border-radius:4px }
     .ztxt { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:var(--fs-s); font-weight:700 }
     .oc { font-size:var(--fs-s); font-weight:600; padding:2px calc(var(--u)/6); border-radius:calc(var(--u)/8); background:rgba(31,31,31,0.09); color:#434446; display:inline-block; min-width:28px }
@@ -206,18 +206,18 @@
       background: #fff; color: #1f1f1f; outline: none; }
     .disc-in::placeholder { color: rgba(0,0,0,0.35); }
     .disc-in:focus { border-color: rgba(31,31,31,0.6); background: #fff; }
-    .def-disc-btn { border: 1px solid rgba(31,31,31,0.45); border-radius: calc(var(--u)/8); height: calc(var(--u)/2); padding: 0 calc(var(--u)/3);
+    .def-disc-btn { border: 1px solid rgba(31,31,31,0.45); border-radius: calc(var(--u)/8); height: calc(var(--u)/2); padding: 0 calc(var(--u)/3); white-space: nowrap; flex: none;
       background: #1f1f1f; color: #f3e9e0; font-size: var(--fs); font-weight: 700; cursor: pointer; }
     .def-disc-btn:hover { background: #434446; }
     .def-disc-btn:disabled { opacity: 0.6; cursor: default; }
     .search { flex:0 0 calc(var(--u)*6); height: calc(var(--u)/2); padding:0 calc(var(--u)/4); border-radius:calc(var(--u)/4); font-size:var(--fs);
       border:1px solid rgba(31,31,31,0.16); background:rgba(255,255,255,0.7); outline:none }
     .search:focus { border-color: rgba(31,31,31,0.45) }
-    .arch-btn { font-size:10px; font-weight:600; padding:3px 9px; border-radius:9px;
+    .arch-btn { font-size:var(--fs-s); font-weight:600; padding:2px calc(var(--u)/8); border-radius:calc(var(--u)/8); max-width:100%; overflow:hidden;
       border:1px solid rgba(31,31,31,0.22); background:rgba(255,255,255,0.6);
       color:#434446; cursor:pointer; white-space:nowrap; transition:all .15s }
     .arch-btn:hover { background:rgba(221,0,4,0.14); border-color:rgba(221,0,4,0.4); color:#7a0002 }
-    .unarch-btn { font-size:10px; font-weight:600; padding:3px 9px; border-radius:9px;
+    .unarch-btn { font-size:var(--fs-s); font-weight:600; padding:2px calc(var(--u)/8); border-radius:calc(var(--u)/8); max-width:100%; overflow:hidden;
       border:1px solid rgba(31,31,31,0.22); background:rgba(255,255,255,0.6);
       color:#434446; cursor:pointer; white-space:nowrap; transition:all .15s }
     .unarch-btn:hover { background:rgba(76,187,23,0.25); border-color:rgba(76,187,23,0.6); color:#2a5c10 }
@@ -261,18 +261,18 @@
   <div class="table-outer">
     <table id="mt">
       <colgroup><!-- 30 модулей u: имя 7 (правый край на линии 1/4 канона) + 1.5+2+2 + сезоны 1.5×4 + 1.5+2+1.5+2+2+1.25+1.25 -->
-        <col style="width:calc(var(--u)*7)"><col style="width:calc(var(--u)*1.5)"><col style="width:calc(var(--u)*2)">
-        <col style="width:calc(var(--u)*2)"><col style="width:calc(var(--u)*1.5)"><col style="width:calc(var(--u)*1.5)">
-        <col style="width:calc(var(--u)*1.5)"><col style="width:calc(var(--u)*1.5)"><col style="width:calc(var(--u)*1.5)">
-        <col style="width:calc(var(--u)*2)"><col style="width:calc(var(--u)*1.5)"><col style="width:calc(var(--u)*2)">
-        <col style="width:calc(var(--u)*2)"><col style="width:calc(var(--u)*1.25)"><col style="width:calc(var(--u)*1.25)">
+        <col style="width:23.333%"><col style="width:5%"><col style="width:6.667%">
+        <col style="width:6.667%"><col style="width:5%"><col style="width:5%">
+        <col style="width:5%"><col style="width:5%"><col style="width:5%">
+        <col style="width:6.667%"><col style="width:5%"><col style="width:6.667%">
+        <col style="width:5.833%"><col style="width:4.167%"><col style="width:5%">
       </colgroup>
       <thead>
         <tr>
           <th>Название</th>
           <th>Дней<br><span class="sub">в стоке</span></th>
           <th>Ср. цена<br><span class="sub">продажи</span></th>
-          <th>Оборач.<br><span class="sub">за год</span></th>
+          <th>Оборач.<br><span class="sub">₽/день</span></th>
           <th>Зима<br><span class="sub">₽/день</span></th>
           <th>Весна<br><span class="sub">₽/день</span></th>
           <th>Лето<br><span class="sub">₽/день</span></th>
@@ -295,18 +295,18 @@
   <div class="table-outer" style="max-height:50vh">
     <table id="at">
       <colgroup><!-- 30 модулей u: имя 7 (правый край на линии 1/4 канона) + 1.5+2+2 + сезоны 1.5×4 + 1.5+2+1.5+2+2+1.25+1.25 -->
-        <col style="width:calc(var(--u)*7)"><col style="width:calc(var(--u)*1.5)"><col style="width:calc(var(--u)*2)">
-        <col style="width:calc(var(--u)*2)"><col style="width:calc(var(--u)*1.5)"><col style="width:calc(var(--u)*1.5)">
-        <col style="width:calc(var(--u)*1.5)"><col style="width:calc(var(--u)*1.5)"><col style="width:calc(var(--u)*1.5)">
-        <col style="width:calc(var(--u)*2)"><col style="width:calc(var(--u)*1.5)"><col style="width:calc(var(--u)*2)">
-        <col style="width:calc(var(--u)*2)"><col style="width:calc(var(--u)*1.25)"><col style="width:calc(var(--u)*1.25)">
+        <col style="width:23.333%"><col style="width:5%"><col style="width:6.667%">
+        <col style="width:6.667%"><col style="width:5%"><col style="width:5%">
+        <col style="width:5%"><col style="width:5%"><col style="width:5%">
+        <col style="width:6.667%"><col style="width:5%"><col style="width:6.667%">
+        <col style="width:5.833%"><col style="width:4.167%"><col style="width:5%">
       </colgroup>
       <thead>
         <tr>
           <th>Название</th>
           <th>Дней<br><span class="sub">в стоке</span></th>
           <th>Ср. цена<br><span class="sub">продажи</span></th>
-          <th>Оборач.<br><span class="sub">за год</span></th>
+          <th>Оборач.<br><span class="sub">₽/день</span></th>
           <th>Зима<br><span class="sub">₽/день</span></th>
           <th>Весна<br><span class="sub">₽/день</span></th>
           <th>Лето<br><span class="sub">₽/день</span></th>
@@ -381,8 +381,12 @@ function defaultDiscount(d){
   return zat < 100 ? 50 : 60;
 }
 async function applyDefaultDiscounts(){
-  if(!confirm("Все ручные скидки будут сброшены и расставлены по правилам. Продолжить?")) return;
-  const out = {};
+  if(!confirm("Все ручные скидки видимых позиций будут сброшены и расставлены по правилам. Скидки архива останутся. Продолжить?")) return;
+  const out = {...DISCOUNTS};  // не терять скидки архива/распроданного/исключений
+  for (const [base] of Object.entries(computed)){
+    if (hiddenItems.has(base) || !getCat(base)) continue;
+    delete out[base];  // видимые пересчитываем заново
+  }
   for (const [base, d] of Object.entries(computed)){
     if (hiddenItems.has(base)) continue;
     if (!getCat(base)) continue;
@@ -642,15 +646,15 @@ function render() {
       tr.className=`pr ${cls}`; tr.dataset.base=base;
       tr.innerHTML=`
         <td><span class="ei">▶</span><span class="pname">${base}</span></td>
-        <td class="nb">${d.dis}</td>
+        <td class="nb">${fmt(d.dis)}</td>
         <td class="nb">${priceCell(base,d.ap)}</td>
         <td class="nb nbig">${fmt(d.turn)}</td>
         <td class="nb">${fmt(d.sea.winter)}</td>
         <td class="nb">${fmt(d.sea.spring)}</td>
         <td class="nb">${fmt(d.sea.summer)}</td>
         <td class="nb">${fmt(d.sea.autumn)}</td>
-        <td class="nb nbig">${d.cs}</td>
-        <td class="nb">${d.sup!==null?d.sup+" дн"+(d.sup>0?"<div style='font-size:9px;opacity:.55;margin-top:2px'>до "+new Date(Date.now()+d.sup*86400000).toLocaleDateString("ru-RU",{day:"numeric",month:"long",year:"numeric"})+"</div>":""):"—"}</td>
+        <td class="nb nbig">${fmt(d.cs)}</td>
+        <td class="nb">${d.sup!==null?d.sup+" дн"+(d.sup>0?"<div style='font-size:9px;opacity:.55;margin-top:2px'>до "+new Date(Date.now()+d.sup*86400000).toLocaleDateString("ru-RU",{day:"2-digit",month:"2-digit",year:"2-digit"})+"</div>":""):"—"}</td>
         <td><div class="zbar"><div class="zfill" style="width:${Math.min(d.zat||0,100)}%;background:${zc}"></div><div class="ztxt" style="color:${zt}">${zl}</div></div></td>
         <td class="nb"><span style="font-size:11px;font-weight:600">${d.defq}</span></td>
         <td>${realDisc(d.ap,base)}</td>
@@ -748,7 +752,10 @@ function render() {
             },50);
           };
           redraw();
-          dtd.querySelectorAll(".sz-btn").forEach(btn=>btn.addEventListener("click",()=>{btn.classList.toggle("active");redraw();}));
+          if(!dtd.dataset.szBound){
+            dtd.dataset.szBound="1";
+            dtd.querySelectorAll(".sz-btn").forEach(btn=>btn.addEventListener("click",()=>{btn.classList.toggle("active");redraw();}));
+          }
         }
       });
     }
@@ -772,14 +779,14 @@ function renderArchive() {
     tr.className=`pr ${cls}`;
     tr.innerHTML=`
       <td><span class="pname">${base}</span></td>
-      <td class="nb">${d.dis}</td>
+      <td class="nb">${fmt(d.dis)}</td>
       <td class="nb">${priceCell(base,d.ap)}</td>
       <td class="nb nbig">${fmt(d.turn)}</td>
       <td class="nb">${fmt(d.sea.winter)}</td>
       <td class="nb">${fmt(d.sea.spring)}</td>
       <td class="nb">${fmt(d.sea.summer)}</td>
       <td class="nb">${fmt(d.sea.autumn)}</td>
-      <td class="nb nbig">${d.cs}</td>
+      <td class="nb nbig">${fmt(d.cs)}</td>
       <td class="nb">${d.sup!==null?d.sup+" дн":"—"}</td>
       <td><div class="zbar"><div class="zfill" style="width:${Math.min(d.zat||0,100)}%;background:${zc}"></div><div class="ztxt" style="color:${zt}">${zl}</div></div></td>
       <td class="nb"><span style="font-size:11px;font-weight:600">${d.defq}</span></td>
@@ -905,8 +912,12 @@ document.getElementById("si").addEventListener("change",async e=>{
   }
 });
 
+let _searchT=null;
 document.addEventListener("input",(e)=>{
-  if(e.target&&e.target.id==="search"){ render(); renderArchive(); }
+  if(e.target&&e.target.id==="search"){
+    clearTimeout(_searchT);
+    _searchT=setTimeout(()=>{ render(); renderArchive(); }, 200);
+  }
 });
 
 async function init(){
@@ -937,7 +948,7 @@ init();
   HY.forEach(function(y){ s+='<line x1="0" y1="'+y*H+'" x2="'+W+'" y2="'+y*H+'"/>'; });
   DIAG.forEach(function(d){ s+='<line x1="'+d[0]*W+'" y1="'+d[1]*H+'" x2="'+d[2]*W+'" y2="'+d[3]*H+'"/>'; });
   var svg='<svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none">'+
-    '<g stroke="rgba(150,126,31,0.55)" stroke-width="1.6" vector-effect="non-scaling-stroke">'+s+'</g></svg>';
+    '<g stroke="rgba(150,126,31,0.4)" stroke-width="1.6" vector-effect="non-scaling-stroke">'+s+'</g></svg>';
   var ov=document.getElementById('canonOverlay');
   ov.innerHTML=svg+svg+svg; // тайлим вниз на 150vw высоты
   var btn=document.getElementById('canonToggle');
@@ -946,7 +957,7 @@ init();
     try{ localStorage.setItem('canonGrid', on?'1':'0'); }catch(e){}
   }
   var saved; try{ saved=localStorage.getItem('canonGrid'); }catch(e){}
-  setOn(saved===null?true:saved==='1');  // на этапе пропорций сетка включена
+  setOn(saved==='1');  // по умолчанию выключена; включать кнопкой или клавишей G
   btn.addEventListener('click',function(){ setOn(!ov.classList.contains('on')); });
   document.addEventListener('keydown',function(e){
     if((e.key==='g'||e.key==='G'||e.key==='п'||e.key==='П')&&!/INPUT|TEXTAREA/.test(document.activeElement.tagName))

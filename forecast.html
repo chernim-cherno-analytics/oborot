@@ -330,10 +330,15 @@ function renderPulse(ss, stockAvg, stockNow, monthsFc, lastDate){
 }
 
 async function init(){
-  const [aRes,tRes,oRes,hRes]=await Promise.all([
+  const [aRes,tRes,oRes,hRes,rRes]=await Promise.all([
     fetch("/api/analytics-data"), fetch("/api/turnover-data"),
-    fetch("/api/adjustments?project_id=analytics-ordered"), fetch("/api/hidden")
+    fetch("/api/adjustments?project_id=analytics-ordered"), fetch("/api/hidden"),
+    fetch("/api/retail-prices")
   ]);
+  let RETAIL={};
+  try{ const rr=await rRes.json();
+    for(const [k,v] of Object.entries(rr||{})) RETAIL[k]=typeof v==="number"?v:(v&&v.price)||0;
+  }catch(e){}
   const a=await aRes.json(), t=await tRes.json();
   const allDates=a.dates||[], stockData=a.stock||{}, SKUS=(t&&t.skus)||{};
   let INCOMING={}, hiddenItems=new Set();
@@ -354,7 +359,12 @@ async function init(){
     if(!cat) continue;
     const dm=stockData[base]||{};
     const sk=SKUS[base]||{nq:0,nr:0,ap:0};
-    const ap=sk.ap||((sk.nq||0)>0?(sk.nr||0)/sk.nq:0);
+    // цена: средняя фактическая цена продажи; у позиций без чистых продаж
+    // (новинки, всё непроданное) она равна 0 — раньше такой сток оценивался
+    // в 0 ₽ и «худел» в деньгах. Фолбэк — розница из МС (как на Бюджете).
+    const apRaw=sk.ap||((sk.nq||0)>0?(sk.nr||0)/sk.nq:0);
+    const ap=apRaw>0?apRaw:(RETAIL[base]||0);
+    const retailP=RETAIL[base]||ap;
     let dis=0,prev=0;
     for(const d of allDates){
       const s=dm[d]!==undefined?dm[d]:prev;
@@ -369,17 +379,18 @@ async function init(){
     const inc=INCOMING[base]||0;
     const dsq=dis>0?(sk.nq||0)/dis:0;
     if(cs+inc<=0) continue;
-    items.push({base,cat,cs,inc,dsq,ap});
+    items.push({base,cat,cs,inc,dsq,ap,retailP});
   }
 
   // карточки
   const totQ=items.reduce((s,x)=>s+x.cs,0);
   const totV=items.reduce((s,x)=>s+x.cs*x.ap,0);
+  const totRet=items.reduce((s,x)=>s+x.cs*(x.retailP||x.ap),0);
   const incQ=items.reduce((s,x)=>s+x.inc,0);
   const incV=items.reduce((s,x)=>s+x.inc*x.ap,0);
   const pace=items.reduce((s,x)=>s+(x.cs>0?x.dsq*x.ap:0),0);
   document.getElementById("c-stock").textContent=fmt(totQ)+" шт";
-  document.getElementById("c-stock-s").textContent="потенциал "+fmtM(totV)+" по ценам продажи";
+  document.getElementById("c-stock-s").textContent="потенциал "+fmtM(totV)+" по факт. ценам продажи · "+fmtM(totRet)+" по рознице (без архива и сертификатов)";
   document.getElementById("c-inc").textContent=incQ?fmt(incQ)+" шт":"—";
   document.getElementById("c-pace").textContent=fmtM(pace)+"/день";
   document.getElementById("c-pace-s").textContent="≈ "+fmtM(pace*30)+" в месяц при текущем темпе";

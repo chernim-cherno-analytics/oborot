@@ -42,8 +42,13 @@ _rb_state = {"running": False, "phase": "idle", "done": 0, "total": 0,
 
 
 def _check_key(request: Request):
+    # Fail-closed (аудит 17.08.2026): при НЕзаданном DB_QUERY_KEY раньше проверка
+    # молча отключалась, и /api/rebuild-history можно было дёрнуть анонимно —
+    # многочасовой прогон по МС + DELETE FROM stock_snapshots. Теперь без ключа 503.
     key = os.environ.get("DB_QUERY_KEY")
-    if key and request.headers.get("X-DB-Key") != key:
+    if not key:
+        raise HTTPException(status_code=503, detail="DB_QUERY_KEY is not configured")
+    if request.headers.get("X-DB-Key") != key:
         raise HTTPException(status_code=401, detail="bad or missing X-DB-Key")
 
 

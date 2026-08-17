@@ -6,7 +6,37 @@ from datetime import datetime
 from typing import Optional
 
 app = FastAPI()
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+# Аудит 17.08.2026: было allow_origins=["*"] — любой чужой сайт мог читать
+# коммерческие данные и дёргать мутирующие ручки JS-ом посетителя.
+app.add_middleware(CORSMiddleware, allow_origins=["https://oborot.onrender.com"],
+                   allow_methods=["*"], allow_headers=["*"])
+
+# Опциональный Basic Auth на весь сайт: включается, когда в env заданы
+# SITE_USER и SITE_PASS (задаёт владелец в Render). Пока не заданы — ничего
+# не меняется. Закрывает разом чтение коммерческих данных и порчу БД анонимами.
+import secrets as _secrets
+import base64 as _b64
+from starlette.middleware.base import BaseHTTPMiddleware as _BAMw
+from starlette.responses import Response as _BAResp
+
+class _BasicAuthMiddleware(_BAMw):
+    async def dispatch(self, request, call_next):
+        user = os.environ.get("SITE_USER")
+        pwd = os.environ.get("SITE_PASS")
+        if user and pwd:
+            hdr = request.headers.get("Authorization", "")
+            ok = False
+            if hdr.startswith("Basic "):
+                try:
+                    got = _b64.b64decode(hdr[6:]).decode("utf-8", "replace")
+                    ok = _secrets.compare_digest(got, f"{user}:{pwd}")
+                except Exception:
+                    ok = False
+            if not ok:
+                return _BAResp(status_code=401, headers={"WWW-Authenticate": 'Basic realm="oborot"'})
+        return await call_next(request)
+
+app.add_middleware(_BasicAuthMiddleware)
 
 # Prevent browsers from caching API responses (stale cache caused 1-byte JSON bugs)
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -613,7 +643,8 @@ async def debug_parse_xls(file: UploadFile = File(...)):
         if os.path.exists(tmp_path): os.unlink(tmp_path)
 
 @app.delete("/api/debug-delete-sku")
-def debug_delete_sku(q: str):
+def debug_delete_sku(q: str, request: _Req = None):
+    _check_db_key(request)  # аудит 17.08.2026: удаление снапшотов было открыто по URL
     """Delete all stock_snapshots rows where sku_name contains q (for fixing corrupted data)."""
     conn = get_db()
     count = conn.execute(
