@@ -954,9 +954,9 @@ init();
   var btn=document.getElementById('canonToggle');
   function setOn(on){
     ov.classList.toggle('on',on); btn.classList.toggle('on',on);
-    try{ localStorage.setItem('canonGrid', on?'1':'0'); }catch(e){}
+    try{ localStorage.setItem('canonGridV2', on?'1':'0'); }catch(e){}
   }
-  var saved; try{ saved=localStorage.getItem('canonGrid'); }catch(e){}
+  var saved; try{ saved=localStorage.getItem('canonGridV2'); }catch(e){}
   setOn(saved==='1');  // по умолчанию выключена; включать кнопкой или клавишей G
   btn.addEventListener('click',function(){ setOn(!ov.classList.contains('on')); });
   document.addEventListener('keydown',function(e){
