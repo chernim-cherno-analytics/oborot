@@ -5,6 +5,7 @@
 Запуск:  python tests/test_audit_fixes_1808.py
 
 Покрытие:
+  6. chart по интервалам сетки дат (фикс 21.08, dwv:3)
   1. f7763df — sync_sales: возвраты агрегируются по (дата, SKU) перед записью
   2. 4b245e7 — dis в календарных днях (веса дат: интервал до следующей, потолок 7)
   3. cfb6a9b — /api/upload: guard от частичной выгрузки (<70% SKU), ?force=1
@@ -366,6 +367,42 @@ def test_settle_incoming():
         assert qty2 == 7, f"двойное вычитание: Заказано = {qty2} после второго вызова"
         assert "supply:draft1" not in settled2, "черновик учтён на втором проходе"
 
+
+
+# ────────────────────────────────────────────────────────────────────────────
+# 6. chart: выручка разложена по интервалам сетки дат (фикс 21.08)
+# ────────────────────────────────────────────────────────────────────────────
+@test
+def test_chart_bucketed_by_grid_interval():
+    # Недельная сетка: 3 понедельника, затем дневная: 4 даты
+    mondays = [(_date(2024, 1, 1) + timedelta(weeks=i)).isoformat() for i in range(3)]  # 01,08,15
+    daily = [(_date(2024, 1, 16) + timedelta(days=i)).isoformat() for i in range(4)]    # 16..19
+    dates = mondays + daily
+    with _Patched() as p:
+        c = p.conn()
+        for d in dates:
+            c.execute("INSERT INTO stock_snapshots (date, sku_name, stock_qty, uploaded_at) "
+                      "VALUES (?, ?, 5, '')", (d, "Тестовая куртка"))
+        # 100 ₽ каждый день с 2023-12-30 по 2024-01-19 (+ один день после сетки)
+        d0 = _date(2023, 12, 30)
+        for i in range(22):
+            d = (d0 + timedelta(days=i)).isoformat()
+            c.execute("INSERT INTO sales_data (date, sku_name, qty, revenue, doc_type) "
+                      "VALUES (?, 'Тестовая куртка', 1, 100, 'sale')", (d,))
+        c.commit()
+        main.rebuild_analytics_json(c)
+        c.close()
+        with open(main.TURNOVER_JSON_PATH, encoding="utf-8") as f:
+            t = json.load(f)
+        assert t["dwv"] == 3, t.get("dwv")
+        chart = t["skus"]["Тестовая куртка"]["chart"]
+        # 01..07 -> 700, 08..14 -> 700, 15 -> 100 (интервал до 16 = 1 день),
+        # 16,17,18,19 -> по 100; продажа 20.01 (после последнего снапшота) не учтена
+        assert chart == [700, 700, 100, 100, 100, 100, 100], chart
+        # продажи до первой даты сетки (30.12, 31.12) и после последней — нигде
+        assert sum(chart) == 1900, sum(chart)
+        # Согласованность с dis: сумма весов = 7+7+1+1+1+1+1 = 19
+        assert t["skus"]["Тестовая куртка"]["dis"] == 19
 
 # ────────────────────────────────────────────────────────────────────────────
 def run():
