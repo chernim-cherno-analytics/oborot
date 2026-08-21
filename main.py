@@ -38,6 +38,26 @@ class _BasicAuthMiddleware(_BAMw):
 
 app.add_middleware(_BasicAuthMiddleware)
 
+# Витрина магазина (виджет «Наличие в магазинах») читает /api/stocks-bystore
+# браузером посетителя. Аудит 17.08 закрыл CORS глобально и этим сломал виджет.
+# Точечно возвращаем CORS только этому публичному эндпоинту и только доменам
+# магазина — данные наличия и так показываются на страницах товаров.
+_SHOP_WIDGET_ORIGINS = {
+    "https://chernimcherno.com", "https://www.chernimcherno.com",
+    "https://chernimcherno.store", "https://www.chernimcherno.store",
+    "https://myshop-bso602.myinsales.ru",
+}
+class _ShopWidgetCORS(_BAMw):
+    async def dispatch(self, request, call_next):
+        response = await call_next(request)
+        if request.url.path == "/api/stocks-bystore":
+            _origin = request.headers.get("origin", "")
+            if _origin in _SHOP_WIDGET_ORIGINS:
+                response.headers["Access-Control-Allow-Origin"] = _origin
+                response.headers["Vary"] = "Origin"
+        return response
+app.add_middleware(_ShopWidgetCORS)
+
 # Prevent browsers from caching API responses (stale cache caused 1-byte JSON bugs)
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request as _Req
