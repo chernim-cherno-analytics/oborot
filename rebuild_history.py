@@ -21,10 +21,11 @@ rebuild_history.py — пересборка истории остатков из
         print("rebuild_history attach failed:", _e)
 """
 
+import hmac
 import os
 import threading
 import time
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, timezone
 
 from fastapi import HTTPException
 from starlette.requests import Request
@@ -48,7 +49,7 @@ def _check_key(request: Request):
     key = os.environ.get("DB_QUERY_KEY")
     if not key:
         raise HTTPException(status_code=503, detail="DB_QUERY_KEY is not configured")
-    if request.headers.get("X-DB-Key") != key:
+    if not hmac.compare_digest(request.headers.get("X-DB-Key") or "", key):
         raise HTTPException(status_code=401, detail="bad or missing X-DB-Key")
 
 
@@ -392,10 +393,11 @@ def stock_on_date(date: str = ""):
     """Остатки по 3 торговым складам на конец дня date — живой запрос к МойСкладу.
     {date, stores:[имена], skus:{name:[q1,q2,q3]}}"""
     import httpx
-    from datetime import date as _d
+    # «сегодня» по МСК (сервер в UTC): иначе после 21:00 МСК текущий день
+    # кэшировался бы на сутки как «вчерашний».
+    today = datetime.now(timezone(timedelta(hours=3))).date().isoformat()
     if not date:
-        date = _d.today().isoformat()
-    today = _d.today().isoformat()
+        date = today
     ttl = 600 if date == today else 86400
     hit = _sod_cache.get(date)
     if hit and time.time() - hit[0] < ttl:
@@ -625,7 +627,9 @@ def settle_incoming(force: int = 0):
 def _settle_incoming_locked(force: int = 0):
     import httpx
     import main as site
-    _settle_cache["t"] = time.time()
+    # Ставим метку «минус 9 мин»: если ниже упадём, следующий нефорсированный
+    # вызов повторит через ~60 с (не сразу и не через 10 мин). Успех — полная метка после commit.
+    _settle_cache["t"] = time.time() - 540
     # Соединение не держим на время HTTP-походов в МойСклад: раньше исключение
     # в цикле запросов (например 401/429) оставляло sqlite-соединение открытым.
     conn = site.get_db()
@@ -719,6 +723,7 @@ def _settle_incoming_locked(force: int = 0):
             conn.execute("INSERT OR IGNORE INTO order_added (project_id, sku_base, added_at) "
                          "VALUES ('settled-docs', ?, ?)", (did, now))
         conn.commit()
+        _settle_cache["t"] = time.time()
     finally:
         conn.close()
     out = {"ok": True, "new_docs": len(new_docs), "applied": applied}

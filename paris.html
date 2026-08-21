@@ -267,7 +267,7 @@ async function loadAll(){
     SHOP = await pRes.json();
     if(SHOP.error){
       document.getElementById("err").innerHTML =
-        '<div class="errbox"><b>Shopify недоступен:</b> '+SHOP.error+
+        '<div class="errbox"><b>Shopify недоступен:</b> '+esc(SHOP.error)+
         '<br>Нужно добавить SHOPIFY_TOKEN в Environment на Render (Влад знает).</div>';
       document.getElementById("tbody").innerHTML="";
       return;

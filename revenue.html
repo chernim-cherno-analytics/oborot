@@ -228,7 +228,7 @@ async function applyPeriod(from,to){
   const catArr=Object.entries(cats).sort((a,b)=>b[1].r-a[1].r);
   if(catArr.length){
     document.getElementById("c-best").textContent=catArr[0][0];
-    document.getElementById("c-best-s").textContent=fmtM(catArr[0][1].r)+" · "+Math.round(catArr[0][1].r/totR*100)+"% оборота";
+    document.getElementById("c-best-s").textContent=fmtM(catArr[0][1].r)+" · "+(totR>0?Math.round(catArr[0][1].r/totR*100)+"%":"—")+" оборота";
   }
   // бары категорий
   document.getElementById("cat-title").textContent="Категории · "+periodLabel();

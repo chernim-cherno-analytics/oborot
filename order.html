@@ -840,7 +840,7 @@ function renderTable(lab,china){
   tb.innerHTML="";
   const q=(document.getElementById("search").value||"").toLowerCase();
   const rows=(currentTab==="lab"?lab:china).filter(([b,d])=>q?mw(b,q):d.cat===currentCat);
-  renderFoot(rows,q?("поиск «"+q+"»"):currentCat);
+  renderFoot(rows,q?("поиск «"+esc(q)+"»"):currentCat);
   if(!rows.length){
     tb.innerHTML=`<tr><td colspan="13" class="loading">${currentTab==="china"&&!china.length?"В Китай пока ничего не отправлено — используй кнопку «в Китай» в таблице Лаборатории":"В этой категории пусто"}</td></tr>`;
     return;

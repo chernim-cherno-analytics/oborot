@@ -321,8 +321,7 @@ def _rebuild_analytics_json_inner(conn):
         """Aggregate sales for a base SKU."""
         s = sales_by_base.get(base_name, {"nq":0,"nr":0,"ap":0})
         sea = sea_by_base.get(base_name, {"winter":0,"spring":0,"summer":0,"autumn":0})
-        chart_map = chart_by_base.get(base_name, {})
-        chart = [chart_map.get(d, 0) for d in dates]
+        chart = _bucketize(chart_by_base.get(base_name, {}))
         return s["nq"], s["nr"], s["ap"], sea, chart
 
     # Веса дат в КАЛЕНДАРНЫХ ДНЯХ (аудит 18.08): история до ~07.2025 хранится
@@ -344,6 +343,35 @@ def _rebuild_analytics_json_inner(conn):
         else:
             _dw.append(1)
     date_weight = dict(zip(dates, _dw))
+
+    # График оборачиваемости (фикс 21.08): выручку раскладываем по ИНТЕРВАЛАМ
+    # сетки — продажи за [dates[i], dates[i] + weight_i) попадают в chart[i].
+    # Раньше chart[i] = выручка ровно за дату снапшота: на недельной сетке
+    # терялись продажи вт–вс (~6/7), а фронт делил на 7 дней за точку и на
+    # дневной сетке занижал график ещё в 7 раз. Продажи в «дырах» длиннее
+    # 7 дней и до первой даты сетки в график не попадают (как и в dis).
+    import bisect as _bisect
+    def _chart_bucket(sale_date):
+        i = _bisect.bisect_right(dates, sale_date) - 1
+        if i < 0:
+            return None
+        try:
+            gap = (_date_cls.fromisoformat(sale_date) - _date_cls.fromisoformat(dates[i])).days
+        except Exception:
+            return None
+        if i == len(dates) - 1:
+            # Последняя точка весит 1 день: берём только продажи в сам день
+            # снапшота, иначе продажи, пришедшие позже последнего снапшота
+            # (синк остатков упал, а продажи загрузили), дают всплеск ÷1.
+            return i if gap == 0 else None
+        return i if gap < _dw[i] else None
+    def _bucketize(chart_map):
+        out = [0.0] * len(dates)
+        for d, v in chart_map.items():
+            i = _chart_bucket(d)
+            if i is not None:
+                out[i] += v
+        return out
 
     # Get all SKU names first (to iterate base by base)
     sku_names = [r[0] for r in conn.execute(
@@ -423,7 +451,7 @@ def _rebuild_analytics_json_inner(conn):
                     for d, v in chart_by_sku.get(orig_sku, {}).items():
                         sz_chart_map[d] = sz_chart_map.get(d, 0) + v
             sz_s["ap"] = sz_s["nr"] / sz_s["nq"] if sz_s["nq"] > 0 else 0
-            sz_chart = [sz_chart_map.get(d, 0) for d in dates]
+            sz_chart = _bucketize(sz_chart_map)
             sz_dis = 0; sz_prev = 0
             for d in dates:
                 q = dm.get(d, sz_prev)
@@ -437,11 +465,12 @@ def _rebuild_analytics_json_inner(conn):
         af.write("}}")
     os.replace(atmp, ANALYTICS_JSON_PATH)
 
-    # Write turnover cache. "dwv":2 — версия формулы dis (календарные дни,
-    # аудит 18.08): валидация /api/turnover-data выбрасывает кэши без метки,
-    # чтобы после деплоя не отдавался старый файл с невзвешенным dis.
+    # Write turnover cache. "dwv" — версия формата кэша: 2 = dis в календарных
+    # днях (аудит 18.08), 3 = chart разложен по интервалам сетки (фикс 21.08).
+    # Валидация /api/turnover-data выбрасывает кэши со старой меткой, чтобы
+    # после деплоя не отдавался старый файл.
     with open(ttmp, "w", encoding="utf-8") as tf:
-        tf.write('{"dwv":2,"dates":'); tf.write(dates_json)
+        tf.write('{"dwv":3,"dates":'); tf.write(dates_json)
         tf.write(',"skus":'); tf.write(json.dumps(skus_turnover, ensure_ascii=False, separators=(",", ":")))
         tf.write("}")
     os.replace(ttmp, TURNOVER_JSON_PATH)
@@ -1275,7 +1304,7 @@ def get_turnover_data():
                     _sample = _j.load(_f)
                 _skus = _sample.get("skus", {})
                 _first = next(iter(_skus.values()), {}) if _skus else {}
-                _turnover_valid["ok"] = (_sample.get("dwv") == 2) and not (
+                _turnover_valid["ok"] = (_sample.get("dwv") == 3) and not (
                     _skus and ("dis" not in _first or "nq" not in _first))
                 _turnover_valid["mtime"] = _mtime
                 del _sample, _skus, _first
@@ -2401,7 +2430,7 @@ _SQL_BAD = _re_db.compile(r'\b(?:insert|update|delete|drop|alter|create|truncate
 
 def _pg_ro_conn():
     import psycopg2
-    conn = psycopg2.connect(_os.environ["PG_URL"])
+    conn = psycopg2.connect(_os.environ["PG_URL"], connect_timeout=10)
     conn.set_session(readonly=True, autocommit=True)
     return conn
 

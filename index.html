@@ -231,6 +231,7 @@
 </div>
 <script>
 let selectedDate=null, currentPage=1, searchVal="", totalPages=0, searchTimer=null;
+function esc(s){ return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
 
 // Ключ для защищённых админ-ручек (X-DB-Key = DB_QUERY_KEY из Render env).
 // Спрашивается один раз и хранится в localStorage; при 401/503 сбрасывается.
@@ -292,7 +293,7 @@ async function loadStocks(){
     if(!d.items||!d.items.length){tbody.innerHTML="<tr><td colspan='2' class='placeholder'>Ничего не найдено</td></tr>";}
     else{tbody.innerHTML=d.items.map(s=>{
       const cls=s.stock_qty===0?"zero":s.stock_qty<=3?"low":"";
-      return "<tr class='"+(s.stock_qty===0?"zero":"")+"'><td class='col-name'>"+s.sku_name+"</td><td class='col-qty'><span class='badge "+cls+"'>"+s.stock_qty+"</span></td></tr>";
+      return "<tr class='"+(s.stock_qty===0?"zero":"")+"'><td class='col-name'>"+esc(s.sku_name)+"</td><td class='col-qty'><span class='badge "+cls+"'>"+s.stock_qty+"</span></td></tr>";
     }).join("");}
     const pg=document.getElementById("pagination");
     if(totalPages>1){pg.style.display="flex";document.getElementById("page-info").textContent=currentPage+" / "+totalPages;document.getElementById("prev-btn").disabled=currentPage===1;document.getElementById("next-btn").disabled=currentPage===totalPages;}
@@ -323,9 +324,9 @@ async function uploadFiles(files){
         res=await fetch("/api/upload?force=1",{method:"POST",body:fd});data=await res.json();
       }
     }
-    if(res.ok){const added=(data.inserted||0)+(data.updated||0);const dbg=data._debug_sample&&data._debug_sample.length?" SKU="+JSON.stringify(data._debug_sample[0]):"";results.push("✓ "+data.date+": +"+(data.inserted||0)+" новых"+(data.updated?" +"+data.updated+" обновлено":"")+dbg);ok++;}
-    else{results.push("✗ "+file.name+": "+data.detail);}}
-    catch{results.push("✗ "+file.name+": ошибка сети");}
+    if(res.ok){const added=(data.inserted||0)+(data.updated||0);const dbg=data._debug_sample&&data._debug_sample.length?" SKU="+JSON.stringify(data._debug_sample[0]):"";results.push("✓ "+esc(data.date)+": +"+(data.inserted||0)+" новых"+(data.updated?" +"+data.updated+" обновлено":"")+esc(dbg));ok++;}
+    else{results.push("✗ "+esc(file.name)+": "+esc(data.detail));}}
+    catch{results.push("✗ "+esc(file.name)+": ошибка сети");}
   }
   document.getElementById("upload-icon").textContent="↑";
   document.getElementById("upload-text").textContent="Перетащите XLS файлы или нажмите для выбора";

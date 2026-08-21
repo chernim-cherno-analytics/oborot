@@ -353,6 +353,8 @@ async function init(){
   try{ const rr=await rRes.json();
     for(const [k,v] of Object.entries(rr||{})) RETAIL[k]=typeof v==="number"?v:(v&&v.price)||0;
   }catch(e){}
+  if(!aRes.ok) throw new Error("HTTP "+aRes.status);
+  if(!tRes.ok) throw new Error("HTTP "+tRes.status);
   const a=await aRes.json(), t=await tRes.json();
   const allDates=a.dates||[], stockData=a.stock||{}, SKUS=(t&&t.skus)||{};
   const DW=buildDW(allDates);
@@ -507,7 +509,11 @@ async function init(){
   }).join("");
 }
 
-init();
+init().catch(e=>{
+  const m='<div class="loading">Не удалось загрузить данные: '+esc(e.message)+'</div>';
+  document.getElementById("pulse").innerHTML=m;
+  document.getElementById("cattb").innerHTML='<tr><td colspan="6">'+m+'</td></tr>';
+});
 </script>
 </body>
 </html>

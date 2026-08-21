@@ -348,6 +348,7 @@ function esc(s) {
 
 async function init() {
   const resp = await fetch('/api/sales-monthly', {cache:'no-store'});
+  if (!resp.ok) throw new Error('HTTP ' + resp.status);
   const data = await resp.json();
 
   // Build month buttons
@@ -376,7 +377,9 @@ async function init() {
   renderTable(data.items);
 }
 
-init();
+init().catch(e => {
+  document.getElementById('tbody').innerHTML = '<tr><td colspan="5" class="loading">Не удалось загрузить данные: ' + esc(e.message) + '</td></tr>';
+});
 </script>
 </body>
 </html>

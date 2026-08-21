@@ -381,8 +381,9 @@ async function loadRetail(){
 }
 async function saveDiscount(base, val){
   try {
-    await fetch("/api/discounts",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({sku_base:base,discount:val})});
-  } catch(e){ alert("Не сохранилось — проверьте интернет"); }
+    const r = await fetch("/api/discounts",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({sku_base:base,discount:val})});
+    if (!r.ok) throw new Error("HTTP "+r.status);
+  } catch(e){ alert("Не сохранилось: "+e.message); }
 }
 
 // Правила дефолтных скидок. Значение приоритетно перезаписывается этой функцией по кнопке.
@@ -412,12 +413,13 @@ async function applyDefaultDiscounts(){
   const btn = document.getElementById("defDiscBtn");
   btn.disabled = true; btn.textContent = "Сохраняю…";
   try {
-    await fetch("/api/discounts/bulk",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({discounts: out})});
+    const r = await fetch("/api/discounts/bulk",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({discounts: out})});
+    if (!r.ok) throw new Error("HTTP "+r.status);
     DISCOUNTS = out; render();
     btn.textContent = "✓ Скидки расставлены";
     setTimeout(()=>{btn.textContent="Дефолтные скидки"; btn.disabled=false;}, 2000);
   } catch(e){
-    alert("Ошибка сохранения");
+    alert("Ошибка сохранения: "+e.message);
     btn.textContent="Дефолтные скидки"; btn.disabled=false;
   }
 }
@@ -811,6 +813,25 @@ function renderArchive() {
   }
 }
 
+
+// Оборачиваемость для графика (фикс 21.08): скользящее среднее ₽/день по
+// окну ≥14 календарных дней внутри отрезка «в стоке». Вес точки = DW[d]
+// (интервал сетки, потолок 7), а не константа 7 — на дневной сетке константа
+// занижала график в 7 раз. chart[i] с сервера уже содержит выручку за весь
+// интервал [dates[i], dates[i+1]).
+const CHART_WINDOW_DAYS=14;
+function chartTurnVals(chart,inStock){
+  const n=chart.length, vals=[], rev=[], days=[];
+  let segStart=0;
+  for(let i=0;i<n;i++){
+    if(!inStock[i]){vals.push(null);rev[i]=0;days[i]=0;segStart=i+1;continue;}
+    rev[i]=Math.max(0,chart[i]||0); days[i]=DW[CHART_DATES[i]]||1;
+    let r=0,dd=0,j=i;
+    while(j>=segStart&&(dd<CHART_WINDOW_DAYS||j===i)){r+=rev[j];dd+=days[j];j--;}
+    vals.push(dd>0?r/dd:null);
+  }
+  return vals;
+}
 function drawMultiChart(canvas,series){
   if(!canvas||!series.length) return;
   const W=canvas.offsetWidth||canvas.width||800,H=160;
@@ -823,13 +844,7 @@ function drawMultiChart(canvas,series){
   const allTurn=series.map(s=>{
     const dm=stockData[s.sku]||{};
     const inSt=CHART_DATES.map(d=>(dm[d]!==undefined?dm[d]:0)>=3);
-    const vals=[];
-    let cumRev=0,cumDays=0;
-    for(let i=0;i<n;i++){
-      if(!inSt[i]){vals.push(null);cumRev=0;cumDays=0;}
-      else{cumRev+=Math.max(0,s.chart[i]);cumDays+=7;vals.push(cumDays>0?cumRev/cumDays:null);}
-    }
-    return vals;
+    return chartTurnVals(s.chart,inSt);
   });
   const maxV=Math.max(...allTurn.flat().filter(v=>v!==null&&v>0),700);
   function toY(v){return H-pad-Math.max(0,v)/maxV*(H-pad*2);}
@@ -865,12 +880,7 @@ function drawChart(base,canvas,chartData,lineColor) {
   const n=chartData.length;
   const dm=stockData[base]||{};
   const inStock=CHART_DATES.map(d=>(dm[d]!==undefined?dm[d]:0)>=3);
-  const turnVals = [];
-  let cumRev=0, cumDays=0;
-  for(let i=0;i<n;i++){
-    if(!inStock[i]){ turnVals.push(null); cumRev=0; cumDays=0; }
-    else { cumRev += Math.max(0, chartData[i]); cumDays += 7; turnVals.push(cumDays>0 ? cumRev/cumDays : null); }
-  }
+  const turnVals = chartTurnVals(chartData,inStock);
   const validVals=turnVals.filter(v=>v!==null&&v>0);
   const maxV=Math.max(...validVals,700);
   const pad=12;

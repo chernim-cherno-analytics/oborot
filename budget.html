@@ -202,6 +202,7 @@
 </div>
 
 <script>
+function esc(s){ return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
 const CATEGORIES = {
   "Верхняя одежда": ["бомбер","куртка","тренч","пальто","ветровка","олимпийка","комбинезон","фрак","меховой пиджак"],
   "Костюмы": ["пиджак","жилет-галстук","корсетный жилет"],
@@ -437,7 +438,7 @@ function render(B, rest, chosen, skipped, nocost, stale){
     rows+='<tr class="sect"><td colspan="11">'+title+' · '+list.length+' поз.</td></tr>';
     for(const c of list){
       n++;
-      rows+='<tr><td>'+n+'. '+c.base+(c.partial?' <span class="hint">'+(c.capped?'(лимит '+c.capPct+'% бюджета, потребность '+c.need+')':'(частично, потребность '+c.need+')')+'</span>':'')+'</td>'+
+      rows+='<tr><td>'+n+'. '+esc(c.base)+(c.partial?' <span class="hint">'+(c.capped?'(лимит '+c.capPct+'% бюджета, потребность '+c.need+')':'(частично, потребность '+c.need+')')+'</span>':'')+'</td>'+
         '<td>'+turnBadge(c.turn)+'</td>'+
         '<td>'+(c.rate*30).toFixed(1)+'</td>'+
         '<td>'+fmt(c.stockEff)+(c.incoming?' <span class="hint">(+'+fmt(c.incoming)+' едет)</span>':'')+'</td>'+
@@ -463,7 +464,7 @@ function render(B, rest, chosen, skipped, nocost, stale){
     document.getElementById("skippedCnt").textContent=skipped.length+" поз. — следующие по оборачиваемости";
     let sh='<table><thead><tr><th style="text-align:left;padding-left:14px">Позиция</th><th>Оборач.</th><th>Потребность</th><th>Себес/шт</th><th>Надо ₽</th><th>Запас</th></tr></thead><tbody>';
     for(const s of skipped.slice(0,40)){
-      sh+='<tr><td style="text-align:left;padding-left:14px">'+s.base+(s.isChina?' <span class="hint">Китай</span>':'')+'</td>'+
+      sh+='<tr><td style="text-align:left;padding-left:14px">'+esc(s.base)+(s.isChina?' <span class="hint">Китай</span>':'')+'</td>'+
         '<td>'+turnBadge(s.turn)+'</td><td>'+s.need+' шт</td>'+
         '<td class="money">'+fmtR(s.cost)+'</td><td class="money">'+fmtR(s.need*s.cost)+'</td><td>'+daysCell(s.daysLeft)+'</td></tr>';
     }
@@ -476,7 +477,7 @@ function render(B, rest, chosen, skipped, nocost, stale){
     stf.style.display="";
     document.getElementById("staleCnt").textContent=stale.length+" поз. — есть потребность по темпу, но продаж за "+FRESH_DAYS+" дн не было";
     document.getElementById("staleBody").innerHTML='<div style="padding:10px 16px;font-size:12px;line-height:1.9">'+
-      stale.slice(0,60).map(x=>x.base+' <span class="hint">('+(x.days!==null?('последняя продажа '+x.days+' дн назад'):'нет данных о продажах')+' · потребность '+x.need+' шт)</span>').join('<br>')+'</div>';
+      stale.slice(0,60).map(x=>esc(x.base)+' <span class="hint">('+(x.days!==null?('последняя продажа '+x.days+' дн назад'):'нет данных о продажах')+' · потребность '+x.need+' шт)</span>').join('<br>')+'</div>';
   }else stf.style.display="none";
 
   const nf=document.getElementById("nocostFold");
@@ -484,7 +485,7 @@ function render(B, rest, chosen, skipped, nocost, stale){
     nf.style.display="";
     document.getElementById("nocostCnt").textContent=nocost.length+" поз. — задай себес в МС или на странице Заказ";
     document.getElementById("nocostBody").innerHTML='<div style="padding:10px 16px;font-size:12px;line-height:1.9">'+
-      nocost.map(x=>x.base+' <span class="hint">(оборач. '+fmt(x.turn)+' · потребность '+x.need+' шт)</span>').join('<br>')+'</div>';
+      nocost.map(x=>esc(x.base)+' <span class="hint">(оборач. '+fmt(x.turn)+' · потребность '+x.need+' шт)</span>').join('<br>')+'</div>';
   }else nf.style.display="none";
 
   document.getElementById("warnBox").innerHTML = chosen.length?'':'<div class="warn">Ни одна позиция не поместилась в бюджет — попробуй сумму побольше или включи категории.</div>';
@@ -507,7 +508,7 @@ function downloadBudget(){
     let i=0,sub=0;
     for(const c of list){
       i++; sub+=c.sum;
-      h+='<tr><td>'+i+'</td><td class="l">'+c.base+'</td><td><b>'+c.qty+'</b></td>'+
+      h+='<tr><td>'+i+'</td><td class="l">'+esc(c.base)+'</td><td><b>'+c.qty+'</b></td>'+
         (title==="Лаборатория"?'<td>'+fmtR(c.fabric)+'</td><td>'+fmtR(c.sew)+'</td>':'')+
         '<td>'+fmtR(c.cost)+'</td><td>'+fmtR(c.sum)+'</td></tr>';
     }

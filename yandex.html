@@ -146,6 +146,7 @@ let DATA=null, COSTP={}, curMonths=6;
 
 async function load(){
   const [yRes,cRes]=await Promise.all([fetch("/api/yandex-live"),fetch("/api/cost-prices")]);
+  if(!yRes.ok) throw new Error("HTTP "+yRes.status);
   DATA=await yRes.json();
   try{ COSTP=await cRes.json(); }catch(e){ COSTP={}; }
   if(DATA.error){
@@ -273,7 +274,7 @@ document.querySelectorAll(".preset[data-m]").forEach(b=>{
 });
 document.addEventListener("input",(e)=>{ if(e.target&&e.target.id==="search"&&DATA&&!DATA.error) render(); });
 window.addEventListener("resize",()=>{ if(DATA&&!DATA.error) render(); });
-load();
+load().catch(e=>{ document.getElementById("toptb").innerHTML='<tr><td colspan="5" class="loading">Не удалось загрузить данные: '+esc(e.message)+'</td></tr>'; });
 </script>
 </body>
 </html>
