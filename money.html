@@ -153,6 +153,7 @@
 </div>
 
 <script>
+function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
 function mw(name,q){ if(!q) return true; const nl=name.toLowerCase(); return q.split(/\s+/).every(w=>nl.includes(w)); }
 const CATEGORIES = {
   "Верхняя одежда": ["бомбер","куртка","тренч","пальто","ветровка","олимпийка","комбинезон","фрак","меховой пиджак"],
@@ -264,8 +265,11 @@ function renderCats(){
 }
 
 function renderFilters(){
-  const cnt={all:ITEMS.length};
-  for(const it of ITEMS) cnt[it.kl.k]=(cnt[it.kl.k]||0)+1;
+  // Счётчики — по тем же строкам, что и список (без архива; редактура 18.08):
+  // раньше кнопка обещала N позиций, а таблица показывала меньше.
+  const vis=ITEMS.filter(it=>!it.archived);
+  const cnt={all:vis.length};
+  for(const it of vis) cnt[it.kl.k]=(cnt[it.kl.k]||0)+1;
   const defs=[["all","Все"],["weak","Слабые"],["dull","Унылые"],["none","Без продаж"],["good","Хорошие"],["best","Бестселлеры"]];
   document.getElementById("filters").innerHTML=defs.filter(([k])=>cnt[k]).map(([k,l])=>
     '<button class="f-btn '+(k===currentFilter?"active":"")+'" onclick="selF(\''+k+'\')">'+l+'<span class="cnt">'+(cnt[k]||0)+'</span></button>').join("")+
@@ -282,7 +286,7 @@ function render(){
   let h='';
   for(const it of rows){
     h+='<tr class="'+it.kl.cls+'">'+
-      '<td>'+it.base+(it.cost?'':' <span class="nocost">нет себеса</span>')+'</td>'+
+      '<td>'+esc(it.base)+(it.cost?'':' <span class="nocost">нет себеса</span>')+'</td>'+
       '<td class="muted">'+it.cat+'</td>'+
       '<td>'+fmt(it.stock)+'</td>'+
       '<td>'+(it.cost?fmt(it.cost):'—')+'</td>'+

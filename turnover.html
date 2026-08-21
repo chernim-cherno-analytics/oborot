@@ -334,6 +334,7 @@ let SKUS = {};
 let RETAIL = {};
 
 function mw(name,q){ if(!q) return true; const nl=name.toLowerCase(); return q.split(/\s+/).every(w=>nl.includes(w)); }
+function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
 const CATEGORIES = {
   "Верхняя одежда": ["бомбер","куртка","тренч","пальто","ветровка","олимпийка","комбинезон","фрак","меховой пиджак"],
   "Костюмы": ["пиджак","жилет-галстук","корсетный жилет"],
@@ -355,6 +356,21 @@ const CAT_ORDER = ["Верхняя одежда","Костюмы","Брюки","
 const SEASON_DAYS = {winter:90,spring:92,summer:92,autumn:91};
 
 let stockData = {}, allDates = [], hiddenItems = new Set(), currentCat = "Верхняя одежда", computed = {};
+// Вес даты в КАЛЕНДАРНЫХ ДНЯХ (аудит 18.08): история до ~07.2025 — недельная
+// сетка (понедельники), дальше ежедневная. Считать «+1 за дату» занижало дни
+// в стоке старых позиций до ~7 раз и завышало их оборачиваемость. Вес =
+// интервал до следующей даты, потолок 7 (дыры данных не раздувают dis).
+let DW = {};
+function buildDW(dates){
+  const w={};
+  for(let i=0;i<dates.length;i++){
+    if(i+1<dates.length){
+      const g=Math.round((new Date(dates[i+1])-new Date(dates[i]))/86400000);
+      w[dates[i]]=Math.min(Math.max(g,1),7);
+    } else w[dates[i]]=1;
+  }
+  return w;
+}
 let DISCOUNTS = {};
 
 async function loadDiscounts(){
@@ -407,8 +423,7 @@ async function applyDefaultDiscounts(){
 }
 function discInput(base){
   const v = DISCOUNTS[base];
-  const esc = base.replace(/"/g,'&quot;');
-  return `<input class="disc-in" data-base="${esc}" value="${v?Math.round(v):''}" placeholder="—" inputmode="numeric">`;
+  return `<input class="disc-in" data-base="${esc(base)}" value="${v?Math.round(v):''}" placeholder="—" inputmode="numeric">`;
 }
 document.addEventListener("change", async (e)=>{
   if(!e.target.classList || !e.target.classList.contains("disc-in")) return;
@@ -480,6 +495,7 @@ async function loadStock() {
     const analyticsData = await analyticsRes.json();
     const turnoverData = await turnoverRes.json();
     allDates = analyticsData.dates || [];
+    DW = buildDW(allDates);
     stockData = analyticsData.stock || {};
     if (turnoverData && turnoverData.skus && Object.keys(turnoverData.skus).length > 0) {
       SKUS = turnoverData.skus;
@@ -504,14 +520,14 @@ function compute() {
     const skSea = sk.sea || {};
     // Дни в стоке: считаются только дни с остатком >= 3 шт суммарно по 3 складам
     let dis=0,prev=0;
-    for(const d of allDates){const s=dm[d]!==undefined?dm[d]:prev;if(s>=3)dis++;prev=s;}
+    for(const d of allDates){const s=dm[d]!==undefined?dm[d]:prev;if(s>=3)dis+=(DW[d]||1);prev=s;}
     // Оборачиваемость = нетто-выручка (продажи минус возвраты) / дни в стоке
     const turn=dis>0?skNr/dis:0;
     const sea={};
     for(const s of["winter","spring","summer","autumn"]){
       const sd=allDates.filter(d=>getSeason(d)===s);
       let si=0,p2=0;
-      for(const d of sd){const q=dm[d]!==undefined?dm[d]:p2;if(q>=3)si++;p2=q;}
+      for(const d of sd){const q=dm[d]!==undefined?dm[d]:p2;if(q>=3)si+=(DW[d]||1);p2=q;}
       sea[s]=si>0?(skSea[s]||0)/si:0;
     }
     // остаток = значение на ПОСЛЕДНЮЮ дату снапшота; отсутствие строки = 0 (распродано).
@@ -527,7 +543,7 @@ function compute() {
     for(const s of["winter","spring","summer","autumn"]){
       const sd=allDates.filter(d=>getSeason(d)===s);
       let si=0,p2=0;
-      for(const d of sd){const q=dm[d]!==undefined?dm[d]:p2;if(q>=3)si++;p2=q;}
+      for(const d of sd){const q=dm[d]!==undefined?dm[d]:p2;if(q>=3)si+=(DW[d]||1);p2=q;}
       const sqty=skNq>0&&skNr>0?skNq*(skSea[s]||0)/skNr:0;
       ord[s]=si>0?Math.round(sqty/si*SEASON_DAYS[s]):0;
     }
@@ -597,7 +613,7 @@ function computeSize(szKey, baseData) {
   let dis = (sk.dis != null && sk.dis > 0) ? sk.dis : 0;
   if (!dis) {
     let prev2=0;
-    for(const d of last365){const s=dm[d]!==undefined?dm[d]:prev2;if(s>=3)dis++;prev2=s;}
+    for(const d of last365){const s=dm[d]!==undefined?dm[d]:prev2;if(s>=3)dis+=(DW[d]||1);prev2=s;}
   }
   const turn = dis > 0 ? skNr / dis : 0;
   const dsq = dis > 0 ? skNq / dis : 0;
@@ -640,12 +656,11 @@ function render() {
       const [zc,zl,zt]=zatStyle(d.zat);
       const sellout=d.sup!==null?new Date(Date.now()+d.sup*86400000).toLocaleDateString("ru-RU",{day:"numeric",month:"long",year:"numeric"}):"—";
       const sid=base.replace(/[^a-zа-яё0-9]/gi,"_");
-      const esc=base.replace(/"/g,"&quot;");
 
       const tr=document.createElement("tr");
       tr.className=`pr ${cls}`; tr.dataset.base=base;
       tr.innerHTML=`
-        <td><span class="ei">▶</span><span class="pname">${base}</span></td>
+        <td><span class="ei">▶</span><span class="pname">${esc(base)}</span></td>
         <td class="nb">${fmt(d.dis)}</td>
         <td class="nb">${priceCell(base,d.ap)}</td>
         <td class="nb nbig">${fmt(d.turn)}</td>
@@ -659,7 +674,7 @@ function render() {
         <td class="nb"><span style="font-size:11px;font-weight:600">${d.defq}</span></td>
         <td>${realDisc(d.ap,base)}</td>
         <td>${discInput(base)}</td>
-        <td><button class="arch-btn" data-base="${esc}">в архив</button></td>`;
+        <td><button class="arch-btn" data-base="${esc(base)}">в архив</button></td>`;
       tb.appendChild(tr);
 
       // Detail row
@@ -669,7 +684,7 @@ function render() {
       dtd.colSpan=15;
       const SIZE_COLORS=["rgba(251,191,36,0.9)","#dd0004","rgba(167,139,250,0.9)","rgba(56,189,248,0.9)","rgba(251,113,133,0.9)"];
       const szKeys=Object.keys(stockData).filter(k=>stripSize(k)===base&&k!==base);
-      const szHtml=szKeys.length?`<div class="size-sel"><span class="size-sel-lbl">Размер</span>${szKeys.map((s,i)=>{const m=s.match(/\(([^)]+)\)$/);const c=SIZE_COLORS[i%SIZE_COLORS.length];const esc2=s.replace(/"/g,'&quot;');return m?`<button class="sz-btn active" data-sku="${esc2}" data-idx="${i}" style="--sc:${c}"><span class="sz-dot"></span>${m[1]}</button>`:""}).join("")}</div>`:"";
+      const szHtml=szKeys.length?`<div class="size-sel"><span class="size-sel-lbl">Размер</span>${szKeys.map((s,i)=>{const m=s.match(/\(([^)]+)\)$/);const c=SIZE_COLORS[i%SIZE_COLORS.length];return m?`<button class="sz-btn active" data-sku="${esc(s)}" data-idx="${i}" style="--sc:${c}"><span class="sz-dot"></span>${esc(m[1])}</button>`:""}).join("")}</div>`:"";
       dtd.innerHTML=`<div class="dp" id="dp_${sid}">
         <div class="cc">
           ${szHtml}
@@ -713,7 +728,7 @@ function render() {
         sztr.className = `sr szrow-${sid2}`;
         sztr.style.display = "none";
         sztr.innerHTML = `
-          <td>↳ ${szLabel}</td>
+          <td>↳ ${esc(szLabel)}</td>
           <td class="nb">${sd.dis}</td>
           <td class="nb">${sd.ap>0?fmt(sd.ap)+' ₽':'—'}</td>
           <td class="nb nbig">${sd.nr>0?fmt(sd.turn):'—'}</td>
@@ -774,11 +789,10 @@ function renderArchive() {
   for(const [base,d] of items) {
     const cls=rowCls(d.turn,d.nr);
     const [zc,zl,zt]=zatStyle(d.zat);
-    const esc=base.replace(/"/g,"&quot;");
     const tr=document.createElement("tr");
     tr.className=`pr ${cls}`;
     tr.innerHTML=`
-      <td><span class="pname">${base}</span></td>
+      <td><span class="pname">${esc(base)}</span></td>
       <td class="nb">${fmt(d.dis)}</td>
       <td class="nb">${priceCell(base,d.ap)}</td>
       <td class="nb nbig">${fmt(d.turn)}</td>
@@ -792,7 +806,7 @@ function renderArchive() {
       <td class="nb"><span style="font-size:11px;font-weight:600">${d.defq}</span></td>
       <td>${realDisc(d.ap,base)}</td>
       <td></td>
-      <td><button class="unarch-btn" data-base="${esc}">вернуть</button></td>`;
+      <td><button class="unarch-btn" data-base="${esc(base)}">вернуть</button></td>`;
     atb.appendChild(tr);
   }
 }

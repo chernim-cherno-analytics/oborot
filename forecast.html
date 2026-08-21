@@ -158,6 +158,19 @@
 <div class="ctip" id="ctip"></div>
 
 <script>
+
+// Вес даты в календарных днях (аудит 18.08): до ~07.2025 история недельная
+// (понедельники) — «+1 за дату» занижал дни в стоке старых позиций до ~7 раз.
+function buildDW(dates){
+  const w={};
+  for(let i=0;i<dates.length;i++){
+    if(i+1<dates.length){
+      const g=Math.round((new Date(dates[i+1])-new Date(dates[i]))/86400000);
+      w[dates[i]]=Math.min(Math.max(g,1),7);
+    } else w[dates[i]]=1;
+  }
+  return w;
+}
 function mw(name,q){ if(!q) return true; const nl=name.toLowerCase(); return q.split(/\s+/).every(w=>nl.includes(w)); }
 const CATEGORIES = {
   "Верхняя одежда": ["бомбер","куртка","тренч","пальто","ветровка","олимпийка","комбинезон","фрак","меховой пиджак"],
@@ -187,6 +200,7 @@ function getCat(n){
   }
   return "Прочее";
 }
+function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
 function fmt(n){ return Math.round(n||0).toLocaleString("ru-RU"); }
 function fmtM(n){
   n=n||0;
@@ -204,7 +218,7 @@ function renderSearch(){
   tbl.style.display="";
   document.getElementById("stb").innerHTML=list.map(x=>{
     const days=x.dsq>0?Math.round((x.cs+x.inc)/x.dsq):null;
-    return `<tr><td><b>${x.base}</b></td><td class="r">${fmt(x.cs)}</td>
+    return `<tr><td><b>${esc(x.base)}</b></td><td class="r">${fmt(x.cs)}</td>
       <td class="r">${x.inc?("+"+fmt(x.inc)):"—"}</td>
       <td class="r">${x.dsq>0?x.dsq.toFixed(2):"—"}</td>
       <td class="r">${x.dsq>0?fmtM(x.dsq*x.ap):"—"}</td>
@@ -341,6 +355,7 @@ async function init(){
   }catch(e){}
   const a=await aRes.json(), t=await tRes.json();
   const allDates=a.dates||[], stockData=a.stock||{}, SKUS=(t&&t.skus)||{};
+  const DW=buildDW(allDates);
   let INCOMING={}, hiddenItems=new Set();
   try{
     const o=await oRes.json();
@@ -368,7 +383,7 @@ async function init(){
     let dis=0,prev=0;
     for(const d of allDates){
       const s=dm[d]!==undefined?dm[d]:prev;
-      if(s>=3)dis++;prev=s;
+      if(s>=3)dis+=(DW[d]||1);prev=s;
       // копим дневную стоимость склада для «Пульса» (и по распроданным тоже —
       // в прошлые месяцы они лежали и стоили денег)
       if(s>0&&ap>0)dayTot[d]=(dayTot[d]||0)+s*ap;

@@ -82,7 +82,12 @@ def sync_stock(dry: bool = False):
     """Снапшот остатков по 3 торговым складам из живого МойСклад API:
     суммарно — в stock_snapshots, по складам — в stock_bystore."""
     import rebuild_history as rh
-    data = rh.stock_on_date()          # сегодня, из МойСклада (кэш 10 мин)
+    # Дату передаём явно ПО МСК (ревью 18.08): без аргумента stock_on_date
+    # берёт date.today() в UTC — ночью (00:00–03:00 МСК) выборка шла бы на
+    # конец предыдущего дня, а метка снапшота (ниже) была бы уже новой датой.
+    from datetime import timezone as _tzz, timedelta as _tdd
+    _today_msk = datetime.now(_tzz(_tdd(hours=3))).date().isoformat()
+    data = rh.stock_on_date(_today_msk)  # из МойСклада (кэш 10 мин)
     stores = data["stores"]
     rows = []
     for name, per in data["skus"].items():
@@ -97,7 +102,11 @@ def sync_stock(dry: bool = False):
     for n, st, q in rows:
         totals[n] = totals.get(n, 0.0) + q
 
-    today = date.today().isoformat()
+    # Дата снапшота — по МОСКОВСКОМУ времени (аудит 18.08): сервер Render живёт
+    # в UTC, и ручной синк между 00:00 и 03:00 МСК записывал остатки на
+    # ВЧЕРАШНЮЮ дату (date.today() в UTC), портя вчерашний снапшот.
+    from datetime import timezone as _tz, timedelta as _td2
+    today = datetime.now(_tz(_td2(hours=3))).date().isoformat()
     now = datetime.now().isoformat()
     if dry:
         return {"stock_skus": len(totals), "stock_total_qty": sum(totals.values()),
@@ -251,15 +260,26 @@ def sync_sales(dry: bool = False, days_back: int = SALES_DAYS_BACK):
         cur_q, cur_r = agg.get(k, (0.0, 0.0))
         agg[k] = (cur_q + qty, cur_r + rev)
 
+    # Возвраты агрегируем так же, как продажи: _ms_fetch_sales_docs отдаёт
+    # строку на КАЖДУЮ позицию каждого документа, а sales_data имеет
+    # UNIQUE(date, sku_name, doc_type) — без агрегации INSERT OR REPLACE
+    # оставлял только последний возврат дня по SKU, остальные молча терялись
+    # (нетто-выручка и оборачиваемость завышались). Регрессия с 03.08.2026.
+    ragg = {}
+    for d, sku, qty, rev in returns:
+        k = (d, sku)
+        cur_q, cur_r = ragg.get(k, (0.0, 0.0))
+        ragg[k] = (cur_q + qty, cur_r + rev)
+
     dates_sales = sorted({d for d, _ in agg})
-    dates_ret = sorted({d for d, _, _, _ in returns})
+    dates_ret = sorted({d for d, _ in ragg})
 
     if dry:
         return {
             "sales_days": dates_sales, "sales_rows": len(agg),
             "sales_revenue": round(sum(r for _, r in agg.values()), 2),
-            "returns_days": dates_ret, "returns_rows": len(returns),
-            "returns_revenue": round(sum(r[3] for r in returns), 2),
+            "returns_days": dates_ret, "returns_rows": len(ragg),
+            "returns_revenue": round(sum(r for _, r in ragg.values()), 2),
             "dry": True,
         }
 
@@ -282,11 +302,11 @@ def sync_sales(dry: bool = False, days_back: int = SALES_DAYS_BACK):
         lite.executemany(
             "INSERT OR REPLACE INTO sales_data (date, sku_name, qty, revenue, doc_type) "
             "VALUES (?, ?, ?, ?, 'return')",
-            [(d, sku, q, r) for d, sku, q, r in returns]
+            [(d, sku, q, r) for (d, sku), (q, r) in ragg.items()]
         )
     lite.commit(); lite.close()
     out = {"sales_days": dates_sales, "sales_rows": len(agg),
-           "returns_days": dates_ret, "returns_rows": len(returns),
+           "returns_days": dates_ret, "returns_rows": len(ragg),
            "retail_rows": retail_rows, "source": "moysklad-direct"}
     if returns_error:
         out["returns_error"] = returns_error
@@ -322,7 +342,16 @@ def sync_all(dry: bool = False, days_back: int = 0):
     result = {"started": started}
     try:
         result["stock"] = sync_stock(dry=dry)
-        result["sales"] = sync_sales(dry=dry, days_back=(days_back or SALES_DAYS_BACK))
+        # Падение продаж НЕ должно оставлять кэши непересобранными: раньше
+        # исключение в sync_sales улетало в общий except, и /api/analytics-data
+        # весь день отдавал вчерашний файл — свежие остатки и явные нули
+        # распроданных позиций (gone_rows) до фронтов не доезжали.
+        sales_error = None
+        try:
+            result["sales"] = sync_sales(dry=dry, days_back=(days_back or SALES_DAYS_BACK))
+        except Exception as e:
+            sales_error = str(e)
+            result["sales"] = {"error": sales_error}
         if not dry:
             try:
                 import rebuild_history as rh
@@ -335,18 +364,26 @@ def sync_all(dry: bool = False, days_back: int = 0):
             site.rebuild_analytics_json(conn)
             conn.close()
             result["caches"] = "rebuilt"
-        result["ok"] = True
+        result["ok"] = sales_error is None
         _ret_warn = ""
         if result.get("sales", {}).get("returns_error"):
             _ret_warn += f"\n⚠️ Возвраты НЕ синхронизированы: {result['sales']['returns_error']}"
         if result.get("sales", {}).get("retail_warning"):
             _ret_warn += f"\n⚠️ Розница: {result['sales']['retail_warning']}"
-        _notify(f"✅ Синк ОК {started}\n"
-                f"Остатки (МойСклад напрямую): {result['stock'].get('stock_skus')} SKU\n"
-                f"Продажи (МойСклад напрямую): {result['sales'].get('sales_rows')} строк за {len(result['sales'].get('sales_days', []))} дн., "
-                f"из них розничных позиций: {result['sales'].get('retail_rows')}"
-                + _ret_warn,
-                dry)
+        if sales_error:
+            result["error"] = f"sync_sales: {sales_error}"
+            _notify(f"⚠️ Синк ЧАСТИЧНО {started}\n"
+                    f"Остатки ОК: {result['stock'].get('stock_skus')} SKU, кэши пересобраны.\n"
+                    f"❌ Продажи УПАЛИ: {sales_error}\n"
+                    f"Окно продаж не перезаписано — дозаполнится при следующем успешном синке.",
+                    dry)
+        else:
+            _notify(f"✅ Синк ОК {started}\n"
+                    f"Остатки (МойСклад напрямую): {result['stock'].get('stock_skus')} SKU\n"
+                    f"Продажи (МойСклад напрямую): {result['sales'].get('sales_rows')} строк за {len(result['sales'].get('sales_days', []))} дн., "
+                    f"из них розничных позиций: {result['sales'].get('retail_rows')}"
+                    + _ret_warn,
+                    dry)
     except Exception as e:
         result["ok"] = False
         result["error"] = str(e)

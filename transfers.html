@@ -201,6 +201,7 @@ function shortStore(s){
   return s;
 }
 function fmt(n){ return Math.round(n||0).toLocaleString("ru-RU"); }
+function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
 
 let DATA=null, currentCat="Верхняя одежда", GROUPS={};
 
@@ -238,7 +239,7 @@ function renderCards(){
     tot+=g.total;
   }
   let html=DATA.stores.map((s,i)=>
-    `<div class="card"><div class="l">${shortStore(s)}</div><div class="v">${fmt(perStore[i])} шт</div></div>`).join("");
+    `<div class="card"><div class="l">${esc(shortStore(s))}</div><div class="v">${fmt(perStore[i])} шт</div></div>`).join("");
   html+=`<div class="card" style="background:rgba(76,187,23,0.2)"><div class="l">Всего · 3 склада</div><div class="v">${fmt(tot)} шт</div></div>`;
   document.getElementById("cards").innerHTML=html;
 }
@@ -254,7 +255,7 @@ function selCat(c){ currentCat=c; buildTabs(); render(); }
 
 function renderHead(){
   let cols='<th>Название</th>';
-  for(const s of DATA.stores) cols+='<th>'+shortStore(s)+'</th>';
+  for(const s of DATA.stores) cols+='<th>'+esc(shortStore(s))+'</th>';
   cols+='<th>Всего</th>';
   document.getElementById("thead").innerHTML='<tr>'+cols+'</tr>';
 }
@@ -271,7 +272,7 @@ function render(){
   for(const [base,g] of items){
     const tr=document.createElement("tr");
     tr.className="pr";
-    let cells=`<td><span class="ei">▶</span>${base}</td>`;
+    let cells=`<td><span class="ei">▶</span>${esc(base)}</td>`;
     for(const v of g.per) cells+=`<td><span class="qty ${v?"":"zero"}">${fmt(v)}</span></td>`;
     cells+=`<td><span class="qty">${fmt(g.total)}</span></td>`;
     tr.innerHTML=cells;
@@ -289,7 +290,7 @@ function render(){
         const r=document.createElement("tr");
         r.className="sr";
         const m=sz.name.match(/\(([^)]+)\)\s*$/);
-        let c=`<td>↳ ${m?m[1]:sz.name}</td>`;
+        let c=`<td>↳ ${esc(m?m[1]:sz.name)}</td>`;
         for(const v of sz.per) c+=`<td><span class="qty ${v?"":"zero"}" style="font-size:11px">${fmt(v)}</span></td>`;
         c+=`<td><span class="qty" style="font-size:11px">${fmt(sz.per.reduce((a,b)=>a+b,0))}</span></td>`;
         r.innerHTML=c;
@@ -347,12 +348,12 @@ function renderReco(){
   let html='<table><thead><tr><th style="width:36px"></th><th style="text-align:left;padding-left:14px">Позиция</th><th>Размер</th><th>Откуда</th><th>Куда</th><th>Шт</th><th>У донора</th><th>Последняя продажа там</th></tr></thead><tbody>';
   let lastTo=-1;
   RECS.forEach((r,i)=>{
-    if(r.to!==lastTo){ lastTo=r.to; html+='<tr class="rst"><td colspan="8">→ Довезти: '+RSTORES[r.to]+'</td></tr>'; }
+    if(r.to!==lastTo){ lastTo=r.to; html+='<tr class="rst"><td colspan="8">→ Довезти: '+esc(RSTORES[r.to])+'</td></tr>'; }
     html+='<tr class="'+(r.on?'':'roff')+'" data-row="'+i+'">'+
       '<td><input type="checkbox" class="rchk" data-i="'+i+'"'+(r.on?' checked':'')+'></td>'+
-      '<td style="text-align:left;padding-left:14px;font-weight:500">'+r.base+'</td>'+
-      '<td>'+(r.size||'One Size')+'</td>'+
-      '<td>'+RSTORES[r.from]+'</td><td><b>'+RSTORES[r.to]+'</b></td>'+
+      '<td style="text-align:left;padding-left:14px;font-weight:500">'+esc(r.base)+'</td>'+
+      '<td>'+esc(r.size||'One Size')+'</td>'+
+      '<td>'+esc(RSTORES[r.from])+'</td><td><b>'+esc(RSTORES[r.to])+'</b></td>'+
       '<td><input type="number" min="1" max="'+Math.max(1,r.avail-1)+'" class="rqty" data-i="'+i+'" value="'+r.qty+'"></td>'+
       '<td>'+r.avail+' шт</td>'+
       '<td class="lastd">'+new Date(r.last).toLocaleDateString("ru-RU")+' · '+r.days+' дн назад</td></tr>';
@@ -395,13 +396,13 @@ function downloadMoves(){
   for(const k of Object.keys(pairs)){
     const [f,t]=k.split(">").map(Number);
     const rows=pairs[k];
-    body+='<h2>'+RSTORES[f]+' → '+RSTORES[t]+'</h2><table><thead><tr><th>№</th><th class="l">Позиция</th><th>Размер</th><th>Кол-во</th></tr></thead><tbody>';
+    body+='<h2>'+esc(RSTORES[f])+' → '+esc(RSTORES[t])+'</h2><table><thead><tr><th>№</th><th class="l">Позиция</th><th>Размер</th><th>Кол-во</th></tr></thead><tbody>';
     let i=0,sub=0;
     for(const r of rows){
       i++; sub+=r.qty; grand+=r.qty;
-      body+='<tr><td>'+i+'</td><td class="l">'+r.base+'</td><td>'+(r.size||'One Size')+'</td><td><b>'+r.qty+'</b></td></tr>';
+      body+='<tr><td>'+i+'</td><td class="l">'+esc(r.base)+'</td><td>'+esc(r.size||'One Size')+'</td><td><b>'+r.qty+'</b></td></tr>';
     }
-    body+='</tbody></table><div class="tot">Итого '+RSTORES[f]+' → '+RSTORES[t]+': <b>'+sub+' шт</b> · '+rows.length+' строк</div>';
+    body+='</tbody></table><div class="tot">Итого '+esc(RSTORES[f])+' → '+esc(RSTORES[t])+': <b>'+sub+' шт</b> · '+rows.length+' строк</div>';
   }
   body+='<div class="tot grand">Всего к перемещению: <b>'+grand+' шт</b></div>';
   const doc='<!DOCTYPE html><html lang="ru"><head><meta charset="UTF-8"><title>Перемещение '+ds+'</title><style>'+

@@ -262,6 +262,7 @@
 
 <script>
 function mw(name,q){ if(!q) return true; const nl=name.toLowerCase(); return q.split(/\s+/).every(w=>nl.includes(w)); }
+function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
 const NON_MERCH = ["сертификат","кошелек","sample","сэмпл","упаковоч","пакет","коробк","вешалк","бирк","кофр","наклейк","кейс для","чехол для","нитк","бумага тишью"];
 function isMerch(n){ const nl=n.toLowerCase(); return !NON_MERCH.some(k=>nl.includes(k)); }
 function fmt(n){ return Math.round(n||0).toLocaleString("ru-RU"); }
@@ -395,9 +396,9 @@ async function loadProjects(){
   }
   let html=alive.map(p=>{
     const dt=p.date?new Date(p.date).toLocaleDateString("ru-RU",{day:"numeric",month:"long",year:"numeric"}):"";
-    return `<div class="proj-card" onclick="openProject('${p.id}')">
-      <button class="pdel" onclick="event.stopPropagation();deleteProject('${p.id}','${(p.name||"").replace(/'/g,"’").replace(/"/g,"”")}')">✕</button>
-      <div class="pname2">${p.name}</div>
+    return `<div class="proj-card" data-id="${esc(p.id)}" onclick="openProject(this.dataset.id)">
+      <button class="pdel" data-name="${esc(p.name||"")}" onclick="event.stopPropagation();deleteProject(this.closest('.proj-card').dataset.id,this.dataset.name)">✕</button>
+      <div class="pname2">${esc(p.name||"")}</div>
       <div class="pdate">${dt?("приход · "+dt):"без даты"}</div>
     </div>`;
   }).join("");
@@ -558,7 +559,7 @@ function showDD(){
   ddItems=PRODUCTS.filter(p=>mw(p.base,q)).slice(0,60);
   hlIdx=0;
   dd.innerHTML=ddItems.map(p=>
-    '<div data-b="'+encodeURIComponent(p.base)+'">'+p.base+
+    '<div data-b="'+encodeURIComponent(p.base)+'">'+esc(p.base)+
     '<span class="sub">· продано '+fmt(p.sold)+' · на складе '+fmt(p.inStock)+'</span></div>').join("")
     ||'<div style="color:rgba(31,31,31,0.4)">ничего не нашлось</div>';
   dd.style.display="block";
@@ -610,27 +611,35 @@ async function orderNow(){
     :"Сохранить заказ и добавить "+total+" шт «"+SEL+"» в графу «Заказано» на странице Остатков?";
   if(!confirm(msg)) return;
   try{
-    // 1) «Заказано» на Остатках
-    if(SAVED&&!sameBase&&OBASE) await bumpOrdered(OBASE,-SAVED_TOTAL); // позиция сменилась — снимаем со старой
-    await bumpOrdered(SEL,delta);
+    // 1) «Заказано» на Остатках.
+    // Каждый успешный bump сразу фиксируется в SAVED/SAVED_TOTAL/OBASE —
+    // раньше состояние обновлялось только в самом конце, и повторное нажатие
+    // после сбоя шага 2 применяло полную дельту ЕЩЁ раз («Заказано»
+    // задваивалось; аудит 18.08).
+    if(SAVED&&!sameBase&&OBASE){
+      await bumpOrdered(OBASE,-SAVED_TOTAL); // позиция сменилась — снимаем со старой
+      SAVED_TOTAL=0; OBASE=SEL;
+    }
+    const delta2=total-((SAVED&&OBASE===SEL)?SAVED_TOTAL:0);
+    if(delta2!==0) await bumpOrdered(SEL,delta2);
+    SAVED=true; SAVED_TOTAL=total; OBASE=SEL; // «Заказано» применено — повтор дельту не задвоит
     // 2) сохраняем состав проекта (позиция||размер -> шт)
     const adjustments={"__ordered_total__":total};
     for(const [sz,q] of Object.entries(ord)) if(q>0) adjustments[SEL+"||"+sz]=q;
     const r2=await fetch("/api/projects/"+PID+"/data",{method:"POST",headers:{"Content-Type":"application/json"},
       body:JSON.stringify({adjustments,excluded:[],added:[]})});
-    if(!r2.ok) throw new Error("HTTP "+r2.status);
+    if(!r2.ok) throw new Error("состав проекта не сохранён (HTTP "+r2.status+"), но «Заказано» уже обновлено — просто нажми ещё раз");
     // 3) переименовываем проект в позицию — в списке видно, что заказано
     PNAME=SEL+" · "+total+" шт";
     fetch("/api/projects",{method:"POST",headers:{"Content-Type":"application/json"},
       body:JSON.stringify({id:PID,name:PNAME,date:PDATE})}).catch(()=>{});
     document.getElementById("ord-title").textContent=PNAME;
-    SAVED=true; SAVED_TOTAL=total; OBASE=SEL;
     paintSaveState();
     const btn=document.getElementById("sendBtn");
     btn.textContent="✓ Сохранено: "+total+" шт в «Заказано»";
     setTimeout(()=>{ paintSaveState(); },4000);
   }catch(e){
-    alert("Не удалось сохранить: "+e.message+". Заказ НЕ записан, попробуй ещё раз.");
+    alert("Не удалось сохранить: "+e.message+".");
   }
 }
 
@@ -686,7 +695,16 @@ function presenceDays(base, sizesList, monthsSet){
   const out={}; const prev={};
   for(const sz of sizesList){ out[sz]=0; prev[sz]=0; }
   let anyDays=0;
-  for(const d of HIST.dates){
+  // Вес даты в календарных днях (аудит 18.08): до ~07.2025 история недельная —
+  // «+1 за дату» искажал доли дней наличия старых позиций (см. turnover).
+  const dts=HIST.dates;
+  const dwOf=i=>{
+    if(i+1>=dts.length) return 1;
+    const g=Math.round((new Date(dts[i+1])-new Date(dts[i]))/86400000);
+    return Math.min(Math.max(g,1),7);
+  };
+  for(let di=0; di<dts.length; di++){
+    const d=dts[di]; const w=dwOf(di);
     let anyQ=0;
     for(const sz of sizesList){
       let q; let found=false;
@@ -696,10 +714,10 @@ function presenceDays(base, sizesList, monthsSet){
       }
       if(!found) q=prev[sz];
       prev[sz]=q;
-      if(monthsSet.has(d.slice(0,7)) && q>0) out[sz]++;
+      if(monthsSet.has(d.slice(0,7)) && q>0) out[sz]+=w;
       if(q>0) anyQ+=q;
     }
-    if(monthsSet.has(d.slice(0,7)) && anyQ>0) anyDays++;
+    if(monthsSet.has(d.slice(0,7)) && anyQ>0) anyDays+=w;
   }
   return {perSize:out, anyDays};
 }
@@ -755,7 +773,19 @@ function calc(){
   const statsFor=(monthsArr,salesMap)=>{
     const monthsSet=new Set(monthsArr);
     const pres=HIST?presenceDays(SEL,sizes,monthsSet):null;
-    const windowDays=HIST?HIST.dates.filter(d=>monthsSet.has(d.slice(0,7))).length:Math.round(effMonths(monthsArr)*30.4);
+    // windowDays — в тех же ВЗВЕШЕННЫХ календарных днях, что и presenceDays
+    // (ревью 18.08): раньше presDays был в днях, а windowDays — в числе дат
+    // снапшота (недельная сетка до 07.2025), и фолбэк «делим на всё окно»
+    // завышал темп до 7 раз.
+    let windowDays;
+    if(HIST){
+      const dts=HIST.dates; windowDays=0;
+      for(let i=0;i<dts.length;i++){
+        if(!monthsSet.has(dts[i].slice(0,7))) continue;
+        const g=(i+1<dts.length)?Math.round((new Date(dts[i+1])-new Date(dts[i]))/86400000):1;
+        windowDays+=Math.min(Math.max(g,1),7);
+      }
+    } else windowDays=Math.round(effMonths(monthsArr)*30.4);
     const presDays=sizes.map(sz=>pres?(pres.perSize[sz]||0):windowDays);
     // темп шт/день: продажи размера / дни его наличия; если размера в окне не было,
     // но продажи есть (например пришёл и мгновенно продан между снапшотами) —
@@ -836,7 +866,7 @@ function calc(){
   sizes.forEach((sz,i)=>{
     const pct=Math.round(shares[i]*100);
     const touched=MANUAL[sz]!==undefined&&MANUAL[sz]!==rec[i];
-    rows+='<tr><td>'+sz+'</td>'+
+    rows+='<tr><td>'+esc(sz)+'</td>'+
       '<td><span class="qty '+((sales[sz]||0)?'':'zero')+'">'+fmt(sales[sz]||0)+'</span></td>'+
       '<td><span class="qty '+(presDays[i]?'':'zero')+'" title="дней, когда размер был на складе, в выбранном сезоне">'+(pres?fmt(presDays[i]):'—')+'</span></td>'+
       '<td>'+(rates[i]>0?(Math.round(rates[i]*100)/100).toLocaleString("ru-RU"):'<span class="qty zero">0</span>')+'</td>'+
@@ -845,7 +875,7 @@ function calc(){
       '<td><span class="qty '+(Math.round(stockAt[i])?'':'zero')+'">'+(dta>0?fmt(Math.round(stockAt[i])):'—')+'</span></td>'+
       '<td'+(stockCol?' class="modecol"':'')+'><span class="rec'+(stockCol?'':' dim')+'">'+withStock[i]+'</span></td>'+
       '<td'+(!stockCol?' class="modecol"':'')+'><span class="rec'+(!stockCol?'':' dim')+'">'+pure[i]+'</span></td>'+
-      '<td class="modecol"><input class="ordin'+(touched?' touched':'')+'" data-sz="'+sz.replace(/"/g,"&quot;")+'" type="number" min="0" value="'+ordVals[i]+'"></td></tr>';
+      '<td class="modecol"><input class="ordin'+(touched?' touched':'')+'" data-sz="'+esc(sz)+'" type="number" min="0" value="'+ordVals[i]+'"></td></tr>';
   });
   rows+='<tr class="total"><td>Итого</td><td>'+fmt(totSales)+'</td><td></td><td></td><td>100%</td><td>'+fmt(totStock)+'</td><td>'+(dta>0?fmt(Math.round(totStockAt)):'—')+'</td>'+
     '<td'+(stockCol?' class="modecol"':'')+'>'+withStock.reduce((a,b)=>a+b,0)+'</td>'+
@@ -878,10 +908,10 @@ function downloadOrder(){
   L.sizes.forEach((sz,i)=>{
     const q=ord[sz]!==undefined?ord[sz]:(MODE==="stock"?L.withStock:L.pure)[i];
     tot+=q;
-    body+='<tr><td><b>'+sz+'</b></td><td>'+fmt(L.sales[sz]||0)+'</td><td>'+Math.round(L.shares[i]*100)+'%</td><td>'+fmt(L.stock[sz]||0)+'</td><td><b>'+q+'</b></td></tr>';
+    body+='<tr><td><b>'+esc(sz)+'</b></td><td>'+fmt(L.sales[sz]||0)+'</td><td>'+Math.round(L.shares[i]*100)+'%</td><td>'+fmt(L.stock[sz]||0)+'</td><td><b>'+q+'</b></td></tr>';
   });
   body+='<tr><td><b>Итого</b></td><td>'+fmt(L.totSales)+'</td><td>100%</td><td>'+fmt(L.totStock)+'</td><td><b>'+tot+'</b></td></tr></tbody></table>';
-  const doc='<!DOCTYPE html><html lang="ru"><head><meta charset="UTF-8"><title>Заказ позиции · '+L.base+'</title><style>'+
+  const doc='<!DOCTYPE html><html lang="ru"><head><meta charset="UTF-8"><title>Заказ позиции · '+esc(L.base)+'</title><style>'+
     'body{font-family:Helvetica,Arial,sans-serif;color:#1f1f1f;padding:32px;max-width:700px;margin:0 auto}'+
     'h1{font-size:19px;margin-bottom:2px}.sub{color:#888;font-size:12px;margin-bottom:20px}'+
     'table{width:100%;border-collapse:collapse;font-size:13px}'+
@@ -889,7 +919,7 @@ function downloadOrder(){
     'td{padding:7px 10px;border-bottom:1px solid #e3e3e3}'+
     'tr:nth-child(even) td{background:#faf7f3}'+
     '@media print{body{padding:0}}</style></head><body>'+
-    '<h1>'+L.base+' — заказ '+tot+' шт по размерам</h1>'+
+    '<h1>'+esc(L.base)+' — заказ '+tot+' шт по размерам</h1>'+
     '<div class="sub">сформировано '+ds+' · ожидаемый приход: '+arrival+' · продажи: '+(L.winLabel||periodLabel())+
     ' ('+L.monthsCnt+' мес)</div>'+body+'</body></html>';
   savePdf(doc,"заказ-позиции-"+L.base.replace(/[^\wа-яА-ЯёЁ-]+/g,"_")+".pdf");

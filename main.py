@@ -325,6 +325,26 @@ def _rebuild_analytics_json_inner(conn):
         chart = [chart_map.get(d, 0) for d in dates]
         return s["nq"], s["nr"], s["ap"], sea, chart
 
+    # Веса дат в КАЛЕНДАРНЫХ ДНЯХ (аудит 18.08): история до ~07.2025 хранится
+    # недельной сеткой (понедельники), дальше — ежедневно. Раньше dis
+    # инкрементировался на 1 за КАЖДУЮ ДАТУ сетки — у старых позиций «дни в
+    # стоке» занижались до ~7 раз, а оборачиваемость (nr/dis) настолько же
+    # завышалась относительно свежих позиций. Теперь дата весит столько дней,
+    # сколько она покрывает (до следующей даты сетки), с потолком 7 — дыры
+    # в данных длиннее недели не раздувают dis.
+    from datetime import date as _date_cls
+    _dw = []
+    for _i, _d in enumerate(dates):
+        if _i + 1 < len(dates):
+            try:
+                _g = (_date_cls.fromisoformat(dates[_i + 1]) - _date_cls.fromisoformat(_d)).days
+            except Exception:
+                _g = 1
+            _dw.append(min(max(_g, 1), 7))
+        else:
+            _dw.append(1)
+    date_weight = dict(zip(dates, _dw))
+
     # Get all SKU names first (to iterate base by base)
     sku_names = [r[0] for r in conn.execute(
         "SELECT DISTINCT sku_name FROM stock_snapshots ORDER BY sku_name").fetchall()]
@@ -359,7 +379,9 @@ def _rebuild_analytics_json_inner(conn):
             sea = {"winter":0,"spring":0,"summer":0,"autumn":0}
             for d in dates:
                 q = dm.get(d, prev)
-                if q >= 3: dis += 1; sea[season(d)] += 1
+                if q >= 3:
+                    w = date_weight.get(d, 1)
+                    dis += w; sea[season(d)] += w
                 prev = q
             nq, nr, ap, sea_rev, chart = get_sales(base)
             skus_turnover[base] = {"dis": dis, "cs": int(dm.get(latest, 0)), "sea_days": sea,
@@ -405,7 +427,7 @@ def _rebuild_analytics_json_inner(conn):
             sz_dis = 0; sz_prev = 0
             for d in dates:
                 q = dm.get(d, sz_prev)
-                if q >= 3: sz_dis += 1
+                if q >= 3: sz_dis += date_weight.get(d, 1)
                 sz_prev = q
             skus_turnover[canonical_sku] = {
                 "dis": sz_dis, "cs": int(dm.get(latest, 0)),
@@ -415,9 +437,11 @@ def _rebuild_analytics_json_inner(conn):
         af.write("}}")
     os.replace(atmp, ANALYTICS_JSON_PATH)
 
-    # Write turnover cache
+    # Write turnover cache. "dwv":2 — версия формулы dis (календарные дни,
+    # аудит 18.08): валидация /api/turnover-data выбрасывает кэши без метки,
+    # чтобы после деплоя не отдавался старый файл с невзвешенным dis.
     with open(ttmp, "w", encoding="utf-8") as tf:
-        tf.write('{"dates":'); tf.write(dates_json)
+        tf.write('{"dwv":2,"dates":'); tf.write(dates_json)
         tf.write(',"skus":'); tf.write(json.dumps(skus_turnover, ensure_ascii=False, separators=(",", ":")))
         tf.write("}")
     os.replace(ttmp, TURNOVER_JSON_PATH)
@@ -489,7 +513,10 @@ def _xlrd_serial_to_date(value, datemode, rxls):
         pass
     return None
 
-def parse_xls(file_path):
+def parse_xls(file_path, strict_date: bool = True):
+    """strict_date=True — нераспознанная дата отчёта = ошибка (путь /api/upload,
+    где дата становится датой снапшота). /api/parse-stock даты не пишет —
+    зовёт с strict_date=False и получает report_date=None."""
     import xlrd, re as _rxls
     book = xlrd.open_workbook(file_path, encoding_override='utf-8')
     sheet = book.sheet_by_index(0)
@@ -557,11 +584,14 @@ def parse_xls(file_path):
                     d = _xlrd_serial_to_date(cell.value, book.datemode, _rxls)
                     if d: date_serial = d
 
-    # Pick best date: на момент > отчет создан > serial > today
+    # Pick best date: на момент > отчет создан > serial.
+    # Фолбэк «сегодня» убран (аудит 18.08): старый отчёт с нераспознанной
+    # датой ложился поверх сегодняшнего снапшота и портил текущие остатки.
     report_date = date_na_moment or date_otchet or date_serial
-    if report_date is None:
-        from datetime import date as _date
-        report_date = _date.today().strftime('%Y-%m-%d')
+    if report_date is None and strict_date:
+        raise ValueError("Не удалось распознать дату отчёта в файле — "
+                         "загрузка отклонена (раньше такой файл молча ложился "
+                         "на сегодняшнюю дату)")
 
     if header_row is None or name_col is None or stock_col is None:
         raise ValueError("Не найдена таблица с остатками (нет колонки Наименование/Остаток)")
@@ -580,12 +610,24 @@ def parse_xls(file_path):
         raise ValueError("Таблица пустая")
     return report_date, rows
 
+MAX_UPLOAD_BYTES = 25 * 1024 * 1024  # 25 МБ — с запасом больше любой выгрузки МС
+
+async def _read_upload_limited(file):
+    """Читает файл загрузки с лимитом размера (аудит 18.08: лимита не было —
+    гигантский файл валил инстанс по памяти)."""
+    data = await file.read(MAX_UPLOAD_BYTES + 1)
+    if len(data) > MAX_UPLOAD_BYTES:
+        raise HTTPException(413, f"Файл больше {MAX_UPLOAD_BYTES // (1024*1024)} МБ — "
+                                 "это не похоже на выгрузку МойСклада")
+    return data
+
 @app.post("/api/upload")
-async def upload_stock(file: UploadFile = File(...)):
+async def upload_stock(file: UploadFile = File(...), force: int = 0):
     if not file.filename.lower().endswith('.xls'):
         raise HTTPException(400, "Только файлы .xls из МоегоСклада")
+    _data = await _read_upload_limited(file)
     with tempfile.NamedTemporaryFile(suffix='.xls', delete=False) as tmp:
-        tmp.write(await file.read()); tmp_path = tmp.name
+        tmp.write(_data); tmp_path = tmp.name
     try:
         date_str, rows = parse_xls(tmp_path)
     except Exception as e:
@@ -593,6 +635,23 @@ async def upload_stock(file: UploadFile = File(...)):
     finally:
         if os.path.exists(tmp_path): os.unlink(tmp_path)
     conn = get_db()
+    # Защита от частичной выгрузки (аудит 18.08): клиентские страницы считают
+    # «нет строки на последнюю дату = остаток 0». Файл с частью SKU (например,
+    # выгрузка одного склада), датированный позже последнего синка, мгновенно
+    # «обнулял» весь остальной сток на всех страницах до следующего синка.
+    if not force:
+        last = conn.execute("SELECT MAX(date) FROM stock_snapshots").fetchone()[0]
+        if last and date_str >= last:
+            prev_cnt = conn.execute(
+                "SELECT COUNT(*) FROM stock_snapshots WHERE date=? AND stock_qty>0",
+                (last,)).fetchone()[0]
+            if prev_cnt and len(rows) < 0.7 * prev_cnt:
+                conn.close()
+                raise HTTPException(400,
+                    f"Файл покрывает {len(rows)} SKU при {prev_cnt} в последнем "
+                    f"снапшоте ({last}) — похоже на ЧАСТИЧНУЮ выгрузку (один склад/фильтр). "
+                    f"Такая загрузка обнулила бы остальной сток на всех страницах. "
+                    f"Если это осознанно — повторите с ?force=1")
     uploaded_at = datetime.now().isoformat()
     inserted = 0
     updated = 0
@@ -622,7 +681,7 @@ async def debug_parse_xls(file: UploadFile = File(...)):
     """Debug: show exactly what xlrd returns for SKU names, with repr()."""
     import xlrd
     with tempfile.NamedTemporaryFile(suffix='.xls', delete=False) as tmp:
-        tmp.write(await file.read()); tmp_path = tmp.name
+        tmp.write(await _read_upload_limited(file)); tmp_path = tmp.name
     try:
         results = {}
         for enc in [None, 'utf-8', 'cp1251', 'latin-1']:
@@ -782,7 +841,7 @@ async def upload_sales(file: UploadFile = File(...)):
     import csv, io
     if not file.filename.lower().endswith(".csv"):
         raise HTTPException(400, "Только CSV файлы")
-    content_bytes = await file.read()
+    content_bytes = await _read_upload_limited(file)
     try:
         text = content_bytes.decode("utf-8-sig")
     except:
@@ -794,14 +853,31 @@ async def upload_sales(file: UploadFile = File(...)):
     if not rows:
         raise HTTPException(400, "Файл пустой")
 
-    is_return = "возврат" in file.filename.lower() or "возврат" in (rows[0].get("Документ","")).lower()
-    doc_type = "return" if is_return else "sale"
-
     import pandas as pd
     df = pd.DataFrame(rows)
 
     if "Артикул" in df.columns:
         df = df[df["Артикул"].notna() & (df["Артикул"].astype(str).str.strip() != "")]
+
+    # Тип документа определяем ПО КАЖДОЙ строке из колонки «Документ»
+    # (аудит 18.08): раньше решала эвристика по имени файла и первой строке —
+    # переименованный файл возвратов записывал возвраты как продажи (выручка
+    # завышалась дважды), смешанные выгрузки портились целиком. Фолбэк на имя
+    # файла — только если колонки «Документ» нет.
+    fallback_is_return = "возврат" in file.filename.lower()
+    if "Документ" in df.columns:
+        df["_dtype"] = df["Документ"].astype(str).str.lower().map(
+            lambda s: "return" if "возврат" in s else "sale")
+        # Ревью 18.08: имя файла говорит «возвраты», а в колонке «Документ»
+        # ни одной возвратной строки (пустые ячейки/нестандартные названия) —
+        # раньше весь файл молча записался бы как ПРОДАЖИ, инвертировав знак.
+        if fallback_is_return and (df["_dtype"] == "return").sum() == 0:
+            raise HTTPException(400,
+                "Файл называется «возвраты», но в колонке «Документ» не найдено "
+                "ни одной строки со словом «возврат» — загрузка отклонена, "
+                "проверь выгрузку (иначе возвраты записались бы как продажи)")
+    else:
+        df["_dtype"] = "return" if fallback_is_return else "sale"
 
     df["Дата"] = pd.to_datetime(df["Дата документа"], dayfirst=True).dt.date
     for col in ["Количество", "Сумма"]:
@@ -815,18 +891,29 @@ async def upload_sales(file: UploadFile = File(...)):
     from collections import defaultdict
     agg = defaultdict(lambda: {"qty": 0.0, "revenue": 0.0})
     for _, row in df.iterrows():
-        key = (str(row["Дата"]), str(row["Наименование"]).strip())
+        key = (str(row["Дата"]), str(row["Наименование"]).strip(), row["_dtype"])
         agg[key]["qty"]     += float(row["Количество"])
         agg[key]["revenue"] += float(row["Сумма"])
-    dates = list({k[0] for k in agg.keys()})
-    placeholders = ",".join("?" * len(dates))
-    conn.execute(f"DELETE FROM sales_data WHERE doc_type=? AND date IN ({placeholders})", [doc_type] + dates)
+    # Удаляем только пары (тип, даты этого типа в файле) и СЧИТАЕМ удалённое:
+    # раньше DELETE был тихим — частичная выгрузка (один магазин) молча
+    # усекала историю всех каналов за задетые даты. Теперь масштаб замены
+    # виден в ответе (deleted_*), а даты чужого типа не трогаются.
+    deleted = {}
+    for dtype in ("sale", "return"):
+        dts = sorted({k[0] for k in agg if k[2] == dtype})
+        if not dts:
+            continue
+        placeholders = ",".join("?" * len(dts))
+        cur = conn.execute(
+            f"DELETE FROM sales_data WHERE doc_type=? AND date IN ({placeholders})",
+            [dtype] + dts)
+        deleted[dtype] = {"rows": cur.rowcount, "dates": dts}
     inserted = 0
-    for (date, sku_name), vals in agg.items():
+    for (date, sku_name, dtype), vals in agg.items():
         try:
             conn.execute(
                 "INSERT OR REPLACE INTO sales_data (date, sku_name, qty, revenue, doc_type) VALUES (?,?,?,?,?)",
-                (date, sku_name, vals["qty"], vals["revenue"], doc_type)
+                (date, sku_name, vals["qty"], vals["revenue"], dtype)
             )
             inserted += 1
         except: pass
@@ -843,12 +930,15 @@ async def upload_sales(file: UploadFile = File(...)):
         try:
             if os.path.exists(_p): os.remove(_p)
         except OSError: pass
-    return {"inserted": inserted, "doc_type": doc_type, "date_from": date_from, "date_to": date_to}
+    return {"inserted": inserted, "deleted": deleted,
+            "types": sorted({k[2] for k in agg}),
+            "date_from": date_from, "date_to": date_to}
 
 @app.post("/api/check-bestsellers")
 async def check_bestsellers():
     """Проверяет бестселлеры (turn >= 2000) у которых запас < 45 дней и шлёт пуш в Telegram."""
     import httpx
+    from collections import defaultdict
     conn = get_db()
     # Берём последние остатки по каждому SKU
     rows = conn.execute("""
@@ -865,12 +955,20 @@ async def check_bestsellers():
     """).fetchall()
     conn.close()
 
-    sales_map = {_canon_name(r["sku_name"]): r["total_qty"] for r in sales}
+    # Обе стороны приводим к базовому имени через _canon_name и СУММИРУЕМ:
+    # раньше остаток брался по каждой строке снапшота (включая размерные
+    # варианты «Имя (S)»), а продажи — по базе: сравнение остатка одного
+    # размера с продажами всей базы давало ложные алерты и дубли по товару.
+    sales_map = defaultdict(float)
+    for r in sales:
+        sales_map[_canon_name(r["sku_name"])] += r["total_qty"]
+
+    stock_map = defaultdict(float)
+    for r in rows:
+        stock_map[_canon_name(r["sku_name"])] += r["stock_qty"]
 
     alerts = []
-    for r in rows:
-        base = _canon_name(r["sku_name"])
-        stock = r["stock_qty"]
+    for base, stock in stock_map.items():
         if stock <= 0:
             continue
         qty_90 = sales_map.get(base, 0)
@@ -1177,7 +1275,8 @@ def get_turnover_data():
                     _sample = _j.load(_f)
                 _skus = _sample.get("skus", {})
                 _first = next(iter(_skus.values()), {}) if _skus else {}
-                _turnover_valid["ok"] = not (_skus and ("dis" not in _first or "nq" not in _first))
+                _turnover_valid["ok"] = (_sample.get("dwv") == 2) and not (
+                    _skus and ("dis" not in _first or "nq" not in _first))
                 _turnover_valid["mtime"] = _mtime
                 del _sample, _skus, _first
             if _turnover_valid["ok"]:
@@ -1397,7 +1496,9 @@ def parse_stock_file(file: UploadFile = File(...)):
     # def (не async): синхронный xlrd/csv-парсинг уходит в threadpool,
     # не блокируя event loop единственного воркера.
     import csv, io, tempfile as _tmp
-    raw = file.file.read()
+    raw = file.file.read(MAX_UPLOAD_BYTES + 1)
+    if len(raw) > MAX_UPLOAD_BYTES:
+        raise HTTPException(413, "Файл больше 25 МБ — это не похоже на выгрузку МойСклада")
     ext = (file.filename or "").rsplit(".", 1)[-1].lower()
     warehouse = None
     report_date = None
@@ -1419,8 +1520,9 @@ def parse_stock_file(file: UploadFile = File(...)):
                     for j in range(sheet.ncols):
                         if str(sheet.cell_value(i, j)).strip() == "склад:" and j+1 < sheet.ncols:
                             warehouse = str(sheet.cell_value(i, j+1)).strip()
-                # Use robust parse_xls for date + rows
-                report_date, rows = parse_xls(tmp_path)
+                # Use robust parse_xls for date + rows (дата не критична —
+                # в снапшоты этот путь не пишет; ревью 18.08)
+                report_date, rows = parse_xls(tmp_path, strict_date=False)
             for r in rows:
                 if r["stock_qty"] > 0:
                     items[r["sku_name"]] = items.get(r["sku_name"], 0) + int(r["stock_qty"])
@@ -1496,7 +1598,8 @@ def get_transfers(report_date: str):
     finally: conn.close()
 
 @app.delete("/api/transfers/{report_date}")
-def del_transfers(report_date: str):
+def del_transfers(report_date: str, request: _Req):
+    _check_db_key(request)  # аудит 18.08: анонимное удаление снапшотов перемещений
     conn = get_db()
     try:
         conn.execute("DELETE FROM transfers_snapshots WHERE report_date=?",(report_date,)); conn.commit(); return {"ok":True}
@@ -1504,8 +1607,9 @@ def del_transfers(report_date: str):
 
 
 @app.delete("/api/stocks/date/{date_str}")
-def delete_stocks_for_date(date_str: str):
+def delete_stocks_for_date(date_str: str, request: _Req):
     """Delete all stock records for a specific date so files can be re-uploaded."""
+    _check_db_key(request)  # аудит 18.08: стирание истории было открыто анонимно
     conn = get_db()
     count = conn.execute("SELECT COUNT(*) as c FROM stock_snapshots WHERE date=?", (date_str,)).fetchone()["c"]
     conn.execute("DELETE FROM stock_snapshots WHERE date=?", (date_str,))
@@ -1645,7 +1749,9 @@ def yandex_upload(file: UploadFile = File(...)):
     """def (не async): тяжёлый разбор openpyxl уходит в threadpool и не блокирует
     event loop единственного воркера — раньше на время парсинга большого отчёта
     (десятки секунд) весь сайт переставал отвечать."""
-    raw = file.file.read()
+    raw = file.file.read(MAX_UPLOAD_BYTES + 1)
+    if len(raw) > MAX_UPLOAD_BYTES:
+        raise HTTPException(413, "Файл больше 25 МБ — это не похоже на выгрузку МойСклада")
     tmp = tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False)
     tmp.write(raw); tmp.close()
     try:
@@ -1781,12 +1887,22 @@ def _yandex_upload_parse(_tmp_path):
         return {"error": "В отчёте не нашлось данных"}
 
     conn = get_db()
-    oids = list(orders.keys())
+    # Чистим по ОБЪЕДИНЕНИЮ заказов из обоих листов (редактура 18.08): раньше
+    # DELETE шёл только по заказам листа «Услуги и маржа», а строки ym_items/
+    # ym_money заказов, живущих только в «Транзакциях», при повторной загрузке
+    # того же отчёта дублировались.
+    oids = sorted(set(orders) | {it[0] for it in items} | {m[0] for m in money})
+    ord_oids = list(orders.keys())  # ym_orders чистим только по листу «Услуги» —
+    # иначе заказ, попавший в новый отчёт лишь строкой возврата в «Транзакциях»,
+    # потерял бы свои дату/статус/услуги без повторной вставки.
     CH = 500
+    for i in range(0, len(ord_oids), CH):
+        chunk = ord_oids[i:i + CH]
+        ph = ",".join("?" * len(chunk))
+        conn.execute(f"DELETE FROM ym_orders WHERE order_id IN ({ph})", chunk)
     for i in range(0, len(oids), CH):
         chunk = oids[i:i + CH]
         ph = ",".join("?" * len(chunk))
-        conn.execute(f"DELETE FROM ym_orders WHERE order_id IN ({ph})", chunk)
         conn.execute(f"DELETE FROM ym_items WHERE order_id IN ({ph})", chunk)
     conn.executemany(
         "INSERT OR REPLACE INTO ym_orders (order_id, date, status, price, services, svc_json) VALUES (?,?,?,?,?,?)",
@@ -2057,8 +2173,9 @@ def _seen_map():
     return seen
 
 @app.get("/api/sync-inspect")
-def sync_inspect(samples: int = 0):
+def sync_inspect(request: _Req, samples: int = 0):
     """Таблицы len* и колонки в PG — для выверки схемы. ?samples=1 — примеры связок."""
+    _check_db_key(request)  # аудит 18.08: отдавал схему и сэмплы строк PG анонимно
     import sync
     try:
         out = sync.inspect_schema()
@@ -2118,7 +2235,8 @@ def sync_inspect(samples: int = 0):
         return {"error": str(e)}
 
 @app.get("/api/sync-verify")
-def sync_verify():
+def sync_verify(request: _Req):
+    _check_db_key(request)  # аудит 18.08
     import sync
     try:
         return sync.verify_names()
@@ -2126,14 +2244,16 @@ def sync_verify():
         return {"error": str(e)}
 
 @app.post("/api/sync-now")
-def sync_now(dry: int = 0, days: int = 0):
+def sync_now(request: _Req, dry: int = 0, days: int = 0):
     """Ручной запуск синка. days — ширина окна продаж (для разового бэкфилла), максимум 60."""
+    _check_db_key(request)  # аудит 18.08: аноним мог запускать тяжёлый бэкфилл с перезаписью БД
     import sync
     return sync.sync_all(dry=bool(dry), days_back=min(max(int(days), 0), 60))
 
 @app.get("/api/stocks-bystore-debug")
-def stocks_bystore_debug():
+def stocks_bystore_debug(request: _Req):
     """Отладка матчинга имён: сырые имена PG vs канонические имена сайта."""
+    _check_db_key(request)  # аудит 18.08
     import sync
     data = stocks_bystore()
     if data.get("error"):
@@ -2291,7 +2411,8 @@ def _check_db_key(request: _Req):
     key = _os.environ.get("DB_QUERY_KEY")
     if not key:
         raise HTTPException(status_code=503, detail="DB_QUERY_KEY is not configured")
-    if request.headers.get("X-DB-Key") != key:
+    import hmac as _hmac
+    if not _hmac.compare_digest(request.headers.get("X-DB-Key") or "", key):
         raise HTTPException(status_code=401, detail="bad or missing X-DB-Key")
 
 @app.get("/api/db/tables")

@@ -232,6 +232,14 @@
 <script>
 let selectedDate=null, currentPage=1, searchVal="", totalPages=0, searchTimer=null;
 
+// Ключ для защищённых админ-ручек (X-DB-Key = DB_QUERY_KEY из Render env).
+// Спрашивается один раз и хранится в localStorage; при 401/503 сбрасывается.
+function dbKeyHeaders(){
+  let k=localStorage.getItem("dbKey");
+  if(!k){k=prompt("Введи DB_QUERY_KEY (из Render → Environment):")||"";if(k)localStorage.setItem("dbKey",k);}
+  return k?{"X-DB-Key":k}:{};
+}
+
 async function loadStats(){
   try{
     const r=await fetch("/api/stats"); const d=await r.json();
@@ -256,8 +264,10 @@ async function loadDates(){
       del.onclick=async(e)=>{
         e.stopPropagation();
         if(!confirm("Удалить все остатки за "+p[2]+"."+p[1]+"."+p[0]+"?\nПосле этого можно перезалить файлы заново.")) return;
-        const res=await fetch("/api/stocks/date/"+d.date,{method:"DELETE"});
-        if(res.ok){if(selectedDate===d.date)selectedDate=null; loadDates();}
+        const res=await fetch("/api/stocks/date/"+d.date,{method:"DELETE",headers:dbKeyHeaders()});
+        if(res.status===503){alert("На сервере не задан DB_QUERY_KEY (Render → Environment). Пока он не задан, удаление недоступно — ввод ключа здесь не поможет.");}
+        else if(res.status===401){localStorage.removeItem("dbKey");alert("Ключ не подошёл. Нажми ещё раз и введи правильный DB_QUERY_KEY.");}
+        else if(res.ok){if(selectedDate===d.date)selectedDate=null; loadDates();}
         else alert("Ошибка удаления");
       };
       // Adjust btn border-radius when del button is next to it
@@ -305,7 +315,14 @@ async function uploadFiles(files){
   let ok=0;const results=[];
   for(const file of xlsFiles){
     const fd=new FormData();fd.append("file",file);
-    try{const res=await fetch("/api/upload",{method:"POST",body:fd});const data=await res.json();
+    try{let res=await fetch("/api/upload",{method:"POST",body:fd});let data=await res.json();
+    // Гард частичной выгрузки (аудит 18.08): сервер отклонил файл с малым
+    // числом SKU — спрашиваем подтверждение и повторяем с ?force=1.
+    if(res.status===400&&String(data.detail||"").includes("force=1")){
+      if(confirm(file.name+":\n"+data.detail+"\n\nЗагрузить всё равно?")){
+        res=await fetch("/api/upload?force=1",{method:"POST",body:fd});data=await res.json();
+      }
+    }
     if(res.ok){const added=(data.inserted||0)+(data.updated||0);const dbg=data._debug_sample&&data._debug_sample.length?" SKU="+JSON.stringify(data._debug_sample[0]):"";results.push("✓ "+data.date+": +"+(data.inserted||0)+" новых"+(data.updated?" +"+data.updated+" обновлено":"")+dbg);ok++;}
     else{results.push("✗ "+file.name+": "+data.detail);}}
     catch{results.push("✗ "+file.name+": ошибка сети");}
@@ -339,7 +356,7 @@ document.getElementById("csv-input").addEventListener("change", async function(e
     try {
       const r = await fetch("/api/upload-sales", {method:"POST", body:fd});
       const d = await r.json();
-      if (r.ok) { ok++; status.textContent = `✓ ${d.doc_type === "return" ? "Возвраты" : "Продажи"}: ${d.inserted} строк (${d.date_from} — ${d.date_to})`; }
+      if (r.ok) { ok++; const tl=(d.types||[]).map(t=>t==="return"?"Возвраты":"Продажи").join("+")||"Продажи"; status.textContent = `✓ ${tl}: ${d.inserted} строк (${d.date_from} — ${d.date_to})`; }
       else errors.push(file.name + ": " + (d.detail || "ошибка"));
     } catch(err) { errors.push(file.name + ": сетевая ошибка"); }
   }
@@ -377,7 +394,9 @@ async function fixMojibake(e){
   if(!q) return;
   btn.textContent="⏳ Удаляю..."; btn.disabled=true;
   try{
-    const r=await fetch("/api/debug-delete-sku?q="+encodeURIComponent(q),{method:"DELETE"});
+    const r=await fetch("/api/debug-delete-sku?q="+encodeURIComponent(q),{method:"DELETE",headers:dbKeyHeaders()});
+    if(r.status===503){throw new Error("на сервере не задан DB_QUERY_KEY (Render → Environment) — ввод ключа здесь не поможет");}
+    if(r.status===401){localStorage.removeItem("dbKey");throw new Error("ключ не подошёл — нажми ещё раз и введи правильный DB_QUERY_KEY");}
     const d=await r.json();
     alert("Удалено "+d.deleted+" записей для '"+q+"'. Теперь перезалей XLS файл и нажми Пересобрать кеш.");
     btn.textContent="🔧 Починить кодировку"; btn.disabled=false;

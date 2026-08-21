@@ -215,12 +215,28 @@
 
 <script>
 let allDates=[], stockData={}, SKUS={}, hiddenItems=new Set();
+let DW={};
+// Вес даты в календарных днях (аудит 18.08): до ~07.2025 история недельная
+// (понедельники) — «+1 за дату» занижал дни в стоке старых позиций до ~7 раз.
+function buildDW(dates){
+  const w={};
+  for(let i=0;i<dates.length;i++){
+    if(i+1<dates.length){
+      const g=Math.round((new Date(dates[i+1])-new Date(dates[i]))/86400000);
+      w[dates[i]]=Math.min(Math.max(g,1),7);
+    } else w[dates[i]]=1;
+  }
+  return w;
+}
+
 let STORES=[], BYSTORE={}, hasStores=false;
 let computed={}, currentCat="Верхняя одежда";
 let ORDERED={};                      // sku_base -> заказано шт (ждём подсортировку)
 const ORD_PID="analytics-ordered";   // project_id для серверного хранения
 
 function mw(name,q){ if(!q) return true; const nl=name.toLowerCase(); return q.split(/\s+/).every(w=>nl.includes(w)); }
+// защита вставки данных МойСклада (имена товаров/складов/размеров) в innerHTML — как esc() в paris.html
+function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
 const CATEGORIES = {
   "Верхняя одежда": ["бомбер","куртка","тренч","пальто","ветровка","олимпийка","комбинезон","фрак","меховой пиджак"],
   "Костюмы": ["пиджак","жилет-галстук","корсетный жилет"],
@@ -299,7 +315,7 @@ async function loadAll(){
       fetch("/api/adjustments?project_id="+ORD_PID)
     ]);
     const a=await aRes.json(), t=await tRes.json();
-    allDates=a.dates||[]; stockData=a.stock||{};
+    allDates=a.dates||[]; DW=buildDW(allDates); stockData=a.stock||{};
     if(t&&t.skus) SKUS=t.skus;
     try{ hiddenItems=new Set(await hRes.json()); }catch(e){}
     try{
@@ -313,7 +329,7 @@ async function loadAll(){
       else if(b&&b.error){ showWarn("Остатки по складам из МойСклад пока недоступны ("+b.error+") — показан общий остаток из последней загрузки."); }
     }catch(e){ showWarn("Остатки по складам недоступны — показан общий остаток."); }
   }catch(e){
-    document.getElementById("tb").innerHTML='<tr><td colspan="7" class="loading">Ошибка загрузки: '+e.message+'</td></tr>';
+    document.getElementById("tb").innerHTML='<tr><td colspan="7" class="loading">Ошибка загрузки: '+esc(e.message)+'</td></tr>';
     throw e;
   }
 }
@@ -344,7 +360,7 @@ function compute(){
     const dm=stockData[base]||{};
     const sk=SKUS[base]||{nq:0,nr:0};
     let dis=0,prev=0;
-    for(const d of allDates){const s=dm[d]!==undefined?dm[d]:prev;if(s>=3)dis++;prev=s;}
+    for(const d of allDates){const s=dm[d]!==undefined?dm[d]:prev;if(s>=3)dis+=(DW[d]||1);prev=s;}
     const turn=dis>0?(sk.nr||0)/dis:0;
     // остаток = значение на ПОСЛЕДНЮЮ дату снапшота; отсутствие строки = 0 (распродано).
     // Раньше брался «последний записанный» — у распроданных вечно висел фантомный положительный остаток.
@@ -454,7 +470,7 @@ function selCat(c){ currentCat=c; buildTabs(); renderSummaryCat(); render(); }
 
 function renderHead(){
   let cols='<th>Название</th>';
-  if(hasStores){ for(const s of STORES) cols+='<th>'+shortStore(s)+'<span class="sub">шт</span></th>'; }
+  if(hasStores){ for(const s of STORES) cols+='<th>'+esc(shortStore(s))+'<span class="sub">шт</span></th>'; }
   else cols+='<th>Остаток<span class="sub">все склады</span></th>';
   cols+='<th>Сток на 90 дн<span class="sub">запас</span></th><th>Недостаток<span class="sub">шт на 90 дн</span></th>';
   cols+='<th>Заказано<span class="sub">приёмки вычитаются сами</span></th>';
@@ -490,7 +506,7 @@ function toggleRow(tr,base){
   for(const sz of d.sizes){
     const r=document.createElement("tr");
     r.className="sr";
-    let label=sz.label||"без размера";
+    let label=sz.label?esc(sz.label):"без размера";
     // размер целиком по нулям — счётчик: снапшоты ИЛИ последняя продажа из МойСклад
     if(sz.totalSize===0){
       let dz=daysAtZero(sz.full);
@@ -546,7 +562,7 @@ function render(){
       const zs=zatStyle(d.zat);
       const tr=document.createElement("tr");
       tr.className="pr "+GRADE_CLS[grade(d)];
-      let name='<span class="ei">▶</span>'+base;
+      let name='<span class="ei">▶</span>'+esc(base);
       if(d.rowAlert) name+='<span class="alert">!</span>';
       let cells='<td>'+name+'</td>';
       if(hasStores){
@@ -559,7 +575,7 @@ function render(){
       cells+='<td><span class="defnum">'+d.defq+'</span></td>';
       const ov=ORDERED[base]||0;
       cells+='<td><input class="ordin'+(ov>0?' has':'')+'" type="number" min="0" step="1" value="'+ov+
-        '" data-base="'+base.replace(/"/g,"&quot;")+
+        '" data-base="'+esc(base)+
         '" onclick="event.stopPropagation()" onchange="setOrdered(this)"></td>';
       tr.innerHTML=cells;
       tr.onclick=function(){ toggleRow(tr,base); };

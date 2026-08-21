@@ -6,5 +6,10 @@ services:
     startCommand: chmod +x start.sh && ./start.sh
     disk:
       name: data
-      mountPath: /opt/render/project/src/backend/data
+      # Аудит 18.08: код пишет БД в /data (DB_PATH), а здесь был старый путь
+      # /opt/render/project/src/backend/data — при пересоздании сервиса по
+      # этому yaml база оказалась бы на эфемерном диске и терялась при деплое.
+      # В дашборде Render диск уже смонтирован в /data (история с 2022 жива) —
+      # yaml приведён в соответствие.
+      mountPath: /data
       sizeGB: 1

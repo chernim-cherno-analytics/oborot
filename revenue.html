@@ -181,6 +181,7 @@ function getCat(n){
   }
   return "Прочее";
 }
+function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
 function fmt(n){ return Math.round(n||0).toLocaleString("ru-RU"); }
 function fmtM(n){
   n=n||0;
@@ -235,7 +236,7 @@ async function applyPeriod(from,to){
   document.getElementById("catbars").innerHTML=catArr.map(([cat,c])=>{
     const share=totR>0?c.r/totR*100:0;
     return `<div class="catrow">
-      <div class="catname">${cat}</div>
+      <div class="catname">${esc(cat)}</div>
       <div class="catbar-wrap"><div class="catbar" style="width:${Math.max(1,c.r/maxR*100)}%;background:${CAT_COLORS[cat]||'#888'}cc"></div>
         <div class="catval">${fmtM(c.r)}</div></div>
       <div class="catmeta">${fmt(c.q)} шт · ${share.toFixed(1)}%</div>
@@ -254,8 +255,8 @@ function renderTop(){
   document.getElementById("top-title").textContent=(q?"Найдено: "+list.length+" · ":"Топ-15 позиций · ")+periodLabel();
   const maxTop=list.length?Math.max(...list.map(x=>x.r)):1;
   document.getElementById("toptb").innerHTML=list.map((it,i)=>
-    `<tr><td>${i+1}</td><td>${it.base}</td>
-     <td><span style="font-size:11px;color:${CAT_COLORS[it.cat]||'#888'};font-weight:600">${it.cat}</span></td>
+    `<tr><td>${i+1}</td><td>${esc(it.base)}</td>
+     <td><span style="font-size:11px;color:${CAT_COLORS[it.cat]||'#888'};font-weight:600">${esc(it.cat)}</span></td>
      <td class="r">${fmt(it.q)}</td>
      <td class="r"><span class="minibar" style="width:${Math.max(2,it.r/maxTop*80)}px;background:${CAT_COLORS[it.cat]||'#888'}b0"></span><b>${fmt(it.r)} ₽</b></td>
      <td class="r">${LAST_TOTR>0?(it.r/LAST_TOTR*100).toFixed(1):0}%</td></tr>`).join("")
@@ -329,7 +330,7 @@ function drawMonthly(){
   const usedCats=CAT_ORDER.filter(c=>months.some(m=>(data[m][c]||0)>0));
   document.getElementById("legend").innerHTML=usedCats.map(c=>
     `<span style="font-size:11px;display:flex;align-items:center;gap:5px">
-     <span style="width:10px;height:10px;border-radius:3px;background:${CAT_COLORS[c]};display:inline-block"></span>${c}</span>`).join("");
+     <span style="width:10px;height:10px;border-radius:3px;background:${CAT_COLORS[c]};display:inline-block"></span>${esc(c)}</span>`).join("");
   // ховер
   cv.onmousemove=(ev)=>{
     const r=cv.getBoundingClientRect();

@@ -149,8 +149,12 @@ def _rb_run(grid):
         _rb_state["phase"] = "swap"
         conn.execute("DROP TABLE IF EXISTS stock_snapshots_backup")
         conn.execute("CREATE TABLE stock_snapshots_backup AS SELECT * FROM stock_snapshots")
-        conn.execute("DELETE FROM stock_snapshots")
-        conn.execute("""INSERT INTO stock_snapshots (date, sku_name, stock_qty, uploaded_at)
+        # Редактура 18.08: заменяем только даты, которые пересобрали. Раньше
+        # DELETE стирал ВСЁ — ручные снапшоты не-понедельников старого периода
+        # и записи синка, успевшие появиться за часы прогона, пропадали молча.
+        conn.execute("DELETE FROM stock_snapshots WHERE date IN "
+                     "(SELECT DISTINCT date FROM stock_snapshots_new)")
+        conn.execute("""INSERT OR REPLACE INTO stock_snapshots (date, sku_name, stock_qty, uploaded_at)
                         SELECT date, sku_name, stock_qty, uploaded_at FROM stock_snapshots_new""")
         conn.execute("DROP TABLE stock_snapshots_new")
         conn.commit()
@@ -595,6 +599,10 @@ def stocks_bystore_live():
 
 
 _settle_cache = {"t": 0.0}
+# Один процесс — но два пути запуска (ночной sync_all force=1 и ручной
+# /api/settle-incoming): параллельные прогоны видели документ «не учтённым»
+# оба и вычитали его дважды. Мьютекс: второй запуск просто выходит.
+_settle_lock = threading.Lock()
 
 
 def settle_incoming(force: int = 0):
@@ -605,6 +613,18 @@ def settle_incoming(force: int = 0):
     import main as site
     if not force and time.time() - _settle_cache["t"] < 600:
         return {"ok": True, "cached": True}
+    if not _settle_lock.acquire(blocking=False):
+        return {"ok": True, "busy": True,
+                "note": "settle уже выполняется параллельно — этот запуск пропущен"}
+    try:
+        return _settle_incoming_locked(force)
+    finally:
+        _settle_lock.release()
+
+
+def _settle_incoming_locked(force: int = 0):
+    import httpx
+    import main as site
     _settle_cache["t"] = time.time()
     # Соединение не держим на время HTTP-походов в МойСклад: раньше исключение
     # в цикле запросов (например 401/429) оставляло sqlite-соединение открытым.
@@ -612,9 +632,9 @@ def settle_incoming(force: int = 0):
     try:
         done = {r["sku_base"] for r in conn.execute(
             "SELECT sku_base FROM order_added WHERE project_id='settled-docs'").fetchall()}
-        ordered = {r["sku_base"]: r["qty_adj"] for r in conn.execute(
-            "SELECT sku_base, qty_adj FROM sku_adjustments "
-            "WHERE project_id='analytics-ordered' AND qty_adj>0").fetchall()}
+        # «Заказано» здесь больше не читаем: актуальные значения перечитываются
+        # непосредственно в транзакции записи (см. ниже), чтобы не терять
+        # правки пользователя, внесённые за время HTTP-походов в МойСклад.
     finally:
         conn.close()
     from datetime import date as _d, timedelta as _td
@@ -643,6 +663,13 @@ def settle_incoming(force: int = 0):
                 did = ent + ":" + str(doc.get("id", ""))
                 if not doc.get("id") or did in done:
                     continue
+                if doc.get("applicable") is False:
+                    # Черновики и распроведённые документы НЕ учитываем
+                    # (зеркально sync._ms_fetch_sales_docs): раньше черновик
+                    # приёмки навсегда вычитался из «Заказано», хотя товар
+                    # физически не приходил. Не помечаем его учтённым —
+                    # после проведения документ зачтётся штатно.
+                    continue
                 _posmeta = doc.get("positions") or {}
                 pos = _posmeta.get("rows") or []
                 _total_pos = int((_posmeta.get("meta") or {}).get("size") or len(pos))
@@ -663,12 +690,25 @@ def settle_incoming(force: int = 0):
                 break
             offset += 50
     applied = {}
+    unapplied = {}
     now = datetime.now().isoformat()
     conn = site.get_db()
     try:
         for base, q in deltas.items():
-            cur = ordered.get(base, 0)
+            # Перечитываем «Заказано» ЗДЕСЬ, в транзакции записи, а не из
+            # снимка ordered, сделанного до многоминутного похода в МойСклад:
+            # раньше правка пользователя, внесённая за это время, молча
+            # затиралась устаревшим значением (read-modify-write гонка).
+            row = conn.execute(
+                "SELECT qty_adj FROM sku_adjustments "
+                "WHERE project_id='analytics-ordered' AND sku_base=?", (base,)).fetchone()
+            cur = row["qty_adj"] if row else 0
             if cur <= 0:
+                # Вычет не применился (в «Заказано» пусто) — документ всё равно
+                # помечается учтённым (иначе старые приёмки внезапно вычтутся
+                # из позже введённого «Заказано»), но факт больше не тихий:
+                # возвращаем в отчёте синка/эндпоинта.
+                unapplied[base] = round(unapplied.get(base, 0.0) + q, 1)
                 continue
             newv = max(0, int(round(cur - q)))
             conn.execute("INSERT OR REPLACE INTO sku_adjustments "
@@ -681,7 +721,12 @@ def settle_incoming(force: int = 0):
         conn.commit()
     finally:
         conn.close()
-    return {"ok": True, "new_docs": len(new_docs), "applied": applied}
+    out = {"ok": True, "new_docs": len(new_docs), "applied": applied}
+    if unapplied:
+        out["unapplied"] = unapplied
+        out["unapplied_note"] = ("приёмка пришла, а в «Заказано» по позиции пусто — "
+                                 "вычет не применён и уже не применится (документ учтён)")
+    return out
 
 
 def _fetch_all_positions(ent, doc_id, total):

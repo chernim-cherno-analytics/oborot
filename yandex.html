@@ -131,6 +131,7 @@
 <div class="ctip" id="ctip"></div>
 
 <script>
+function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
 function mw(name,q){ if(!q) return true; const nl=name.toLowerCase(); return q.split(/\s+/).every(w=>nl.includes(w)); }
 function fmt(n){ return Math.round(n||0).toLocaleString("ru-RU"); }
 function fmtM(n){
@@ -148,7 +149,7 @@ async function load(){
   DATA=await yRes.json();
   try{ COSTP=await cRes.json(); }catch(e){ COSTP={}; }
   if(DATA.error){
-    document.getElementById("toptb").innerHTML='<tr><td colspan="5" class="loading">'+DATA.error+'</td></tr>';
+    document.getElementById("toptb").innerHTML='<tr><td colspan="5" class="loading">'+esc(DATA.error)+'</td></tr>';
     return;
   }
   document.getElementById("agent").textContent="контрагент: "+DATA.agent;
@@ -199,7 +200,7 @@ function render(){
   document.getElementById("top-title").textContent=(qs?"Найдено: "+top.length+" · ":"Топ позиций · ")+label;
   const maxTop=top.length?top[0].r:1;
   document.getElementById("toptb").innerHTML=top.map((it,i)=>
-    `<tr><td>${i+1}</td><td>${it.base}</td><td class="r">${fmt(it.q)}</td>
+    `<tr><td>${i+1}</td><td>${esc(it.base)}</td><td class="r">${fmt(it.q)}</td>
      <td class="r"><span class="minibar" style="width:${Math.max(2,it.r/maxTop*90)}px"></span><b>${fmt(it.r)} ₽</b></td>
      <td class="r">${totR>0?(it.r/totR*100).toFixed(1):0}%</td></tr>`).join("")
     ||'<tr><td colspan="5" class="loading">Нет продаж за период</td></tr>';

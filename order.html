@@ -333,6 +333,11 @@ function getCat(n){
   }
   return "Прочее";
 }
+// Экранирование данных из МойСклада (имена товаров/проектов, размеры) при вставке в HTML.
+// Кавычки в именах («Куртка "Плохого парня"») отображаются как раньше — через HTML-entities.
+function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+// для имён внутри JS-строк inline-обработчиков (onclick="...('имя')")
+function jse(s){ return String(s).replace(/\\/g,"\\\\").replace(/'/g,"\\'").replace(/"/g,"&quot;"); }
 function fmt(n){ if(!n&&n!==0) return "—"; return Math.round(n).toLocaleString("ru-RU"); }
 function fmtMoney(n){
   n=n||0;
@@ -350,6 +355,20 @@ function rowCls(t,nr){
 
 // ══════ Данные ══════
 let stockData={}, allDates=[], SKUS={}, hiddenItems=new Set(), INCOMING={};
+let DW={};
+// Вес даты в календарных днях (аудит 18.08): до ~07.2025 история недельная
+// (понедельники) — «+1 за дату» занижал дни в стоке старых позиций до ~7 раз.
+function buildDW(dates){
+  const w={};
+  for(let i=0;i<dates.length;i++){
+    if(i+1<dates.length){
+      const g=Math.round((new Date(dates[i+1])-new Date(dates[i]))/86400000);
+      w[dates[i]]=Math.min(Math.max(g,1),7);
+    } else w[dates[i]]=1;
+  }
+  return w;
+}
+
 let COSTP={};                 // цены из МойСклада: {name:{purchase,cost,price}}
 let COSTS={};                 // ручные себесы (глобальные, /api/costs)
 let computed={};
@@ -381,7 +400,7 @@ async function loadData(){
     }
   }catch(e){ GRID={}; }
   const a=await aRes.json(), t=await tRes.json();
-  allDates=a.dates||[]; stockData=a.stock||{};
+  allDates=a.dates||[]; DW=buildDW(allDates); stockData=a.stock||{};
   SKUS=(t&&t.skus)||{};
   try{ hiddenItems=new Set(await hRes.json()); }catch(e){}
   try{
@@ -406,7 +425,7 @@ function computeAll(){
     const sk=SKUS[base]||{nq:0,nr:0};
     const skNq=sk.nq||0, skNr=sk.nr||0;
     let dis=0,prev=0;
-    for(const d of allDates){const s=dm[d]!==undefined?dm[d]:prev;if(s>=3)dis++;prev=s;}
+    for(const d of allDates){const s=dm[d]!==undefined?dm[d]:prev;if(s>=3)dis+=(DW[d]||1);prev=s;}
     const turn=dis>0?skNr/dis:0;
     // остаток = значение на ПОСЛЕДНЮЮ дату снапшота; отсутствие строки = 0 (распродано).
     // Раньше брался «последний записанный» — у распроданных вечно висел фантомный положительный остаток.
@@ -523,8 +542,8 @@ async function loadProjects(){
   let html=PROJECTS.map(p=>{
     const dt=p.date?new Date(p.date).toLocaleDateString("ru-RU",{day:"numeric",month:"long",year:"numeric"}):"";
     return `<div class="proj-card" onclick="openProject('${p.id}')">
-      <button class="pdel" onclick="event.stopPropagation();deleteProject('${p.id}','${(p.name||"").replace(/'/g,"’").replace(/"/g,"”")}')">✕</button>
-      <div class="pname2">${p.name}</div>
+      <button class="pdel" onclick="event.stopPropagation();deleteProject('${p.id}','${jse(p.name||"")}')">✕</button>
+      <div class="pname2">${esc(p.name)}</div>
       <div class="pdate">${dt?("приход · "+dt):"без даты"}</div>
     </div>`;
   }).join("");
@@ -832,23 +851,23 @@ function renderTable(lab,china){
     const nec=necOf(base,d);
     const c=costOf(base);
     const manualQ=ORDERQ[base]!==undefined&&ORDERQ[base]!==nec;
-    const esc=base.replace(/"/g,"&quot;");
+    const be=esc(base);   // для data-атрибутов и текста: dataset.base декодирует entities обратно
     const isOpen=OPEN.has(base);
     const tr=document.createElement("tr");
     tr.className=rowCls(d.turn,d.nr);
     const head=`
-      <td><span class="sz-arrow" data-base="${esc}" title="Разбивка заказа по размерам">${isOpen?"▾":"▸"}</span>${base}</td>
+      <td><span class="sz-arrow" data-base="${be}" title="Разбивка заказа по размерам">${isOpen?"▾":"▸"}</span>${be}</td>
       <td class="nb">${fmt(projStock(base,d))}</td>
       <td class="nb nbig">${fmt(d.need)}</td>
-      <td><input class="qin${manualQ?' manual':''}" type="number" min="0" step="1" value="${q}" data-base="${esc}"></td>`;
+      <td><input class="qin${manualQ?' manual':''}" type="number" min="0" step="1" value="${q}" data-base="${be}"></td>`;
     const tail=`
-      <td><button class="mv-btn" data-base="${esc}" data-to="${currentTab==="lab"?"china":"lab"}">${currentTab==="lab"?"в Китай →":"← в Лабу"}</button></td>
-      <td><button class="x-btn" data-base="${esc}" title="Убрать из заказа">✕</button></td>`;
+      <td><button class="mv-btn" data-base="${be}" data-to="${currentTab==="lab"?"china":"lab"}">${currentTab==="lab"?"в Китай →":"← в Лабу"}</button></td>
+      <td><button class="x-btn" data-base="${be}" title="Убрать из заказа">✕</button></td>`;
     if(currentTab==="lab"){
       tr.innerHTML=head+`
       <td class="nb">${c.fabric?fmt(c.fabric):'<span style="opacity:.3">—</span>'}</td>
       <td class="nb">${c.sew?fmt(c.sew):'<span style="opacity:.3">—</span>'}</td>
-      <td><input class="cost-in${c.override?' manual':''}" type="number" min="0" step="1" value="${Math.round(c.total)||''}" placeholder="—" data-base="${esc}"></td>
+      <td><input class="cost-in${c.override?' manual':''}" type="number" min="0" step="1" value="${Math.round(c.total)||''}" placeholder="—" data-base="${be}"></td>
       <td class="nb money">${fmt(q*c.fabric)}</td>
       <td class="nb money">${fmt(q*c.sew)}</td>
       <td class="nb money">${fmt(q*c.total)}</td>
@@ -856,7 +875,7 @@ function renderTable(lab,china){
     } else {
       // Китай: вещи под ключ — только себестоимость, без ткани и пошива
       tr.innerHTML=head+`
-      <td><input class="cost-in${c.override?' manual':''}" type="number" min="0" step="1" value="${Math.round(c.total)||''}" placeholder="—" data-base="${esc}"></td>
+      <td><input class="cost-in${c.override?' manual':''}" type="number" min="0" step="1" value="${Math.round(c.total)||''}" placeholder="—" data-base="${be}"></td>
       <td class="nb money">${fmt(q*c.total)}</td>
       <td class="nb rev">${fmt(q*c.price)}</td>`+tail;
     }
@@ -868,9 +887,9 @@ function renderTable(lab,china){
       let inner;
       if(eff){
         inner='<div class="szwrap"><span class="szlbl2">Заказ по размерам</span>'+
-          eff.list.map(([s,x])=>'<span class="szcell"><span class="szn">'+s+'</span>'+
+          eff.list.map(([s,x])=>'<span class="szcell"><span class="szn">'+esc(s)+'</span>'+
             '<input class="szin'+(eff.manual?' manual':'')+'" type="number" min="0" step="1" value="'+x+
-            '" data-base="'+esc+'" data-size="'+String(s).replace(/"/g,"&quot;")+'"></span>').join("")+
+            '" data-base="'+be+'" data-size="'+esc(s)+'"></span>').join("")+
           '<span class="sznote">'+
           (eff.manual?'размеры правлены вручную · при изменении общего кол-ва пересчитаются по продажам':
            eff.nodata?'нет истории продаж по размерам — распредели вручную':
@@ -904,10 +923,10 @@ function renderExcluded(labAll,chinaAll){
       :'<span style="font-size:10px;padding:1px 8px;border-radius:9px;background:rgba(31,31,31,0.08);color:#434446;font-weight:600">расчёт &lt; '+MIN_ORDER+' шт</span>';
     const tr=document.createElement("tr");
     tr.className=rowCls(d.turn,d.nr);
-    tr.innerHTML=`<td>${base}</td>
+    tr.innerHTML=`<td>${esc(base)}</td>
       <td class="nb">${fmt(projStock(base,d))}</td><td class="nb">${fmt(necOf(base,d))}</td>
       <td>${reason}</td>
-      <td><button class="mv-btn ret-btn" data-base="${base.replace(/"/g,"&quot;")}">вернуть в заказ</button></td>`;
+      <td><button class="mv-btn ret-btn" data-base="${esc(base)}">вернуть в заказ</button></td>`;
     etb.appendChild(tr);
   }
 }
@@ -984,7 +1003,7 @@ function downloadOrder(){
       const q=qtyOf(base,d), c=costOf(base);
       lt.q+=q; lt.f+=q*c.fabric; lt.s+=q*c.sew; lt.t+=q*c.total;
       cq+=q; cf+=q*c.fabric; cs+=q*c.sew; ctl+=q*c.total;
-      html+=`<tr><td>${n++}</td><td class="l">${base}</td><td><b>${q}</b></td><td>${rub(c.fabric)}</td><td>${rub(c.sew)}</td><td>${rub(c.total)}</td><td>${rub(q*c.fabric)}</td><td>${rub(q*c.sew)}</td><td><b>${rub(q*c.total)}</b></td></tr>`;
+      html+=`<tr><td>${n++}</td><td class="l">${esc(base)}</td><td><b>${q}</b></td><td>${rub(c.fabric)}</td><td>${rub(c.sew)}</td><td>${rub(c.total)}</td><td>${rub(q*c.fabric)}</td><td>${rub(q*c.sew)}</td><td><b>${rub(q*c.total)}</b></td></tr>`;
     }
     html+='</tbody></table>';
     html+=`<div class="cattot">Итого «${cat}»: <b>${rub(cq)} шт</b> · ткань <b>${rub(cf)} ₽</b> · пошив <b>${rub(cs)} ₽</b> · себестоимость <b>${rub(ctl)} ₽</b></div>`;
@@ -1005,7 +1024,7 @@ function downloadOrder(){
       const q=qtyOf(base,d), c=costOf(base);
       ct.q+=q; ct.t+=q*c.total;
       cq+=q; ctl+=q*c.total;
-      html+=`<tr><td>${n++}</td><td class="l">${base}</td><td><b>${q}</b></td><td>${rub(c.total)}</td><td><b>${rub(q*c.total)}</b></td></tr>`;
+      html+=`<tr><td>${n++}</td><td class="l">${esc(base)}</td><td><b>${q}</b></td><td>${rub(c.total)}</td><td><b>${rub(q*c.total)}</b></td></tr>`;
     }
     html+='</tbody></table>';
     html+=`<div class="cattot">Итого «${cat}»: <b>${rub(cq)} шт</b> · себестоимость <b>${rub(ctl)} ₽</b></div>`;
@@ -1015,7 +1034,7 @@ function downloadOrder(){
   html+=`<div class="tot grand">Всего по заказу: <b>${rub(lt.q+ct.q)} шт</b> · себестоимость <b>${rub(lt.t+ct.t)} ₽</b></div>`;
 
   const doc=`<!DOCTYPE html><html lang="ru"><head><meta charset="UTF-8">
-<title>Заказ — ${PNAME}</title><style>
+<title>Заказ — ${esc(PNAME)}</title><style>
 body{font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;color:#1f1f1f;margin:40px;max-width:1000px}
 h1{font-size:22px;margin-bottom:2px} .meta{color:#777;font-size:13px;margin-bottom:24px}
 h2{font-size:16px;text-transform:uppercase;letter-spacing:.08em;margin:28px 0 6px;border-bottom:2px solid #1f1f1f;padding-bottom:4px}
@@ -1030,7 +1049,7 @@ tr:nth-child(even) td{background:#faf7f3}
 .tot.grand{background:#1f1f1f;color:#f3e9e0;font-size:14px}
 @media print{body{margin:12mm} h2{page-break-after:avoid} table{page-break-inside:auto} tr{page-break-inside:avoid}}
 </style></head><body>
-<h1>Заказ «${PNAME}»</h1>
+<h1>Заказ «${esc(PNAME)}»</h1>
 <div class="meta">ожидаемый приход: ${arrival} · сформировано: ${today} · Chernim Cherno</div>
 ${html}
 </body></html>`;
@@ -1048,7 +1067,7 @@ function downloadOrderPlain(){
   const szText=(base,q)=>{
     const eff=sizesOf(base,q);
     if(!eff||!eff.list.some(([,x])=>x>0)) return '<span style="color:#aaa">—</span>';
-    return eff.list.filter(([,x])=>x>0).map(([s,x])=>s+" — <b>"+x+"</b>").join(" &nbsp;·&nbsp; ");
+    return eff.list.filter(([,x])=>x>0).map(([s,x])=>esc(s)+" — <b>"+x+"</b>").join(" &nbsp;·&nbsp; ");
   };
   let n=1;
   const section=(ttl,rows)=>{
@@ -1061,7 +1080,7 @@ function downloadOrderPlain(){
       out+='<h3>'+cat+'</h3><table><thead><tr><th>№</th><th class="l">Название</th><th class="l">Заказ позиции</th><th>Кол-во, шт</th></tr></thead><tbody>';
       for(const [base,d] of rr){
         const q=qtyOf(base,d); tq+=q; cq+=q;
-        out+='<tr><td>'+(n++)+'</td><td class="l">'+base+'</td><td class="l">'+szText(base,q)+'</td><td><b>'+q+'</b></td></tr>';
+        out+='<tr><td>'+(n++)+'</td><td class="l">'+esc(base)+'</td><td class="l">'+szText(base,q)+'</td><td><b>'+q+'</b></td></tr>';
       }
       out+='</tbody></table><div class="cattot">Итого «'+cat+'»: <b>'+cq.toLocaleString("ru-RU")+' шт</b></div>';
     }
@@ -1078,7 +1097,7 @@ function downloadOrderPlain(){
   const html=L.out+C.out+
     '<div class="tot grand">Всего по заказу: <b>'+(L.tq+C.tq).toLocaleString("ru-RU")+' шт</b></div>';
   const doc=`<!DOCTYPE html><html lang="ru"><head><meta charset="UTF-8">
-<title>Заказ — ${PNAME} (производство)</title><style>
+<title>Заказ — ${esc(PNAME)} (производство)</title><style>
 body{font-family:Helvetica,'Helvetica Neue',Arial,sans-serif;color:#1f1f1f;margin:40px;max-width:900px}
 h1{font-size:22px;margin-bottom:2px} .meta{color:#777;font-size:13px;margin-bottom:24px}
 h2{font-size:16px;text-transform:uppercase;letter-spacing:.08em;margin:28px 0 6px;border-bottom:2px solid #1f1f1f;padding-bottom:4px}
@@ -1093,7 +1112,7 @@ tr:nth-child(even) td{background:#faf7f3}
 .tot.grand{background:#1f1f1f;color:#f3e9e0;font-size:14px}
 @media print{body{margin:12mm} h2{page-break-after:avoid} table{page-break-inside:auto} tr{page-break-inside:avoid}}
 </style></head><body>
-<h1>Заказ «${PNAME}»</h1>
+<h1>Заказ «${esc(PNAME)}»</h1>
 <div class="meta">версия для производства — без цен · ожидаемый приход: ${arrival} · сформировано: ${today} · ${szNote} · Chernim Cherno</div>
 ${html}
 </body></html>`;
